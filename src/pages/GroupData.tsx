@@ -153,7 +153,7 @@ export default function GroupData() {
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
 
-  const { reset, control, handleSubmit } = useForm<z.infer<typeof formSchema>>({
+  const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       publishers_count: 0,
@@ -183,7 +183,7 @@ export default function GroupData() {
       const report = await getGroupReport(selectedGroupId, monthStr)
       if (report) {
         setReportId(report.id)
-        reset({
+        form.reset({
           publishers_count: report.publishers_count || 0,
           publisher_hours: report.publisher_hours || 0,
           publisher_bible_studies: report.publisher_bible_studies || 0,
@@ -196,7 +196,7 @@ export default function GroupData() {
         })
       } else {
         setReportId(null)
-        reset({
+        form.reset({
           publishers_count: 0,
           publisher_hours: 0,
           publisher_bible_studies: 0,
@@ -218,7 +218,7 @@ export default function GroupData() {
     } finally {
       setIsLoading(false)
     }
-  }, [selectedGroupId, selectedMonth, selectedYear, reset, toast])
+  }, [selectedGroupId, selectedMonth, selectedYear, form.reset, toast])
 
   useEffect(() => {
     if (selectedGroupId) {
@@ -369,8 +369,8 @@ export default function GroupData() {
               ))}
             </div>
           ) : (
-            <Form {...({ control, handleSubmit, reset } as any)}>
-              <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                 {!reportId && (
                   <div className="flex items-center gap-3 text-amber-800 bg-amber-100/50 p-4 rounded-lg border border-amber-200">
                     <AlertCircle className="h-5 w-5 text-amber-600" />
@@ -381,16 +381,16 @@ export default function GroupData() {
                 )}
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <CategorySection title="Publicadores" prefix="publisher" control={control} />
+                  <CategorySection title="Publicadores" prefix="publisher" control={form.control} />
                   <CategorySection
                     title="Pioneiros Auxiliares"
                     prefix="auxiliary_pioneer"
-                    control={control}
+                    control={form.control}
                   />
                   <CategorySection
                     title="Pioneiros Regulares"
                     prefix="regular_pioneer"
-                    control={control}
+                    control={form.control}
                   />
                 </div>
 
