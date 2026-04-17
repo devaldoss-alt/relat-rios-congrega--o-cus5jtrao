@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-17T22:35:01.026Z",
+  "generatedAt": "2026-04-17T22:46:03.021Z",
   "collections": [
     {
       "name": "users",
@@ -572,6 +572,73 @@
       ],
       "indexes": [
         "CREATE UNIQUE INDEX idx_monthly_summaries_period ON monthly_summaries (month, year)"
+      ]
+    },
+    {
+      "name": "publisher_reports",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && (publisher_id.group_id.leader = @request.auth.id || @request.auth.role = 'Secretário')",
+        "view": "@request.auth.id != '' && (publisher_id.group_id.leader = @request.auth.id || @request.auth.role = 'Secretário')",
+        "create": "@request.auth.id != '' && (publisher_id.group_id.leader = @request.auth.id || @request.auth.role = 'Secretário')",
+        "update": "@request.auth.id != '' && (publisher_id.group_id.leader = @request.auth.id || @request.auth.role = 'Secretário')",
+        "delete": "@request.auth.id != '' && (publisher_id.group_id.leader = @request.auth.id || @request.auth.role = 'Secretário')"
+      },
+      "fields": [
+        {
+          "name": "publisher_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "publishers"
+        },
+        {
+          "name": "month",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "year",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "hours",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "bible_studies",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "notes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_publisher_reports_unique ON publisher_reports (publisher_id, month, year)"
       ]
     }
   ]

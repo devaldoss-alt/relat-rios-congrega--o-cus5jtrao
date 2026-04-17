@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { useForm } from 'react-hook-form'
+import { useForm, useFieldArray } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useEffect, useState, useCallback } from 'react'
 import { useAuth } from '@/hooks/use-auth'
@@ -7,7 +7,8 @@ import { Navigate } from 'react-router-dom'
 import { useToast } from '@/components/ui/use-toast'
 import { getGroups } from '@/services/groups'
 import { getGroupReport, createGroupReport, updateGroupReport } from '@/services/group_reports'
-import { getPublishersByGroup, type Publisher } from '@/services/publishers'
+import { getPublishersByGroup } from '@/services/publishers'
+import { getPublisherReports, savePublisherReport } from '@/services/publisher_reports'
 import { useRealtime } from '@/hooks/use-realtime'
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -19,14 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form'
+import { Form, FormControl, FormField, FormItem } from '@/components/ui/form'
 import {
   Select,
   SelectContent,
@@ -44,16 +38,19 @@ const numberField = z
   .transform((v) => (v === '' ? 0 : Number(v)))
   .pipe(z.number().min(0, 'Mínimo 0'))
 
+const reportSchema = z.object({
+  id: z.string().optional(),
+  publisher_id: z.string(),
+  name: z.string(),
+  type: z.string(),
+  active: z.boolean(),
+  hours: numberField,
+  bible_studies: numberField,
+  notes: z.string().optional(),
+})
+
 const formSchema = z.object({
-  publishers_count: numberField,
-  publisher_hours: numberField,
-  publisher_bible_studies: numberField,
-  auxiliary_pioneers_count: numberField,
-  auxiliary_pioneer_hours: numberField,
-  auxiliary_pioneer_bible_studies: numberField,
-  regular_pioneers_count: numberField,
-  regular_pioneer_hours: numberField,
-  regular_pioneer_bible_studies: numberField,
+  reports: z.array(reportSchema),
 })
 
 const months = [
@@ -73,75 +70,6 @@ const months = [
 
 const years = ['2024', '2025', '2026']
 
-const CategorySection = ({
-  title,
-  prefix,
-  control,
-}: {
-  title: string
-  prefix: 'publisher' | 'auxiliary_pioneer' | 'regular_pioneer'
-  control: any
-}) => {
-  const countName =
-    prefix === 'publisher'
-      ? 'publishers_count'
-      : prefix === 'auxiliary_pioneer'
-        ? 'auxiliary_pioneers_count'
-        : 'regular_pioneers_count'
-  const hoursName = `${prefix}_hours`
-  const studiesName = `${prefix}_bible_studies`
-
-  return (
-    <div className="space-y-4 p-5 border rounded-xl bg-card/50 shadow-sm">
-      <h3 className="font-semibold text-lg border-b pb-2 text-primary">{title}</h3>
-
-      <FormField
-        control={control}
-        name={countName as any}
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Quantidade</FormLabel>
-            <FormControl>
-              <Input type="number" min="0" {...field} className="bg-background" />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-
-      {prefix !== 'publisher' && (
-        <FormField
-          control={control}
-          name={hoursName as any}
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Horas</FormLabel>
-              <FormControl>
-                <Input type="number" min="0" step="0.1" {...field} className="bg-background" />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-      )}
-
-      <FormField
-        control={control}
-        name={studiesName as any}
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Estudos Bíblicos</FormLabel>
-            <FormControl>
-              <Input type="number" min="0" {...field} className="bg-background" />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-    </div>
-  )
-}
-
 export default function GroupData() {
   const { user } = useAuth()
   const { toast } = useToast()
@@ -160,24 +88,20 @@ export default function GroupData() {
   )
   const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString())
 
-  const [reportId, setReportId] = useState<string | null>(null)
+  const [groupReportId, setGroupReportId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
-  const [groupPublishers, setGroupPublishers] = useState<Publisher[]>([])
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      publishers_count: 0,
-      publisher_hours: 0,
-      publisher_bible_studies: 0,
-      auxiliary_pioneers_count: 0,
-      auxiliary_pioneer_hours: 0,
-      auxiliary_pioneer_bible_studies: 0,
-      regular_pioneers_count: 0,
-      regular_pioneer_hours: 0,
-      regular_pioneer_bible_studies: 0,
+      reports: [],
     },
+  })
+
+  const { fields } = useFieldArray({
+    control: form.control,
+    name: 'reports',
   })
 
   useEffect(() => {
@@ -192,49 +116,44 @@ export default function GroupData() {
     setIsLoading(true)
     try {
       const monthStr = `${selectedYear}-${selectedMonth}`
-      const report = await getGroupReport(selectedGroupId, monthStr)
-      if (report) {
-        setReportId(report.id)
-        form.reset({
-          publishers_count: report.publishers_count || 0,
-          publisher_hours: report.publisher_hours || 0,
-          publisher_bible_studies: report.publisher_bible_studies || 0,
-          auxiliary_pioneers_count: report.auxiliary_pioneers_count || 0,
-          auxiliary_pioneer_hours: report.auxiliary_pioneer_hours || 0,
-          auxiliary_pioneer_bible_studies: report.auxiliary_pioneer_bible_studies || 0,
-          regular_pioneers_count: report.regular_pioneers_count || 0,
-          regular_pioneer_hours: report.regular_pioneer_hours || 0,
-          regular_pioneer_bible_studies: report.regular_pioneer_bible_studies || 0,
-        })
-      } else {
-        setReportId(null)
-        form.reset({
-          publishers_count: 0,
-          publisher_hours: 0,
-          publisher_bible_studies: 0,
-          auxiliary_pioneers_count: 0,
-          auxiliary_pioneer_hours: 0,
-          auxiliary_pioneer_bible_studies: 0,
-          regular_pioneers_count: 0,
-          regular_pioneer_hours: 0,
-          regular_pioneer_bible_studies: 0,
-        })
-      }
+      const gReport = await getGroupReport(selectedGroupId, monthStr)
+      setGroupReportId(gReport?.id || null)
 
-      // Load publishers for the group
       const pubs = await getPublishersByGroup(selectedGroupId)
-      setGroupPublishers(pubs)
+      const pReports = await getPublisherReports(
+        selectedGroupId,
+        selectedMonth,
+        Number(selectedYear),
+      )
+
+      const mergedReports = pubs
+        .filter((pub) => pub.active || pReports.some((r) => r.publisher_id === pub.id))
+        .map((pub) => {
+          const existing = pReports.find((r) => r.publisher_id === pub.id)
+          return {
+            id: existing?.id,
+            publisher_id: pub.id,
+            name: pub.name,
+            type: pub.type,
+            active: pub.active,
+            hours: existing?.hours || 0,
+            bible_studies: existing?.bible_studies || 0,
+            notes: existing?.notes || '',
+          }
+        })
+
+      form.reset({ reports: mergedReports })
     } catch (err) {
       console.error(err)
       toast({
         title: 'Erro ao carregar dados',
-        description: 'Ocorreu um erro ao buscar o relatório.',
+        description: 'Ocorreu um erro ao buscar os relatórios.',
         variant: 'destructive',
       })
     } finally {
       setIsLoading(false)
     }
-  }, [selectedGroupId, selectedMonth, selectedYear, form.reset, toast])
+  }, [selectedGroupId, selectedMonth, selectedYear, form, toast])
 
   useEffect(() => {
     if (selectedGroupId) {
@@ -244,20 +163,9 @@ export default function GroupData() {
     }
   }, [loadReport, selectedGroupId, groups.length])
 
-  useRealtime('group_reports', (e) => {
-    if (e.action === 'create' || e.action === 'update') {
-      if (
-        e.record.group_id === selectedGroupId &&
-        e.record.month === `${selectedYear}-${selectedMonth}`
-      ) {
-        loadReport()
-      }
-    }
-  })
-
   useRealtime('publishers', () => {
     if (selectedGroupId) {
-      getPublishersByGroup(selectedGroupId).then(setGroupPublishers).catch(console.error)
+      loadReport()
     }
   })
 
@@ -277,24 +185,78 @@ export default function GroupData() {
 
     setIsSaving(true)
     try {
-      const monthStr = `${selectedYear}-${selectedMonth}`
-      const data = {
-        group_id: selectedGroupId,
-        month: monthStr,
-        ...values,
+      await Promise.all(
+        values.reports.map((report) =>
+          savePublisherReport({
+            id: report.id,
+            publisher_id: report.publisher_id,
+            month: selectedMonth,
+            year: Number(selectedYear),
+            hours: report.hours,
+            bible_studies: report.bible_studies,
+            notes: report.notes,
+          }),
+        ),
+      )
+
+      let publishers_count = 0
+      let publisher_hours = 0
+      let publisher_bible_studies = 0
+
+      let auxiliary_pioneers_count = 0
+      let auxiliary_pioneer_hours = 0
+      let auxiliary_pioneer_bible_studies = 0
+
+      let regular_pioneers_count = 0
+      let regular_pioneer_hours = 0
+      let regular_pioneer_bible_studies = 0
+
+      for (const report of values.reports) {
+        const isReported = report.hours > 0 || report.bible_studies > 0 || report.active
+
+        if (report.type === 'publicador') {
+          if (isReported) publishers_count++
+          publisher_hours += report.hours
+          publisher_bible_studies += report.bible_studies
+        } else if (report.type === 'pioneiro_auxiliar') {
+          if (isReported) auxiliary_pioneers_count++
+          auxiliary_pioneer_hours += report.hours
+          auxiliary_pioneer_bible_studies += report.bible_studies
+        } else if (report.type === 'pioneiro_regular') {
+          if (isReported) regular_pioneers_count++
+          regular_pioneer_hours += report.hours
+          regular_pioneer_bible_studies += report.bible_studies
+        }
       }
 
-      if (reportId) {
-        await updateGroupReport(reportId, data)
+      const monthStr = `${selectedYear}-${selectedMonth}`
+      const groupData = {
+        group_id: selectedGroupId,
+        month: monthStr,
+        publishers_count,
+        publisher_hours,
+        publisher_bible_studies,
+        auxiliary_pioneers_count,
+        auxiliary_pioneer_hours,
+        auxiliary_pioneer_bible_studies,
+        regular_pioneers_count,
+        regular_pioneer_hours,
+        regular_pioneer_bible_studies,
+      }
+
+      if (groupReportId) {
+        await updateGroupReport(groupReportId, groupData)
       } else {
-        const created = await createGroupReport(data)
-        setReportId(created.id)
+        const created = await createGroupReport(groupData)
+        setGroupReportId(created.id)
       }
 
       toast({
-        title: 'Relatório salvo com sucesso!',
+        title: 'Relatórios salvos com sucesso!',
         className: 'bg-green-600 text-white border-none',
       })
+
+      await loadReport()
     } catch (err: any) {
       console.error(err)
       toast({
@@ -310,9 +272,9 @@ export default function GroupData() {
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-10">
       <div>
-        <h2 className="text-3xl font-bold tracking-tight">Entrada de Dados</h2>
+        <h2 className="text-3xl font-bold tracking-tight">Entrada de Dados do Grupo</h2>
         <p className="text-muted-foreground mt-1">
-          Insira e atualize os relatórios mensais de atividade do seu grupo.
+          Registre a atividade mensal de cada publicador do seu grupo individualmente.
         </p>
       </div>
 
@@ -320,7 +282,7 @@ export default function GroupData() {
         <CardHeader className="bg-muted/30 pb-6 border-b">
           <CardTitle>Período e Grupo</CardTitle>
           <CardDescription>
-            Selecione o mês, ano e grupo para visualizar ou preencher os dados.
+            Selecione o mês, ano e grupo para visualizar ou preencher os dados dos publicadores.
           </CardDescription>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4">
@@ -377,61 +339,150 @@ export default function GroupData() {
             </div>
           </div>
         </CardHeader>
+      </Card>
 
-        <CardContent className="pt-6">
+      <Card className="border-t-4 border-t-primary shadow-md mt-8">
+        <CardHeader className="bg-muted/30 pb-4 border-b">
+          <CardTitle>Relatório Individual</CardTitle>
+          <CardDescription>
+            Preencha os dados de atividade de cada publicador na tabela abaixo. O relatório total do
+            grupo será calculado e salvo automaticamente.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="p-0">
           {isLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-pulse">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="space-y-4 p-5 border rounded-xl bg-card/50">
-                  <Skeleton className="h-7 w-32 mb-4" />
-                  <Skeleton className="h-10 w-full" />
-                  <Skeleton className="h-10 w-full" />
-                  <Skeleton className="h-10 w-full" />
-                </div>
-              ))}
+            <div className="p-6 space-y-4">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
             </div>
           ) : (
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                {!reportId && (
-                  <div className="flex items-center gap-3 text-amber-800 bg-amber-100/50 p-4 rounded-lg border border-amber-200">
+              <form onSubmit={form.handleSubmit(onSubmit)}>
+                {!groupReportId && fields.length > 0 && (
+                  <div className="flex items-center gap-3 text-amber-800 bg-amber-100/50 p-4 m-6 rounded-lg border border-amber-200">
                     <AlertCircle className="h-5 w-5 text-amber-600" />
                     <p className="text-sm font-medium">
-                      Nenhum relatório preenchido para este mês. Você pode criar um novo abaixo.
+                      Nenhum relatório preenchido para este mês. Preencha a tabela abaixo para
+                      salvar a atividade.
                     </p>
                   </div>
                 )}
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <CategorySection title="Publicadores" prefix="publisher" control={form.control} />
-                  <CategorySection
-                    title="Pioneiros Auxiliares"
-                    prefix="auxiliary_pioneer"
-                    control={form.control}
-                  />
-                  <CategorySection
-                    title="Pioneiros Regulares"
-                    prefix="regular_pioneer"
-                    control={form.control}
-                  />
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader className="bg-muted/10">
+                      <TableRow>
+                        <TableHead className="w-[30%]">Nome do Publicador</TableHead>
+                        <TableHead className="w-[15%]">Tipo</TableHead>
+                        <TableHead className="w-[15%]">Horas</TableHead>
+                        <TableHead className="w-[15%]">Estudos</TableHead>
+                        <TableHead className="w-[25%]">Observações</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {fields.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                            Nenhum publicador encontrado neste grupo.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        fields.map((field, index) => (
+                          <TableRow
+                            key={field.id}
+                            className={!field.active && !field.id ? 'opacity-60 bg-muted/20' : ''}
+                          >
+                            <TableCell className="font-medium">
+                              <div className="flex flex-col gap-1">
+                                <span>{field.name}</span>
+                                {!field.active && (
+                                  <span className="text-[10px] uppercase font-bold text-slate-500 bg-slate-200 px-1.5 py-0.5 rounded-sm w-fit">
+                                    Inativo
+                                  </span>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell className="capitalize text-sm text-muted-foreground">
+                              {field.type.replace('_', ' ')}
+                            </TableCell>
+                            <TableCell>
+                              <FormField
+                                control={form.control}
+                                name={`reports.${index}.hours`}
+                                render={({ field: inputField }) => (
+                                  <FormItem>
+                                    <FormControl>
+                                      <Input
+                                        type="number"
+                                        min="0"
+                                        step="0.1"
+                                        className="w-24 bg-background"
+                                        {...inputField}
+                                      />
+                                    </FormControl>
+                                  </FormItem>
+                                )}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <FormField
+                                control={form.control}
+                                name={`reports.${index}.bible_studies`}
+                                render={({ field: inputField }) => (
+                                  <FormItem>
+                                    <FormControl>
+                                      <Input
+                                        type="number"
+                                        min="0"
+                                        className="w-24 bg-background"
+                                        {...inputField}
+                                      />
+                                    </FormControl>
+                                  </FormItem>
+                                )}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <FormField
+                                control={form.control}
+                                name={`reports.${index}.notes`}
+                                render={({ field: inputField }) => (
+                                  <FormItem>
+                                    <FormControl>
+                                      <Input
+                                        placeholder="Notas..."
+                                        className="bg-background"
+                                        {...inputField}
+                                      />
+                                    </FormControl>
+                                  </FormItem>
+                                )}
+                              />
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
                 </div>
 
-                <div className="flex justify-end pt-4 border-t mt-8">
+                <div className="p-6 flex justify-end bg-muted/10 border-t mt-2">
                   <Button
                     type="submit"
                     size="lg"
-                    disabled={isSaving || !selectedGroupId}
-                    className="bg-blue-600 hover:bg-blue-700 text-white min-w-[150px]"
+                    disabled={isSaving || fields.length === 0 || !selectedGroupId}
+                    className="bg-blue-600 hover:bg-blue-700 text-white min-w-[180px]"
                   >
                     {isSaving ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Salvando...
+                        Salvando Relatórios...
                       </>
                     ) : (
                       <>
                         <Save className="mr-2 h-4 w-4" />
-                        Salvar Relatório
+                        Salvar Atividades
                       </>
                     )}
                   </Button>
@@ -441,63 +492,6 @@ export default function GroupData() {
           )}
         </CardContent>
       </Card>
-
-      {selectedGroupId && (
-        <Card className="border-t-4 border-t-primary shadow-md animate-fade-in-up mt-8">
-          <CardHeader className="bg-muted/30 pb-6 border-b">
-            <CardTitle>Publicadores do Grupo</CardTitle>
-            <CardDescription>
-              Lista de publicadores designados para este grupo, com suas informações de contato.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="pt-6">
-            {isLoading ? (
-              <div className="space-y-4">
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
-              </div>
-            ) : (
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Nome</TableHead>
-                      <TableHead>Telefone</TableHead>
-                      <TableHead>Tipo</TableHead>
-                      <TableHead>Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {groupPublishers.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={4} className="text-center py-4">
-                          Nenhum publicador encontrado neste grupo.
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      groupPublishers.map((pub) => (
-                        <TableRow key={pub.id}>
-                          <TableCell className="font-medium">{pub.name}</TableCell>
-                          <TableCell>{pub.phone || '-'}</TableCell>
-                          <TableCell className="capitalize">{pub.type.replace('_', ' ')}</TableCell>
-                          <TableCell>
-                            <span
-                              className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${pub.active ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400'}`}
-                            >
-                              {pub.active ? 'Ativo' : 'Inativo'}
-                            </span>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
     </div>
   )
 }
