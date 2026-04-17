@@ -2,7 +2,8 @@ routerAdd(
   'POST',
   '/backend/v1/sync-attendance',
   (e) => {
-    if (e.auth?.getString('role') !== 'Secretário') {
+    const authRole = e.auth?.getString('role')
+    if (authRole !== 'Secretário') {
       return e.forbiddenError('Apenas o Secretário pode sincronizar')
     }
 
@@ -14,25 +15,25 @@ routerAdd(
       return e.internalServerError('Falha ao buscar dados do Google Sheets')
     }
 
-    let bytes = res.body
+    const bytes = res.body
     let csvText = ''
     let i = 0
 
     while (i < bytes.length) {
-      let c = bytes[i++]
+      const c = bytes[i++]
       if (c < 0x80) {
         csvText += String.fromCharCode(c)
       } else if (c > 0xbf && c < 0xe0) {
-        let c2 = bytes[i++]
+        const c2 = bytes[i++]
         csvText += String.fromCharCode(((c & 0x1f) << 6) | (c2 & 0x3f))
       } else if (c > 0xdf && c < 0xf0) {
-        let c2 = bytes[i++]
-        let c3 = bytes[i++]
+        const c2 = bytes[i++]
+        const c3 = bytes[i++]
         csvText += String.fromCharCode(((c & 0x0f) << 12) | ((c2 & 0x3f) << 6) | (c3 & 0x3f))
       } else {
-        let c2 = bytes[i++]
-        let c3 = bytes[i++]
-        let c4 = bytes[i++]
+        const c2 = bytes[i++]
+        const c3 = bytes[i++]
+        const c4 = bytes[i++]
         let cp = ((c & 0x07) << 18) | ((c2 & 0x3f) << 12) | ((c3 & 0x3f) << 6) | (c4 & 0x3f)
         cp -= 0x10000
         csvText += String.fromCharCode((cp >> 10) | 0xd800, (cp & 0x3ff) | 0xdc00)
@@ -40,17 +41,18 @@ routerAdd(
     }
 
     const rows = csvText.split('\n')
-    if (rows.length < 2) return e.json(200, { imported: 0 })
+    if (rows.length < 2) {
+      return e.json(200, { imported: 0 })
+    }
 
-    const headers = rows[0]
-      .replace(/"/g, '')
-      .replace(/\r/g, '')
-      .split(',')
-      .map((h) => h.trim().toLowerCase())
-    const dateIdx = headers.findIndex((h) => h === 'data')
-    const typeIdx = headers.findIndex((h) => h === 'tipo')
-    const inPersonIdx = headers.findIndex((h) => h === 'presenciais')
-    const zoomIdx = headers.findIndex((h) => h === 'zoom')
+    const headersLine = rows[0].replace(/"/g, '').replace(/\r/g, '')
+    const headers = headersLine.split(',')
+    const cleanHeaders = headers.map((h) => h.trim().toLowerCase())
+
+    const dateIdx = cleanHeaders.findIndex((h) => h === 'data')
+    const typeIdx = cleanHeaders.findIndex((h) => h === 'tipo')
+    const inPersonIdx = cleanHeaders.findIndex((h) => h === 'presenciais')
+    const zoomIdx = cleanHeaders.findIndex((h) => h === 'zoom')
 
     if (dateIdx === -1 || typeIdx === -1 || inPersonIdx === -1 || zoomIdx === -1) {
       return e.internalServerError('Colunas necessárias não encontradas na planilha')
@@ -65,24 +67,37 @@ routerAdd(
 
     $app.runInTransaction((txApp) => {
       for (let j = 1; j < rows.length; j++) {
-        if (!rows[j].trim()) continue
-        const cols = rows[j].replace(/"/g, '').replace(/\r/g, '').split(',')
-        if (cols.length < 4) continue
+        if (!rows[j].trim()) {
+          continue
+        }
+
+        const colsLine = rows[j].replace(/"/g, '').replace(/\r/g, '')
+        const cols = colsLine.split(',')
+        if (cols.length < 4) {
+          continue
+        }
 
         const dateStr = cols[dateIdx] ? cols[dateIdx].trim() : ''
         const typeStr = cols[typeIdx] ? cols[typeIdx].trim().toLowerCase() : ''
         const inPerson = parseInt(cols[inPersonIdx], 10) || 0
         const zoom = parseInt(cols[zoomIdx], 10) || 0
 
-        if (!dateStr || !['quinta', 'domingo'].includes(typeStr)) continue
+        if (!dateStr) continue
+        if (typeStr !== 'quinta' && typeStr !== 'domingo') continue
 
         const dateParts = dateStr.split('/')
         if (dateParts.length !== 3) continue
 
-        const rowDate = new Date(`${dateParts[2]}-${dateParts[1]}-${dateParts[0]}T12:00:00Z`)
-        if (isNaN(rowDate.getTime()) || rowDate < cutoffDate) continue
+        const rowDate = new Date(
+          dateParts[2] + '-' + dateParts[1] + '-' + dateParts[0] + 'T12:00:00Z',
+        )
+        if (isNaN(rowDate.getTime()) || rowDate < cutoffDate) {
+          continue
+        }
 
         const isoDateStr = rowDate.toISOString().split('T')[0] + ' 12:00:00.000Z'
+        const startStr = isoDateStr.substring(0, 10) + ' 00:00:00.000Z'
+        const endStr = isoDateStr.substring(0, 10) + ' 23:59:59.000Z'
 
         let exists = false
         try {
@@ -90,13 +105,15 @@ routerAdd(
             'meeting_attendance',
             'meeting_date >= {:start} && meeting_date <= {:end} && meeting_type = {:type}',
             {
-              start: isoDateStr.substring(0, 10) + ' 00:00:00.000Z',
-              end: isoDateStr.substring(0, 10) + ' 23:59:59.000Z',
+              start: startStr,
+              end: endStr,
               type: typeStr,
             },
           )
           exists = !!existing
-        } catch (_) {}
+        } catch (err) {
+          exists = false
+        }
 
         if (!exists) {
           const record = new Record(collection)
