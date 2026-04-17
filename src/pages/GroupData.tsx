@@ -91,7 +91,7 @@ const CategorySection = ({
         name={countName as any}
         render={({ field }) => (
           <FormItem>
-            <FormLabel>Ativos (Pessoas)</FormLabel>
+            <FormLabel>Quantidade</FormLabel>
             <FormControl>
               <Input type="number" min="0" {...field} className="bg-background" />
             </FormControl>
@@ -100,19 +100,21 @@ const CategorySection = ({
         )}
       />
 
-      <FormField
-        control={control}
-        name={hoursName as any}
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Total de Horas</FormLabel>
-            <FormControl>
-              <Input type="number" min="0" step="0.1" {...field} className="bg-background" />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
+      {prefix !== 'publisher' && (
+        <FormField
+          control={control}
+          name={hoursName as any}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Horas</FormLabel>
+              <FormControl>
+                <Input type="number" min="0" step="0.1" {...field} className="bg-background" />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      )}
 
       <FormField
         control={control}
