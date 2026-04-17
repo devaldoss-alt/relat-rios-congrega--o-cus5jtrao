@@ -24,6 +24,7 @@ import {
   LogOut,
   BookOpen,
   LayoutDashboard,
+  UserCog,
 } from 'lucide-react'
 
 const getNavigation = (role?: string) => {
@@ -37,6 +38,7 @@ const getNavigation = (role?: string) => {
   if (role === 'Secretário') {
     base.push({ name: 'Gestão de Publicadores', href: '/publishers', icon: Users })
     base.push({ name: 'Histórico de Relatórios', href: '/reports-history', icon: BookOpen })
+    base.push({ name: 'Usuários', href: '/users', icon: UserCog })
   }
   return base
 }

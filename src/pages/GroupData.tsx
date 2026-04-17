@@ -447,7 +447,16 @@ export default function GroupData() {
                                     <FormControl>
                                       <Checkbox
                                         checked={inputField.value}
-                                        onCheckedChange={inputField.onChange}
+                                        onCheckedChange={(checked) => {
+                                          inputField.onChange(checked)
+                                          if (!checked) {
+                                            form.setValue(`reports.${index}.hours`, 0)
+                                            form.setValue(`reports.${index}.bible_studies`, 0)
+                                          }
+                                        }}
+                                        className={
+                                          !inputField.value ? 'border-red-500 shadow-sm' : ''
+                                        }
                                       />
                                     </FormControl>
                                   </FormItem>
@@ -465,7 +474,8 @@ export default function GroupData() {
                                         type="number"
                                         min="0"
                                         step="0.1"
-                                        className="w-24 bg-background"
+                                        className="w-24 bg-background disabled:opacity-50 disabled:cursor-not-allowed"
+                                        disabled={!form.watch(`reports.${index}.participated`)}
                                         {...inputField}
                                         onChange={(e) => {
                                           inputField.onChange(e)
@@ -489,7 +499,8 @@ export default function GroupData() {
                                       <Input
                                         type="number"
                                         min="0"
-                                        className="w-24 bg-background"
+                                        className="w-24 bg-background disabled:opacity-50 disabled:cursor-not-allowed"
+                                        disabled={!form.watch(`reports.${index}.participated`)}
                                         {...inputField}
                                       />
                                     </FormControl>

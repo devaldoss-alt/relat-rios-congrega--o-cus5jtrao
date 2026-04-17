@@ -15,6 +15,7 @@ import HealthMetrics from './pages/HealthMetrics'
 import Compilation from './pages/Compilation'
 import Publishers from './pages/Publishers'
 import ReportsHistory from './pages/ReportsHistory'
+import UsersAdmin from './pages/UsersAdmin'
 import { Skeleton } from '@/components/ui/skeleton'
 
 // Protected Route Wrapper
@@ -66,6 +67,7 @@ const App = () => (
             <Route path="/compilation" element={<Compilation />} />
             <Route path="/publishers" element={<Publishers />} />
             <Route path="/reports-history" element={<ReportsHistory />} />
+            <Route path="/users" element={<UsersAdmin />} />
           </Route>
 
           <Route path="*" element={<NotFound />} />
