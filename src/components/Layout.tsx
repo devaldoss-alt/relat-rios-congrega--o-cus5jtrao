@@ -28,7 +28,7 @@ import {
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Entrada de Dados de Grupo', href: '/group-data', icon: Users },
+  { name: 'Entrada de Dados', href: '/group-data', icon: Users },
   { name: 'Assistência às Reuniões', href: '/attendance', icon: CalendarCheck },
   { name: 'Compilação de Relatório', href: '/reports', icon: FileText },
   { name: 'Métricas de Saúde', href: '/metrics', icon: Activity },
