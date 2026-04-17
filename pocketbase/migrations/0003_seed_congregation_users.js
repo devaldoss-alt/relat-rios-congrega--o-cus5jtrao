@@ -17,7 +17,7 @@ migrate(
       } catch (_) {
         const record = new Record(collection)
         record.setEmail(u.email)
-        record.setPassword('123456')
+        record.setPassword('Skip@2026')
         record.setVerified(true)
         record.set('name', u.name)
         app.save(record)
