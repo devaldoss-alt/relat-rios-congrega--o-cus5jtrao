@@ -80,7 +80,9 @@ export default function Layout() {
           </div>
           <div className="flex items-center gap-4 ml-auto">
             <div className="flex flex-col items-end">
-              <span className="text-sm font-medium leading-none">{user?.name || user?.email}</span>
+              <span className="text-sm font-medium leading-none">
+                Bem-vindo, {user?.name || user?.email}
+              </span>
               <span className="text-xs text-muted-foreground mt-1">Sessão Ativa</span>
             </div>
             <div className="h-8 w-px bg-border mx-1"></div>
