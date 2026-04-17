@@ -28,7 +28,7 @@ export default function Login() {
       setError('Email ou senha incorretos')
       setIsSubmitting(false)
     } else {
-      navigate('/')
+      navigate('/dashboard')
     }
   }
 

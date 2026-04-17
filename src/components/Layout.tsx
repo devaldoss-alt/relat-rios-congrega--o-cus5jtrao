@@ -16,9 +16,18 @@ import {
   SidebarInset,
   SidebarFooter,
 } from '@/components/ui/sidebar'
-import { Users, CalendarCheck, FileText, Activity, LogOut, BookOpen } from 'lucide-react'
+import {
+  Users,
+  CalendarCheck,
+  FileText,
+  Activity,
+  LogOut,
+  BookOpen,
+  LayoutDashboard,
+} from 'lucide-react'
 
 const navigation = [
+  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Entrada de Dados de Grupo', href: '/group-data', icon: Users },
   { name: 'Assistência às Reuniões', href: '/attendance', icon: CalendarCheck },
   { name: 'Compilação de Relatório', href: '/reports', icon: FileText },
@@ -85,7 +94,7 @@ export default function Layout() {
               </span>
               <span className="text-xs text-muted-foreground mt-1">
                 {user?.role
-                  ? `${user.role}${user.group_name ? ` - ${user.group_name}` : ''}`
+                  ? `${user.role}${user.group_number ? ` - Grupo ${user.group_number}` : ''}`
                   : 'Sessão Ativa'}
               </span>
             </div>
