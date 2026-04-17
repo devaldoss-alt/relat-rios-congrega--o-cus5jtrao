@@ -12,6 +12,7 @@ import GroupData from './pages/GroupData'
 import Attendance from './pages/Attendance'
 import Reports from './pages/Reports'
 import HealthMetrics from './pages/HealthMetrics'
+import Compilation from './pages/Compilation'
 import { Skeleton } from '@/components/ui/skeleton'
 
 // Protected Route Wrapper
@@ -60,6 +61,7 @@ const App = () => (
             <Route path="/attendance" element={<Attendance />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/metrics" element={<HealthMetrics />} />
+            <Route path="/compilation" element={<Compilation />} />
           </Route>
 
           <Route path="*" element={<NotFound />} />
