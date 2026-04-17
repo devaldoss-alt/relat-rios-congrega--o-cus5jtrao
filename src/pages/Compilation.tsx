@@ -11,7 +11,23 @@ import {
 } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Users, FileText, Clock, BookOpen, CalendarDays } from 'lucide-react'
+import {
+  Users,
+  FileText,
+  Clock,
+  BookOpen,
+  CalendarDays,
+  Printer,
+  Save,
+  Loader2,
+} from 'lucide-react'
+import {
+  createMonthlySummary,
+  updateMonthlySummary,
+  findMonthlySummary,
+} from '@/services/monthly_summaries'
+import { useToast } from '@/hooks/use-toast'
+import { Button } from '@/components/ui/button'
 
 const MONTHS = [
   { value: 1, label: 'Janeiro' },
@@ -75,10 +91,12 @@ const CategoryCard = ({ title, data, color }: any) => (
 
 export default function CompilationPage() {
   const { user } = useAuth()
+  const { toast } = useToast()
   const [year, setYear] = useState(new Date().getFullYear())
   const [month, setMonth] = useState(new Date().getMonth() + 1)
   const [loading, setLoading] = useState(false)
   const [data, setData] = useState<any>(null)
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     if (user?.role === 'Secretário') {
@@ -171,15 +189,60 @@ export default function CompilationPage() {
   const metrics = calculateMetrics()
   const isEmpty = data && data.groupReports.length === 0 && data.meetings.length === 0
 
+  const handlePrint = () => {
+    window.print()
+  }
+
+  const handleSaveToHistory = async () => {
+    if (!metrics) return
+
+    setSaving(true)
+    try {
+      const monthStr = month.toString()
+      const existing = await findMonthlySummary(year, monthStr)
+      const payload = {
+        month: monthStr,
+        year,
+        total_active_publishers: metrics.activePublishers,
+        avg_attendance_midweek: metrics.midweekAvg,
+        avg_attendance_weekend: metrics.weekendAvg,
+        report_data: {
+          publishers: metrics.publishers,
+          auxiliary: metrics.auxiliary,
+          regular: metrics.regular,
+        },
+      }
+
+      if (existing) {
+        await updateMonthlySummary(existing.id, payload)
+        toast({ title: 'Histórico atualizado com sucesso!' })
+      } else {
+        await createMonthlySummary(payload)
+        toast({ title: 'Relatório salvo com sucesso!' })
+      }
+    } catch (error) {
+      toast({ title: 'Erro ao salvar no histórico', variant: 'destructive' })
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return (
-    <div className="space-y-6 animate-fade-in-up pb-8">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="space-y-6 animate-fade-in-up pb-8 print-area">
+      <div className="hidden print:block text-center mb-8">
+        <h1 className="text-2xl font-bold">Relatório Mensal da Congregação</h1>
+        <h2 className="text-lg">
+          Mês {month} de {year}
+        </h2>
+      </div>
+
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 no-print">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Compilação de Relatório</h1>
           <p className="text-muted-foreground mt-1">Resumo mensal da congregação</p>
         </div>
 
-        <div className="flex gap-4 items-end w-full sm:w-auto">
+        <div className="flex flex-wrap gap-4 items-end w-full sm:w-auto">
           <div className="space-y-2 flex-1 sm:w-40">
             <Label>Mês</Label>
             <Select value={month.toString()} onValueChange={(v) => setMonth(parseInt(v))}>
@@ -209,6 +272,20 @@ export default function CompilationPage() {
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="flex gap-2 w-full sm:w-auto">
+            <Button variant="outline" onClick={handlePrint} disabled={loading || isEmpty || !data}>
+              <Printer className="mr-2 h-4 w-4" /> Exportar / PDF
+            </Button>
+            <Button onClick={handleSaveToHistory} disabled={loading || isEmpty || !data || saving}>
+              {saving ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="mr-2 h-4 w-4" />
+              )}
+              Salvar no Histórico
+            </Button>
           </div>
         </div>
       </div>

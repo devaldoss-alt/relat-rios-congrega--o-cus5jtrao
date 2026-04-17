@@ -26,18 +26,26 @@ import {
   LayoutDashboard,
 } from 'lucide-react'
 
-const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Entrada de Dados', href: '/group-data', icon: Users },
-  { name: 'Assistência às Reuniões', href: '/attendance', icon: CalendarCheck },
-  { name: 'Compilação de Relatório', href: '/reports', icon: FileText },
-  { name: 'Métricas de Saúde', href: '/metrics', icon: Activity },
-]
+const getNavigation = (role?: string) => {
+  const base = [
+    { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+    { name: 'Entrada de Dados', href: '/group-data', icon: Users },
+    { name: 'Assistência às Reuniões', href: '/attendance', icon: CalendarCheck },
+    { name: 'Compilação de Relatório', href: '/reports', icon: FileText },
+    { name: 'Métricas de Saúde', href: '/metrics', icon: Activity },
+  ]
+  if (role === 'Secretário') {
+    base.push({ name: 'Gestão de Publicadores', href: '/publishers', icon: Users })
+    base.push({ name: 'Histórico de Relatórios', href: '/reports-history', icon: BookOpen })
+  }
+  return base
+}
 
 export default function Layout() {
   const { user, signOut } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
+  const navigation = getNavigation(user?.role)
 
   const handleSignOut = () => {
     signOut()

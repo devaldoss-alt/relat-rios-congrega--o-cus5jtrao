@@ -13,6 +13,8 @@ import Attendance from './pages/Attendance'
 import Reports from './pages/Reports'
 import HealthMetrics from './pages/HealthMetrics'
 import Compilation from './pages/Compilation'
+import Publishers from './pages/Publishers'
+import ReportsHistory from './pages/ReportsHistory'
 import { Skeleton } from '@/components/ui/skeleton'
 
 // Protected Route Wrapper
@@ -62,6 +64,8 @@ const App = () => (
             <Route path="/reports" element={<Reports />} />
             <Route path="/metrics" element={<HealthMetrics />} />
             <Route path="/compilation" element={<Compilation />} />
+            <Route path="/publishers" element={<Publishers />} />
+            <Route path="/reports-history" element={<ReportsHistory />} />
           </Route>
 
           <Route path="*" element={<NotFound />} />
