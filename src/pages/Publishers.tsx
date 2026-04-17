@@ -35,8 +35,10 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
 import { Plus, Search, Loader2, Pencil, Trash2 } from 'lucide-react'
+import { useRealtime } from '@/hooks/use-realtime'
 
 export default function PublishersPage() {
   const { user } = useAuth()
@@ -54,6 +56,9 @@ export default function PublishersPage() {
     group_id: '',
     type: 'publicador',
     active: true,
+    phone: '',
+    address: '',
+    notes: '',
   })
   const [saving, setSaving] = useState(false)
 
@@ -62,6 +67,12 @@ export default function PublishersPage() {
       loadData()
     }
   }, [user])
+
+  useRealtime('publishers', () => {
+    if (user?.role === 'Secretário') {
+      loadData()
+    }
+  })
 
   const loadData = async () => {
     setLoading(true)
@@ -84,6 +95,9 @@ export default function PublishersPage() {
         group_id: pub.group_id,
         type: pub.type,
         active: pub.active,
+        phone: pub.phone || '',
+        address: pub.address || '',
+        notes: pub.notes || '',
       })
     } else {
       setEditingId(null)
@@ -92,6 +106,9 @@ export default function PublishersPage() {
         group_id: '',
         type: 'publicador',
         active: true,
+        phone: '',
+        address: '',
+        notes: '',
       })
     }
     setOpen(true)
@@ -158,7 +175,7 @@ export default function PublishersPage() {
             <DialogHeader>
               <DialogTitle>{editingId ? 'Editar Publicador' : 'Novo Publicador'}</DialogTitle>
             </DialogHeader>
-            <div className="space-y-4 py-4">
+            <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto px-1">
               <div className="space-y-2">
                 <Label>Nome</Label>
                 <Input
@@ -201,6 +218,35 @@ export default function PublishersPage() {
                   </SelectContent>
                 </Select>
               </div>
+
+              <div className="space-y-2">
+                <Label>Telefone</Label>
+                <Input
+                  value={formData.phone || ''}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  placeholder="(00) 00000-0000"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Endereço</Label>
+                <Input
+                  value={formData.address || ''}
+                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  placeholder="Rua, número, bairro..."
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Observações</Label>
+                <Textarea
+                  value={formData.notes || ''}
+                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                  placeholder="Informações adicionais..."
+                  rows={3}
+                />
+              </div>
+
               <div className="flex items-center space-x-2 pt-2">
                 <Switch
                   checked={formData.active}
@@ -242,6 +288,7 @@ export default function PublishersPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Nome</TableHead>
+                    <TableHead>Telefone</TableHead>
                     <TableHead>Grupo</TableHead>
                     <TableHead>Tipo</TableHead>
                     <TableHead>Status</TableHead>
@@ -251,7 +298,7 @@ export default function PublishersPage() {
                 <TableBody>
                   {filtered.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-4">
+                      <TableCell colSpan={6} className="text-center py-4">
                         Nenhum publicador encontrado.
                       </TableCell>
                     </TableRow>
@@ -259,6 +306,7 @@ export default function PublishersPage() {
                     filtered.map((pub) => (
                       <TableRow key={pub.id}>
                         <TableCell className="font-medium">{pub.name}</TableCell>
+                        <TableCell>{pub.phone || '-'}</TableCell>
                         <TableCell>Grupo {pub.expand?.group_id?.number || '-'}</TableCell>
                         <TableCell className="capitalize">{pub.type.replace('_', ' ')}</TableCell>
                         <TableCell>

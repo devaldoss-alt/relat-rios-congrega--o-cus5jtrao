@@ -7,9 +7,18 @@ import { Navigate } from 'react-router-dom'
 import { useToast } from '@/components/ui/use-toast'
 import { getGroups } from '@/services/groups'
 import { getGroupReport, createGroupReport, updateGroupReport } from '@/services/group_reports'
+import { getPublishersByGroup, type Publisher } from '@/services/publishers'
 import { useRealtime } from '@/hooks/use-realtime'
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import {
   Form,
   FormControl,
@@ -154,6 +163,7 @@ export default function GroupData() {
   const [reportId, setReportId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
+  const [groupPublishers, setGroupPublishers] = useState<Publisher[]>([])
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -210,6 +220,10 @@ export default function GroupData() {
           regular_pioneer_bible_studies: 0,
         })
       }
+
+      // Load publishers for the group
+      const pubs = await getPublishersByGroup(selectedGroupId)
+      setGroupPublishers(pubs)
     } catch (err) {
       console.error(err)
       toast({
@@ -238,6 +252,12 @@ export default function GroupData() {
       ) {
         loadReport()
       }
+    }
+  })
+
+  useRealtime('publishers', () => {
+    if (selectedGroupId) {
+      getPublishersByGroup(selectedGroupId).then(setGroupPublishers).catch(console.error)
     }
   })
 
@@ -421,6 +441,63 @@ export default function GroupData() {
           )}
         </CardContent>
       </Card>
+
+      {selectedGroupId && (
+        <Card className="border-t-4 border-t-primary shadow-md animate-fade-in-up mt-8">
+          <CardHeader className="bg-muted/30 pb-6 border-b">
+            <CardTitle>Publicadores do Grupo</CardTitle>
+            <CardDescription>
+              Lista de publicadores designados para este grupo, com suas informações de contato.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-6">
+            {isLoading ? (
+              <div className="space-y-4">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+            ) : (
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nome</TableHead>
+                      <TableHead>Telefone</TableHead>
+                      <TableHead>Tipo</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {groupPublishers.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center py-4">
+                          Nenhum publicador encontrado neste grupo.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      groupPublishers.map((pub) => (
+                        <TableRow key={pub.id}>
+                          <TableCell className="font-medium">{pub.name}</TableCell>
+                          <TableCell>{pub.phone || '-'}</TableCell>
+                          <TableCell className="capitalize">{pub.type.replace('_', ' ')}</TableCell>
+                          <TableCell>
+                            <span
+                              className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${pub.active ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400'}`}
+                            >
+                              {pub.active ? 'Ativo' : 'Inativo'}
+                            </span>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }
