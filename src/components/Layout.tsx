@@ -83,7 +83,11 @@ export default function Layout() {
               <span className="text-sm font-medium leading-none">
                 Bem-vindo, {user?.name || user?.email}
               </span>
-              <span className="text-xs text-muted-foreground mt-1">Sessão Ativa</span>
+              <span className="text-xs text-muted-foreground mt-1">
+                {user?.role
+                  ? `${user.role}${user.group_name ? ` - ${user.group_name}` : ''}`
+                  : 'Sessão Ativa'}
+              </span>
             </div>
             <div className="h-8 w-px bg-border mx-1"></div>
             <Button

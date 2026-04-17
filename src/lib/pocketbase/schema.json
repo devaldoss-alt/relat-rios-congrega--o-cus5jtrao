@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-17T21:11:03.867Z",
+  "generatedAt": "2026-04-17T21:24:12.182Z",
   "collections": [
     {
       "name": "users",
@@ -37,6 +37,20 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "role",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["Secretário", "Responsável"]
+        },
+        {
+          "name": "group_name",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["Grupo 1", "Grupo 2", "Grupo 3", "Grupo 4"]
         }
       ],
       "indexes": [
