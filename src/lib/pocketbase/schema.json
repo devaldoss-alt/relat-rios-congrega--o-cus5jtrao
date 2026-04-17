@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-17T23:07:18.827Z",
+  "generatedAt": "2026-04-17T23:18:34.431Z",
   "collections": [
     {
       "name": "users",
@@ -635,6 +635,13 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "type",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["publicador", "pioneiro_auxiliar", "pioneiro_regular"]
         }
       ],
       "indexes": [

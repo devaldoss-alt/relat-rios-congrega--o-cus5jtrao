@@ -79,7 +79,7 @@ export default function GroupData() {
 
   const [groups, setGroups] = useState<any[]>([])
   const [selectedGroupNumber, setSelectedGroupNumber] = useState<string>(
-    user?.group_number?.toString() || '1',
+    (user?.group_number || 1).toString(),
   )
 
   const currentMonth = new Date().getMonth() + 1
@@ -134,7 +134,7 @@ export default function GroupData() {
             id: existing?.id,
             publisher_id: pub.id,
             name: pub.name,
-            type: pub.type,
+            type: existing?.type || pub.type || 'publicador',
             active: pub.active,
             hours: existing?.hours || 0,
             bible_studies: existing?.bible_studies || 0,
@@ -195,6 +195,7 @@ export default function GroupData() {
             hours: report.hours,
             bible_studies: report.bible_studies,
             notes: report.notes,
+            type: report.type,
           }),
         ),
       )
@@ -403,8 +404,34 @@ export default function GroupData() {
                                 )}
                               </div>
                             </TableCell>
-                            <TableCell className="capitalize text-sm text-muted-foreground">
-                              {field.type.replace('_', ' ')}
+                            <TableCell>
+                              <FormField
+                                control={form.control}
+                                name={`reports.${index}.type`}
+                                render={({ field: inputField }) => (
+                                  <FormItem>
+                                    <Select
+                                      onValueChange={inputField.onChange}
+                                      defaultValue={inputField.value}
+                                    >
+                                      <FormControl>
+                                        <SelectTrigger className="bg-background min-w-[140px]">
+                                          <SelectValue placeholder="Tipo" />
+                                        </SelectTrigger>
+                                      </FormControl>
+                                      <SelectContent>
+                                        <SelectItem value="publicador">Publicador</SelectItem>
+                                        <SelectItem value="pioneiro_regular">
+                                          Pioneiro Regular
+                                        </SelectItem>
+                                        <SelectItem value="pioneiro_auxiliar">
+                                          Pioneiro Auxiliar
+                                        </SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </FormItem>
+                                )}
+                              />
                             </TableCell>
                             <TableCell>
                               <FormField

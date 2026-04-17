@@ -8,6 +8,7 @@ export interface PublisherReport {
   hours: number
   bible_studies: number
   notes: string
+  type?: string
 }
 
 export const getPublisherReports = (groupId: string, month: string, year: number) => {
