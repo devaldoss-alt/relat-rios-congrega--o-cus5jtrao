@@ -31,6 +31,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Save, AlertCircle, Loader2 } from 'lucide-react'
 
 const numberField = z
@@ -44,6 +45,7 @@ const reportSchema = z.object({
   name: z.string(),
   type: z.string(),
   active: z.boolean(),
+  participated: z.boolean().default(false),
   hours: numberField,
   bible_studies: numberField,
   notes: z.string().optional(),
@@ -136,6 +138,7 @@ export default function GroupData() {
             name: pub.name,
             type: existing?.type || pub.type || 'publicador',
             active: pub.active,
+            participated: existing?.participated || false,
             hours: existing?.hours || 0,
             bible_studies: existing?.bible_studies || 0,
             notes: existing?.notes || '',
@@ -192,6 +195,7 @@ export default function GroupData() {
             publisher_id: report.publisher_id,
             month: selectedMonth,
             year: Number(selectedYear),
+            participated: report.participated,
             hours: report.hours,
             bible_studies: report.bible_studies,
             notes: report.notes,
@@ -213,7 +217,7 @@ export default function GroupData() {
       let regular_pioneer_bible_studies = 0
 
       for (const report of values.reports) {
-        const isReported = report.hours > 0 || report.bible_studies > 0 || report.active
+        const isReported = report.participated || report.hours > 0 || report.bible_studies > 0
 
         if (report.type === 'publicador') {
           if (isReported) publishers_count++
@@ -374,17 +378,18 @@ export default function GroupData() {
                   <Table>
                     <TableHeader className="bg-muted/10">
                       <TableRow>
-                        <TableHead className="w-[30%]">Nome do Publicador</TableHead>
+                        <TableHead className="w-[25%]">Nome do Publicador</TableHead>
                         <TableHead className="w-[15%]">Tipo</TableHead>
-                        <TableHead className="w-[15%]">Horas</TableHead>
-                        <TableHead className="w-[15%]">Estudos</TableHead>
-                        <TableHead className="w-[25%]">Observações</TableHead>
+                        <TableHead className="w-[10%] text-center">Participou?</TableHead>
+                        <TableHead className="w-[10%]">Horas</TableHead>
+                        <TableHead className="w-[10%]">Estudos</TableHead>
+                        <TableHead className="w-[30%]">Observações</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {fields.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                          <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                             Nenhum publicador encontrado neste grupo.
                           </TableCell>
                         </TableRow>
@@ -433,6 +438,22 @@ export default function GroupData() {
                                 )}
                               />
                             </TableCell>
+                            <TableCell className="text-center">
+                              <FormField
+                                control={form.control}
+                                name={`reports.${index}.participated`}
+                                render={({ field: inputField }) => (
+                                  <FormItem className="flex items-center justify-center space-y-0">
+                                    <FormControl>
+                                      <Checkbox
+                                        checked={inputField.value}
+                                        onCheckedChange={inputField.onChange}
+                                      />
+                                    </FormControl>
+                                  </FormItem>
+                                )}
+                              />
+                            </TableCell>
                             <TableCell>
                               <FormField
                                 control={form.control}
@@ -446,6 +467,12 @@ export default function GroupData() {
                                         step="0.1"
                                         className="w-24 bg-background"
                                         {...inputField}
+                                        onChange={(e) => {
+                                          inputField.onChange(e)
+                                          if (Number(e.target.value) > 0) {
+                                            form.setValue(`reports.${index}.participated`, true)
+                                          }
+                                        }}
                                       />
                                     </FormControl>
                                   </FormItem>

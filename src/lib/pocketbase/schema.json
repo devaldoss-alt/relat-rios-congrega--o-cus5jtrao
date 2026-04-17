@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-17T23:18:34.431Z",
+  "generatedAt": "2026-04-17T23:32:48.272Z",
   "collections": [
     {
       "name": "users",
@@ -251,8 +251,8 @@
       "name": "groups",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != '' && (leader = @request.auth.id || @request.auth.role = 'Secretário')",
-        "view": "@request.auth.id != '' && (leader = @request.auth.id || @request.auth.role = 'Secretário')",
+        "list": "@request.auth.id != '' && (number = @request.auth.group_number || @request.auth.role = 'Secretário')",
+        "view": "@request.auth.id != '' && (number = @request.auth.group_number || @request.auth.role = 'Secretário')",
         "create": "@request.auth.role = 'Secretário'",
         "update": "@request.auth.role = 'Secretário'",
         "delete": "@request.auth.role = 'Secretário'"
@@ -292,11 +292,11 @@
       "name": "publishers",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != '' && (group_id.leader = @request.auth.id || @request.auth.role = 'Secretário')",
-        "view": "@request.auth.id != '' && (group_id.leader = @request.auth.id || @request.auth.role = 'Secretário')",
-        "create": "@request.auth.id != '' && (group_id.leader = @request.auth.id || @request.auth.role = 'Secretário')",
-        "update": "@request.auth.id != '' && (group_id.leader = @request.auth.id || @request.auth.role = 'Secretário')",
-        "delete": "@request.auth.id != '' && (group_id.leader = @request.auth.id || @request.auth.role = 'Secretário')"
+        "list": "@request.auth.id != '' && (group_id.number = @request.auth.group_number || @request.auth.role = 'Secretário')",
+        "view": "@request.auth.id != '' && (group_id.number = @request.auth.group_number || @request.auth.role = 'Secretário')",
+        "create": "@request.auth.id != '' && (group_id.number = @request.auth.group_number || @request.auth.role = 'Secretário')",
+        "update": "@request.auth.id != '' && (group_id.number = @request.auth.group_number || @request.auth.role = 'Secretário')",
+        "delete": "@request.auth.id != '' && (group_id.number = @request.auth.group_number || @request.auth.role = 'Secretário')"
       },
       "fields": [
         {
@@ -364,11 +364,11 @@
       "name": "group_reports",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != '' && (group_id.leader = @request.auth.id || @request.auth.role = 'Secretário')",
-        "view": "@request.auth.id != '' && (group_id.leader = @request.auth.id || @request.auth.role = 'Secretário')",
-        "create": "@request.auth.id != '' && (group_id.leader = @request.auth.id || @request.auth.role = 'Secretário')",
-        "update": "@request.auth.id != '' && (group_id.leader = @request.auth.id || @request.auth.role = 'Secretário')",
-        "delete": "@request.auth.id != '' && (group_id.leader = @request.auth.id || @request.auth.role = 'Secretário')"
+        "list": "@request.auth.id != '' && (group_id.number = @request.auth.group_number || @request.auth.role = 'Secretário')",
+        "view": "@request.auth.id != '' && (group_id.number = @request.auth.group_number || @request.auth.role = 'Secretário')",
+        "create": "@request.auth.id != '' && (group_id.number = @request.auth.group_number || @request.auth.role = 'Secretário')",
+        "update": "@request.auth.id != '' && (group_id.number = @request.auth.group_number || @request.auth.role = 'Secretário')",
+        "delete": "@request.auth.id != '' && (group_id.number = @request.auth.group_number || @request.auth.role = 'Secretário')"
       },
       "fields": [
         {
@@ -578,11 +578,11 @@
       "name": "publisher_reports",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != '' && (publisher_id.group_id.leader = @request.auth.id || @request.auth.role = 'Secretário')",
-        "view": "@request.auth.id != '' && (publisher_id.group_id.leader = @request.auth.id || @request.auth.role = 'Secretário')",
-        "create": "@request.auth.id != '' && (publisher_id.group_id.leader = @request.auth.id || @request.auth.role = 'Secretário')",
-        "update": "@request.auth.id != '' && (publisher_id.group_id.leader = @request.auth.id || @request.auth.role = 'Secretário')",
-        "delete": "@request.auth.id != '' && (publisher_id.group_id.leader = @request.auth.id || @request.auth.role = 'Secretário')"
+        "list": "@request.auth.id != '' && (publisher_id.group_id.number = @request.auth.group_number || @request.auth.role = 'Secretário')",
+        "view": "@request.auth.id != '' && (publisher_id.group_id.number = @request.auth.group_number || @request.auth.role = 'Secretário')",
+        "create": "@request.auth.id != '' && (publisher_id.group_id.number = @request.auth.group_number || @request.auth.role = 'Secretário')",
+        "update": "@request.auth.id != '' && (publisher_id.group_id.number = @request.auth.group_number || @request.auth.role = 'Secretário')",
+        "delete": "@request.auth.id != '' && (publisher_id.group_id.number = @request.auth.group_number || @request.auth.role = 'Secretário')"
       },
       "fields": [
         {
@@ -642,6 +642,12 @@
           "required": false,
           "system": false,
           "selectValues": ["publicador", "pioneiro_auxiliar", "pioneiro_regular"]
+        },
+        {
+          "name": "participated",
+          "type": "bool",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [

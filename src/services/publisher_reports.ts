@@ -5,6 +5,7 @@ export interface PublisherReport {
   publisher_id: string
   month: string
   year: number
+  participated?: boolean
   hours: number
   bible_studies: number
   notes: string
