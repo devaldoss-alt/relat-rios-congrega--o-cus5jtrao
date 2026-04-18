@@ -15,6 +15,7 @@ import { useRealtime } from '@/hooks/use-realtime'
 import { getMeetingAttendance, syncMeetingAttendance } from '@/services/meeting_attendance'
 import { Loader2, RefreshCw } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { AttendanceChart } from '@/components/attendance/AttendanceChart'
 
 export default function Attendance() {
   const { user } = useAuth()
@@ -95,6 +96,8 @@ export default function Attendance() {
           </Button>
         )}
       </div>
+
+      <AttendanceChart data={data} loading={loading} />
 
       <Card className="shadow-sm">
         <CardHeader>
