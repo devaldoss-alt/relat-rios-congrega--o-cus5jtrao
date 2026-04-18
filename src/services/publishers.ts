@@ -9,6 +9,7 @@ export interface Publisher {
   phone?: string
   address?: string
   notes?: string
+  created?: string
   expand?: {
     group_id?: {
       number: number

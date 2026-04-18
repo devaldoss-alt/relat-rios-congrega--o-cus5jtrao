@@ -44,14 +44,16 @@ import pb from '@/lib/pocketbase/client'
 import { Badge } from '@/components/ui/badge'
 
 function calculateActivityStatus(
-  publisherId: string,
+  pub: Publisher,
   reports: any[],
   currentMonth: number,
   currentYear: number,
 ) {
+  if (!pub.active) return 'Inativo'
+
   const currentMonthStr = currentMonth.toString().padStart(2, '0')
   const thisMonthReport = reports.find(
-    (r) => r.publisher_id === publisherId && r.month === currentMonthStr && r.year === currentYear,
+    (r) => r.publisher_id === pub.id && r.month === currentMonthStr && r.year === currentYear,
   )
 
   if (thisMonthReport && (thisMonthReport.hours > 0 || thisMonthReport.participated)) {
@@ -67,9 +69,7 @@ function calculateActivityStatus(
       y -= 1
     }
     const mStr = m.toString().padStart(2, '0')
-    const rep = reports.find(
-      (r) => r.publisher_id === publisherId && r.month === mStr && r.year === y,
-    )
+    const rep = reports.find((r) => r.publisher_id === pub.id && r.month === mStr && r.year === y)
 
     if (!rep || (!rep.hours && !rep.participated)) {
       inactiveMonths++
@@ -78,11 +78,14 @@ function calculateActivityStatus(
     }
   }
 
-  if (inactiveMonths >= 6) {
+  const createdDate = pub.created ? new Date(pub.created) : new Date()
+  const sixMonthsAgo = new Date(currentYear, currentMonth - 1 - 6, 1)
+
+  if (inactiveMonths >= 6 && createdDate < sixMonthsAgo) {
     return 'Inativo'
   }
 
-  return 'Não Participou'
+  return 'Pendente'
 }
 
 export default function PublishersPage() {
@@ -371,7 +374,7 @@ export default function PublishersPage() {
                                 </Badge>
                               )
                             const status = calculateActivityStatus(
-                              pub.id,
+                              pub,
                               reports6m,
                               new Date().getMonth() + 1,
                               new Date().getFullYear(),
@@ -380,13 +383,14 @@ export default function PublishersPage() {
                               return (
                                 <Badge className="bg-emerald-500 hover:bg-emerald-600">Ativo</Badge>
                               )
-                            if (status === 'Não Participou')
+                            if (status === 'Pendente')
                               return (
                                 <Badge
                                   variant="outline"
                                   className="text-amber-600 border-amber-600"
+                                  title="Mês corrente"
                                 >
-                                  Não Participou
+                                  Pendente (Mês atual)
                                 </Badge>
                               )
                             return <Badge variant="destructive">Inativo (6m)</Badge>

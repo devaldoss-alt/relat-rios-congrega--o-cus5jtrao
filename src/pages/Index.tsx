@@ -8,7 +8,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
-import { CartesianGrid, XAxis, YAxis, Legend, Line, LineChart } from 'recharts'
+import { CartesianGrid, XAxis, YAxis, Legend, Line, LineChart, ComposedChart, Bar } from 'recharts'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { Clock, Users, BookOpen } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
@@ -33,26 +33,14 @@ const YEARS = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i)
 export default function Index() {
   const { user } = useAuth()
 
-  const [startMonth, setStartMonth] = useState(() => {
-    let m = new Date().getMonth() - 4
-    if (m <= 0) m += 12
-    return m
-  })
-  const [startYear, setStartYear] = useState(() => {
-    let m = new Date().getMonth() - 4
-    let y = new Date().getFullYear()
-    if (m <= 0) y -= 1
-    return y
-  })
+  const [startMonth, setStartMonth] = useState(9)
+  const [startYear, setStartYear] = useState(2025)
   const [endMonth, setEndMonth] = useState(new Date().getMonth() + 1)
   const [endYear, setEndYear] = useState(new Date().getFullYear())
 
   const [loading, setLoading] = useState(false)
   const [reports, setReports] = useState<any[]>([])
-
-  // Dashboard Comparativo State
-  const [activePublishers, setActivePublishers] = useState(0)
-  const [avgAttendance, setAvgAttendance] = useState(0)
+  const [summaries, setSummaries] = useState<any[]>([])
 
   const monthsInRange = useMemo(() => {
     const res = []
@@ -70,38 +58,6 @@ export default function Index() {
   }, [startMonth, startYear, endMonth, endYear])
 
   useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        const pubs = await pb.collection('publishers').getFullList({ filter: 'active = true' })
-        setActivePublishers(pubs.length)
-
-        const sums = await pb
-          .collection('monthly_summaries')
-          .getList(1, 1, { sort: '-year,-month' })
-        if (sums.items.length > 0) {
-          const latest = sums.items[0]
-          setAvgAttendance(
-            Math.round((latest.avg_attendance_midweek + latest.avg_attendance_weekend) / 2),
-          )
-        } else {
-          const now = new Date()
-          const start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
-          const meetings = await pb
-            .collection('meeting_attendance')
-            .getFullList({ filter: `meeting_date >= "${start}"` })
-          if (meetings.length > 0) {
-            const total = meetings.reduce((acc, m) => acc + m.in_person + m.zoom, 0)
-            setAvgAttendance(Math.round(total / meetings.length))
-          }
-        }
-      } catch (e) {
-        console.error(e)
-      }
-    }
-    fetchDashboardData()
-  }, [])
-
-  useEffect(() => {
     const fetchData = async () => {
       setLoading(true)
       try {
@@ -109,6 +65,11 @@ export default function Index() {
           filter: `year >= ${startYear} && year <= ${endYear}`,
         })
         setReports(reps)
+
+        const sums = await pb.collection('monthly_summaries').getFullList({
+          filter: `year >= ${startYear} && year <= ${endYear}`,
+        })
+        setSummaries(sums)
       } catch (e) {
         console.error(e)
       } finally {
@@ -143,6 +104,31 @@ export default function Index() {
     if (chartData.length === 0) return { horas: 0, estudos: 0, publicadores: 0 }
     return chartData[chartData.length - 1]
   }, [chartData])
+
+  const comparativeChartData = useMemo(() => {
+    return monthsInRange.map((p) => {
+      const mStr = p.m.toString().padStart(2, '0')
+      const sum = summaries.find((s) => s.month === mStr && s.year === p.y)
+      const monthReps = reports.filter((r) => r.month === mStr && r.year === p.y)
+
+      const activePubs =
+        sum?.total_active_publishers ||
+        monthReps.filter(
+          (r) =>
+            r.participated || (r.hours && r.hours > 0) || (r.bible_studies && r.bible_studies > 0),
+        ).length
+
+      const avgAtt = sum
+        ? Math.round((sum.avg_attendance_midweek + sum.avg_attendance_weekend) / 2)
+        : 0
+
+      return {
+        name: `${mStr}/${p.y.toString().slice(-2)}`,
+        publicadoresAtivos: activePubs,
+        assistenciaMedia: avgAtt,
+      }
+    })
+  }, [monthsInRange, summaries, reports])
 
   return (
     <div className="space-y-8 pb-10 max-w-7xl mx-auto animate-fade-in-up">
@@ -285,34 +271,48 @@ export default function Index() {
           <Card className="shadow-sm md:col-span-3 border-t-4 border-t-primary">
             <CardHeader className="bg-muted/30 pb-4 border-b">
               <CardTitle className="flex items-center gap-2 text-base">
-                Comparativo entre Publicadores Ativos e Assistência Média
+                Comparativo: Publicadores Ativos vs. Assistência Média
               </CardTitle>
               <CardDescription>
-                Visão geral da atividade vs assistência no mês mais recente
+                Relação entre a quantidade de publicadores ativos e a assistência média nas reuniões
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="flex flex-col sm:flex-row items-center justify-around gap-8 py-8">
-                <div className="flex flex-col items-center gap-3">
-                  <span className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-                    Publicadores Ativos
-                  </span>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-6xl font-bold text-primary">{activePublishers}</span>
-                    <Users className="w-8 h-8 text-primary/40" />
-                  </div>
-                </div>
-                <div className="h-24 w-px bg-border hidden sm:block"></div>
-                <div className="flex flex-col items-center gap-3">
-                  <span className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-                    Assistência Média
-                  </span>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-6xl font-bold text-emerald-600">{avgAttendance}</span>
-                    <Users className="w-8 h-8 text-emerald-600/40" />
-                  </div>
-                </div>
-              </div>
+            <CardContent className="h-[350px] pt-6">
+              <ChartContainer
+                config={{
+                  publicadoresAtivos: {
+                    label: 'Publicadores Ativos',
+                    color: 'hsl(var(--primary))',
+                  },
+                  assistenciaMedia: { label: 'Assistência Média', color: 'hsl(var(--chart-2))' },
+                }}
+                className="h-full w-full"
+              >
+                <ComposedChart
+                  data={comparativeChartData}
+                  margin={{ top: 10, right: 0, left: -20, bottom: 0 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
+                  <YAxis fontSize={12} tickLine={false} axisLine={false} />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Legend verticalAlign="top" height={36} />
+                  <Bar
+                    dataKey="publicadoresAtivos"
+                    fill="var(--color-publicadoresAtivos)"
+                    radius={[4, 4, 0, 0]}
+                    maxBarSize={40}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="assistenciaMedia"
+                    stroke="var(--color-assistenciaMedia)"
+                    strokeWidth={3}
+                    dot={{ r: 4 }}
+                    activeDot={{ r: 6 }}
+                  />
+                </ComposedChart>
+              </ChartContainer>
             </CardContent>
           </Card>
 
