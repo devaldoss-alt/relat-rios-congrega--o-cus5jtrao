@@ -39,3 +39,42 @@ export const savePublisherReport = async (data: Partial<PublisherReport>) => {
   }
   return pb.collection('publisher_reports').create<PublisherReport>(data)
 }
+
+export const calculateActivityStatus = (
+  pubId: string,
+  reports: PublisherReport[],
+  refMonth: number,
+  refYear: number,
+): 'Ativo' | 'Não Participou' | 'Inativo' => {
+  let participatedInRefMonth = false
+  let participatedInLast5Months = false
+
+  for (let i = 0; i < 6; i++) {
+    let m = refMonth - i
+    let y = refYear
+    if (m <= 0) {
+      m += 12
+      y -= 1
+    }
+    const mStr = m.toString().padStart(2, '0')
+
+    const rep = reports.find(
+      (r) =>
+        (r.publisher_id === pubId || r.expand?.publisher_id?.id === pubId) &&
+        r.month === mStr &&
+        r.year === y,
+    )
+
+    const didParticipate = rep?.participated || (rep?.hours && rep.hours > 0) || false
+
+    if (i === 0) {
+      participatedInRefMonth = didParticipate
+    } else {
+      if (didParticipate) participatedInLast5Months = true
+    }
+  }
+
+  if (participatedInRefMonth) return 'Ativo'
+  if (participatedInLast5Months) return 'Não Participou'
+  return 'Inativo'
+}

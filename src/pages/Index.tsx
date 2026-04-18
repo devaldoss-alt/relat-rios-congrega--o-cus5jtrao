@@ -1,10 +1,5 @@
 import { useEffect, useState, useMemo } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { useAuth } from '@/hooks/use-auth'
-import { getPublishers, Publisher } from '@/services/publishers'
-import { getAllPublisherReportsForMonth, PublisherReport } from '@/services/publisher_reports'
-import { getMonthlySummaries, MonthlySummary } from '@/services/monthly_summaries'
-import { getGroups, Group } from '@/services/groups'
 import {
   Select,
   SelectContent,
@@ -12,289 +7,129 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  XAxis,
-  PieChart,
-  Pie,
-  Cell,
-  LineChart,
-  Line,
-  YAxis,
-  Legend,
-} from 'recharts'
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
-import { Progress } from '@/components/ui/progress'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { AlertCircle, CheckCircle2, Clock, Users, BookOpen, Download } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { CartesianGrid, XAxis, YAxis, Legend, Line, LineChart } from 'recharts'
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
+import { Clock, Users, BookOpen } from 'lucide-react'
+import { useAuth } from '@/hooks/use-auth'
 import pb from '@/lib/pocketbase/client'
 
-const pieColors = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))']
-
 const MONTHS = [
-  { value: 1, label: 'Janeiro' },
-  { value: 2, label: 'Fevereiro' },
-  { value: 3, label: 'Março' },
-  { value: 4, label: 'Abril' },
-  { value: 5, label: 'Maio' },
-  { value: 6, label: 'Junho' },
-  { value: 7, label: 'Julho' },
-  { value: 8, label: 'Agosto' },
-  { value: 9, label: 'Setembro' },
-  { value: 10, label: 'Outubro' },
-  { value: 11, label: 'Novembro' },
-  { value: 12, label: 'Dezembro' },
+  { value: 1, label: 'Jan' },
+  { value: 2, label: 'Fev' },
+  { value: 3, label: 'Mar' },
+  { value: 4, label: 'Abr' },
+  { value: 5, label: 'Mai' },
+  { value: 6, label: 'Jun' },
+  { value: 7, label: 'Jul' },
+  { value: 8, label: 'Ago' },
+  { value: 9, label: 'Set' },
+  { value: 10, label: 'Out' },
+  { value: 11, label: 'Nov' },
+  { value: 12, label: 'Dez' },
 ]
-
 const YEARS = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i)
 
-export default function Dashboard() {
+export default function Index() {
   const { user } = useAuth()
-  const isSecretario = user?.role === 'Secretário'
 
-  const [month, setMonth] = useState(new Date().getMonth() + 1)
-  const [year, setYear] = useState(new Date().getFullYear())
+  const [startMonth, setStartMonth] = useState(() => {
+    let m = new Date().getMonth() - 4
+    if (m <= 0) m += 12
+    return m
+  })
+  const [startYear, setStartYear] = useState(() => {
+    let m = new Date().getMonth() - 4
+    let y = new Date().getFullYear()
+    if (m <= 0) y -= 1
+    return y
+  })
+  const [endMonth, setEndMonth] = useState(new Date().getMonth() + 1)
+  const [endYear, setEndYear] = useState(new Date().getFullYear())
 
-  const [publishers, setPublishers] = useState<Publisher[]>([])
-  const [reports, setReports] = useState<PublisherReport[]>([])
-  const [summaries, setSummaries] = useState<MonthlySummary[]>([])
-  const [groupReports, setGroupReports] = useState<any[]>([])
-  const [groups, setGroups] = useState<Group[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
+  const [reports, setReports] = useState<any[]>([])
+
+  const monthsInRange = useMemo(() => {
+    const res = []
+    let currM = startMonth
+    let currY = startYear
+    while (currY < endYear || (currY === endYear && currM <= endMonth)) {
+      res.push({ m: currM, y: currY })
+      currM++
+      if (currM > 12) {
+        currM = 1
+        currY++
+      }
+    }
+    return res
+  }, [startMonth, startYear, endMonth, endYear])
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true)
       try {
-        const monthStr = month < 10 ? `0${month}` : `${month}`
-
-        const pubsPromise = getPublishers()
-        const repsPromise = getAllPublisherReportsForMonth(monthStr, year)
-        const grpsPromise = getGroups()
-
-        const [pubs, reps, grps] = await Promise.all([pubsPromise, repsPromise, grpsPromise])
-        setPublishers(pubs)
+        const reps = await pb.collection('publisher_reports').getFullList({
+          filter: `year >= ${startYear} && year <= ${endYear}`,
+        })
         setReports(reps)
-        setGroups(grps)
-
-        if (isSecretario) {
-          const sums = await getMonthlySummaries().catch(() => [])
-          setSummaries(sums)
-        } else {
-          const greps = await pb
-            .collection('group_reports')
-            .getFullList({ sort: '-month' })
-            .catch(() => [])
-          setGroupReports(greps)
-        }
       } catch (e) {
         console.error(e)
       } finally {
         setLoading(false)
       }
     }
-    fetchData()
-  }, [month, year, isSecretario])
-
-  const activePublishers = useMemo(() => publishers.filter((p) => p.active), [publishers])
-  const totalActive = activePublishers.length
-
-  const reportsSubmitted = useMemo(() => {
-    return reports.filter((r) =>
-      activePublishers.some((p) => p.id === r.publisher_id || r.expand?.publisher_id?.id === p.id),
-    ).length
-  }, [reports, activePublishers])
-
-  const reportProgress = totalActive > 0 ? Math.round((reportsSubmitted / totalActive) * 100) : 0
-
-  const participatedCount = reports.filter((r) => r.participated).length
-  const totalHours = reports.reduce((acc, r) => acc + (r.hours || 0), 0)
-  const totalStudies = reports.reduce((acc, r) => acc + (r.bible_studies || 0), 0)
-
-  const groupGoal = useMemo(() => {
-    if (isSecretario) {
-      return groups.reduce((acc, g) => acc + (g.hour_goal || 0), 0)
-    } else {
-      const g = groups.find((g) => g.number === user?.group_number)
-      return g?.hour_goal || 0
+    if (monthsInRange.length > 0 && monthsInRange.length <= 24) {
+      fetchData()
     }
-  }, [groups, isSecretario, user])
+  }, [startMonth, startYear, endMonth, endYear, monthsInRange])
 
-  const goalProgress = groupGoal > 0 ? Math.min(Math.round((totalHours / groupGoal) * 100), 100) : 0
+  const isValidRange = startYear < endYear || (startYear === endYear && startMonth <= endMonth)
 
-  const pieData = useMemo(() => {
-    const counts = { publicador: 0, pioneiro_auxiliar: 0, pioneiro_regular: 0 }
-    activePublishers.forEach((p) => {
-      if (counts[p.type] !== undefined) counts[p.type]++
-    })
-    return [
-      { name: 'Publicador', value: counts.publicador, fill: pieColors[0] },
-      { name: 'Pio. Auxiliar', value: counts.pioneiro_auxiliar, fill: pieColors[1] },
-      { name: 'Pio. Regular', value: counts.pioneiro_regular, fill: pieColors[2] },
-    ].filter((d) => d.value > 0)
-  }, [activePublishers])
+  const chartData = useMemo(() => {
+    return monthsInRange.map((p) => {
+      const mStr = p.m.toString().padStart(2, '0')
+      const monthReps = reports.filter((r) => r.month === mStr && r.year === p.y)
 
-  const barData = useMemo(() => {
-    const groups: Record<string, { totalHours: number; count: number }> = {}
-    reports.forEach((r) => {
-      const gNum = r.expand?.publisher_id?.expand?.group_id?.number || '?'
-      const label = `Grupo ${gNum}`
-      if (!groups[label]) groups[label] = { totalHours: 0, count: 0 }
-      groups[label].totalHours += r.hours || 0
-      groups[label].count++
-    })
-    return Object.keys(groups)
-      .sort()
-      .map((k) => ({
-        group: k,
-        avgHours:
-          groups[k].count > 0 ? Number((groups[k].totalHours / groups[k].count).toFixed(1)) : 0,
-      }))
-  }, [reports])
-
-  const last6Months = useMemo(() => {
-    const arr = []
-    for (let i = 5; i >= 0; i--) {
-      let dMonth = month - i
-      let dYear = year
-      while (dMonth <= 0) {
-        dMonth += 12
-        dYear -= 1
-      }
-      arr.push({ m: dMonth, y: dYear })
-    }
-    return arr
-  }, [month, year])
-
-  const trendData = useMemo(() => {
-    if (isSecretario) {
-      return last6Months.map(({ m, y }) => {
-        const s = summaries.find((sum) => sum.year === y && sum.month === m.toString())
-        const data = s?.report_data || {}
-        const h = data.publishers?.hours || data.publisher_hours || 0
-        const a = data.auxiliary?.hours || data.auxiliary_pioneer_hours || 0
-        const r = data.regular?.hours || data.regular_pioneer_hours || 0
-        return {
-          name: `${m < 10 ? '0' + m : m}/${y}`,
-          Midweek: s?.avg_attendance_midweek || 0,
-          Weekend: s?.avg_attendance_weekend || 0,
-          Hours: h + a + r,
-        }
-      })
-    } else {
-      return last6Months.map(({ m, y }) => {
-        const mStr = `${y}-${m.toString().padStart(2, '0')}`
-        const greps = groupReports.filter((g) => g.month === mStr)
-        const hours = greps.reduce(
-          (acc, g) =>
-            acc +
-            (g.publisher_hours || 0) +
-            (g.auxiliary_pioneer_hours || 0) +
-            (g.regular_pioneer_hours || 0),
-          0,
-        )
-        return {
-          name: `${m < 10 ? '0' + m : m}/${y}`,
-          Hours: hours,
-        }
-      })
-    }
-  }, [last6Months, summaries, groupReports, isSecretario])
-
-  const handleExport = () => {
-    const monthStr = month < 10 ? `0${month}` : `${month}`
-    const data = activePublishers.map((pub) => {
-      const rep = reports.find(
-        (r) => r.publisher_id === pub.id || r.expand?.publisher_id?.id === pub.id,
-      )
       return {
-        Nome: pub.name,
-        Grupo: pub.expand?.group_id?.number || '?',
-        Categoria:
-          pub.type === 'pioneiro_regular'
-            ? 'Pioneiro Regular'
-            : pub.type === 'pioneiro_auxiliar'
-              ? 'Pioneiro Auxiliar'
-              : 'Publicador',
-        Horas: rep?.hours || 0,
-        Estudos: rep?.bible_studies || 0,
-        Participou: rep?.participated ? 'Sim' : 'Não',
+        name: `${mStr}/${p.y.toString().slice(-2)}`,
+        horas: monthReps.reduce((sum, r) => sum + (r.hours || 0), 0),
+        estudos: monthReps.reduce((sum, r) => sum + (r.bible_studies || 0), 0),
+        publicadores: monthReps.filter(
+          (r) =>
+            r.participated || (r.hours && r.hours > 0) || (r.bible_studies && r.bible_studies > 0),
+        ).length,
       }
     })
+  }, [monthsInRange, reports])
 
-    const csvContent = [
-      ['Nome', 'Grupo', 'Categoria', 'Horas', 'Estudos Bíblicos', 'Participou'].join(','),
-      ...data.map(
-        (r) =>
-          `"${r.Nome}","${r.Grupo}","${r.Categoria}",${r.Horas},${r.Estudos},"${r.Participou}"`,
-      ),
-    ].join('\n')
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-    const link = document.createElement('a')
-    const url = URL.createObjectURL(blob)
-    link.setAttribute('href', url)
-    link.setAttribute('download', `Relatorio_Congregacao_${monthStr}_${year}.csv`)
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-  }
-
-  const inactiveOrPending = useMemo(() => {
-    return activePublishers
-      .map((pub) => {
-        const rep = reports.find(
-          (r) => r.publisher_id === pub.id || r.expand?.publisher_id?.id === pub.id,
-        )
-        if (!rep) return { ...pub, status: 'Pendente' }
-        if (!rep.participated) return { ...pub, status: 'Inativo' }
-        return null
-      })
-      .filter(Boolean) as (Publisher & { status: 'Pendente' | 'Inativo' })[]
-  }, [activePublishers, reports])
-
-  const hasTrendData = trendData.some(
-    (d) => d.Hours > 0 || (d.Midweek && d.Midweek > 0) || (d.Weekend && d.Weekend > 0),
-  )
+  const endMonthData = useMemo(() => {
+    if (chartData.length === 0) return { horas: 0, estudos: 0, publicadores: 0 }
+    return chartData[chartData.length - 1]
+  }, [chartData])
 
   return (
     <div className="space-y-8 pb-10 max-w-7xl mx-auto animate-fade-in-up">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Dashboard Executivo</h2>
+          <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
           <p className="text-muted-foreground mt-1">
-            Visão geral das atividades da congregação {isSecretario ? '' : `(Seu Grupo)`}
+            Bem-vindo(a), {user?.name}. Visão geral do{' '}
+            {user?.role === 'Secretário'
+              ? 'trabalho da congregação'
+              : `seu grupo (Grupo ${user?.group_number})`}
+            .
           </p>
         </div>
-        <div className="flex gap-2 w-full sm:w-auto flex-wrap sm:flex-nowrap">
-          <Button
-            variant="outline"
-            onClick={handleExport}
-            disabled={loading}
-            className="w-full sm:w-auto"
-          >
-            <Download className="h-4 w-4 mr-2" />
-            Baixar Relatório
-          </Button>
+
+        <div className="flex items-center gap-2 bg-muted/30 p-2 rounded-lg border shadow-sm flex-wrap">
           <Select
-            value={month.toString()}
-            onValueChange={(v) => setMonth(parseInt(v))}
+            value={startMonth.toString()}
+            onValueChange={(v) => setStartMonth(Number(v))}
             disabled={loading}
           >
-            <SelectTrigger className="w-full sm:w-[140px]">
-              <SelectValue placeholder="Mês" />
+            <SelectTrigger className="w-[80px] h-8 bg-background">
+              <SelectValue />
             </SelectTrigger>
             <SelectContent>
               {MONTHS.map((m) => (
@@ -305,12 +140,45 @@ export default function Dashboard() {
             </SelectContent>
           </Select>
           <Select
-            value={year.toString()}
-            onValueChange={(v) => setYear(parseInt(v))}
+            value={startYear.toString()}
+            onValueChange={(v) => setStartYear(Number(v))}
             disabled={loading}
           >
-            <SelectTrigger className="w-full sm:w-[110px]">
-              <SelectValue placeholder="Ano" />
+            <SelectTrigger className="w-[80px] h-8 bg-background">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {YEARS.map((y) => (
+                <SelectItem key={y} value={y.toString()}>
+                  {y}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <span className="text-sm font-medium px-2">até</span>
+          <Select
+            value={endMonth.toString()}
+            onValueChange={(v) => setEndMonth(Number(v))}
+            disabled={loading}
+          >
+            <SelectTrigger className="w-[80px] h-8 bg-background">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {MONTHS.map((m) => (
+                <SelectItem key={m.value} value={m.value.toString()}>
+                  {m.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select
+            value={endYear.toString()}
+            onValueChange={(v) => setEndYear(Number(v))}
+            disabled={loading}
+          >
+            <SelectTrigger className="w-[80px] h-8 bg-background">
+              <SelectValue />
             </SelectTrigger>
             <SelectContent>
               {YEARS.map((y) => (
@@ -323,10 +191,14 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {loading ? (
+      {!isValidRange ? (
+        <div className="p-8 text-center text-red-500 bg-red-50 rounded-lg border border-red-200">
+          O período selecionado é inválido. Certifique-se que o mês de início é anterior ao mês de
+          fim.
+        </div>
+      ) : loading ? (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <Skeleton className="h-32 w-full" />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Skeleton className="h-32 w-full" />
             <Skeleton className="h-32 w-full" />
             <Skeleton className="h-32 w-full" />
@@ -335,242 +207,79 @@ export default function Dashboard() {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <Card className="shadow-sm border-l-4 border-l-primary">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Publicadores Ativos</CardTitle>
+                <CardTitle className="text-sm font-medium">Publicadores que Relataram</CardTitle>
                 <Users className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{participatedCount}</div>
-                <p className="text-xs text-muted-foreground mt-1">Participaram no período</p>
+                <div className="text-2xl font-bold">{endMonthData.publicadores}</div>
+                <p className="text-xs text-muted-foreground">
+                  No mês de {endMonth.toString().padStart(2, '0')}/{endYear}
+                </p>
               </CardContent>
             </Card>
-
-            <Card className="shadow-sm border-l-4 border-l-blue-500">
+            <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Relatórios Entregues</CardTitle>
-                <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {reportsSubmitted}{' '}
-                  <span className="text-sm text-muted-foreground font-normal">/ {totalActive}</span>
-                </div>
-                <Progress value={reportProgress} className="h-2 mt-3" />
-                <p className="text-xs text-muted-foreground mt-2">{reportProgress}% do grupo</p>
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-sm border-l-4 border-l-green-500">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Horas Totais</CardTitle>
+                <CardTitle className="text-sm font-medium">Total de Horas</CardTitle>
                 <Clock className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{totalHours}</div>
-                {groupGoal > 0 ? (
-                  <>
-                    <Progress value={goalProgress} className="h-2 mt-3" />
-                    <p className="text-xs text-muted-foreground mt-2">
-                      {goalProgress}% da meta ({groupGoal}h)
-                    </p>
-                  </>
-                ) : (
-                  <p className="text-xs text-muted-foreground mt-1">Relatadas no período</p>
-                )}
+                <div className="text-2xl font-bold">{endMonthData.horas}</div>
+                <p className="text-xs text-muted-foreground">
+                  No mês de {endMonth.toString().padStart(2, '0')}/{endYear}
+                </p>
               </CardContent>
             </Card>
-
-            <Card className="shadow-sm border-l-4 border-l-purple-500">
+            <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Estudos Bíblicos</CardTitle>
                 <BookOpen className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{totalStudies}</div>
-                <p className="text-xs text-muted-foreground mt-1">Dirigidos no período</p>
+                <div className="text-2xl font-bold">{endMonthData.estudos}</div>
+                <p className="text-xs text-muted-foreground">
+                  No mês de {endMonth.toString().padStart(2, '0')}/{endYear}
+                </p>
               </CardContent>
             </Card>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card className="shadow-sm">
-              <CardHeader>
-                <CardTitle>Composição de Publicadores</CardTitle>
-                <CardDescription>Tipos de privilégio de serviço ativos</CardDescription>
-              </CardHeader>
-              <CardContent className="h-[300px] flex items-center justify-center pb-8">
-                {pieData.length > 0 ? (
-                  <ChartContainer config={{}} className="h-full w-full">
-                    <PieChart>
-                      <Pie
-                        data={pieData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={60}
-                        outerRadius={80}
-                        paddingAngle={5}
-                        dataKey="value"
-                      >
-                        {pieData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.fill} />
-                        ))}
-                      </Pie>
-                      <ChartTooltip content={<ChartTooltipContent />} />
-                      <Legend verticalAlign="bottom" height={36} />
-                    </PieChart>
-                  </ChartContainer>
-                ) : (
-                  <p className="text-muted-foreground">Nenhum dado disponível para este período</p>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-sm">
-              <CardHeader>
-                <CardTitle>Média de Horas por Grupo</CardTitle>
-                <CardDescription>Comparativo do período selecionado</CardDescription>
-              </CardHeader>
-              <CardContent className="h-[300px]">
-                {barData.length > 0 ? (
-                  <ChartContainer config={{}} className="h-full w-full">
-                    <BarChart data={barData} margin={{ top: 20, right: 0, left: -20, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                      <XAxis dataKey="group" fontSize={12} tickLine={false} axisLine={false} />
-                      <YAxis fontSize={12} tickLine={false} axisLine={false} />
-                      <ChartTooltip content={<ChartTooltipContent />} />
-                      <Bar
-                        dataKey="avgHours"
-                        fill="hsl(var(--primary))"
-                        radius={[4, 4, 0, 0]}
-                        name="Média Horas"
-                      />
-                    </BarChart>
-                  </ChartContainer>
-                ) : (
-                  <div className="h-full flex items-center justify-center">
-                    <p className="text-muted-foreground">
-                      Nenhum dado disponível para este período
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <Card className="shadow-sm lg:col-span-2">
-              <CardHeader>
-                <CardTitle>Tendência de Atividade</CardTitle>
-                <CardDescription>Evolução nos últimos 6 meses</CardDescription>
-              </CardHeader>
-              <CardContent className="h-[350px]">
-                {hasTrendData ? (
-                  <ChartContainer config={{}} className="h-full w-full">
-                    <LineChart
-                      data={trendData}
-                      margin={{ top: 5, right: 20, bottom: 5, left: -20 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                      <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
-                      <YAxis yAxisId="left" fontSize={12} tickLine={false} axisLine={false} />
-                      {isSecretario && (
-                        <YAxis
-                          yAxisId="right"
-                          orientation="right"
-                          fontSize={12}
-                          tickLine={false}
-                          axisLine={false}
-                        />
-                      )}
-                      <ChartTooltip content={<ChartTooltipContent />} />
-                      <Legend verticalAlign="top" height={36} />
-                      {isSecretario && (
-                        <>
-                          <Line
-                            yAxisId="left"
-                            type="monotone"
-                            dataKey="Midweek"
-                            name="Meio de Semana"
-                            stroke="hsl(var(--chart-1))"
-                            strokeWidth={2}
-                            dot={{ r: 4 }}
-                          />
-                          <Line
-                            yAxisId="left"
-                            type="monotone"
-                            dataKey="Weekend"
-                            name="Fim de Semana"
-                            stroke="hsl(var(--chart-2))"
-                            strokeWidth={2}
-                            dot={{ r: 4 }}
-                          />
-                        </>
-                      )}
-                      <Line
-                        yAxisId={isSecretario ? 'right' : 'left'}
-                        type="monotone"
-                        dataKey="Hours"
-                        name="Horas Totais"
-                        stroke="hsl(var(--chart-3))"
-                        strokeWidth={2}
-                        dot={{ r: 4 }}
-                      />
-                    </LineChart>
-                  </ChartContainer>
-                ) : (
-                  <div className="h-full flex items-center justify-center">
-                    <p className="text-muted-foreground">
-                      Nenhum dado disponível para este período
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-sm border-t-4 border-t-amber-500">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <AlertCircle className="h-5 w-5 text-amber-500" />
-                  Inatividade / Pendências
-                </CardTitle>
-                <CardDescription>Publicadores sem atividade no período</CardDescription>
-              </CardHeader>
-              <CardContent className="p-0">
-                <div className="overflow-auto max-h-[350px]">
-                  <Table>
-                    <TableHeader className="bg-muted/30 sticky top-0">
-                      <TableRow>
-                        <TableHead>Nome</TableHead>
-                        <TableHead className="text-right">Status</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {inactiveOrPending.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={2} className="text-center py-8 text-muted-foreground">
-                            Nenhuma pendência ou inatividade!
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        inactiveOrPending.map((p) => (
-                          <TableRow key={p.id}>
-                            <TableCell className="font-medium text-sm py-3">{p.name}</TableCell>
-                            <TableCell className="text-right py-3">
-                              <Badge variant={p.status === 'Inativo' ? 'destructive' : 'secondary'}>
-                                {p.status}
-                              </Badge>
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+          <Card className="shadow-sm">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                Tendência de Horas no Serviço de Campo
+              </CardTitle>
+              <CardDescription>
+                Comparativo de horas realizadas no período selecionado
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="h-[350px]">
+              <ChartContainer
+                config={{
+                  horas: { label: 'Horas Totais', color: 'hsl(var(--chart-1))' },
+                }}
+                className="h-full w-full"
+              >
+                <LineChart data={chartData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
+                  <YAxis fontSize={12} tickLine={false} axisLine={false} />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Legend verticalAlign="top" height={36} />
+                  <Line
+                    type="monotone"
+                    dataKey="horas"
+                    stroke="var(--color-horas)"
+                    strokeWidth={3}
+                    dot={{ r: 4 }}
+                    activeDot={{ r: 6 }}
+                  />
+                </LineChart>
+              </ChartContainer>
+            </CardContent>
+          </Card>
         </>
       )}
     </div>

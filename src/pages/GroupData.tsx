@@ -33,6 +33,7 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Save, AlertCircle, Loader2, Target } from 'lucide-react'
+import { Progress } from '@/components/ui/progress'
 
 const numberField = z
   .union([z.string(), z.number()])
@@ -386,6 +387,27 @@ export default function GroupData() {
               <Button onClick={handleSaveGoal} disabled={isSavingGoal || !selectedGroupId}>
                 {isSavingGoal ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Salvar Meta'}
               </Button>
+            </div>
+          )}
+
+          {selectedGroupId && hourGoal && Number(hourGoal) > 0 && (
+            <div className="mt-6 pt-6 border-t flex flex-col gap-2">
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium text-muted-foreground">
+                  Progresso da Meta de Horas ({selectedMonth}/{selectedYear})
+                </span>
+                <span className="text-sm font-bold text-primary">
+                  {fields.reduce((acc, f) => acc + Number(f.hours || 0), 0)} / {hourGoal}h
+                </span>
+              </div>
+              <Progress
+                value={Math.min(
+                  (fields.reduce((acc, f) => acc + Number(f.hours || 0), 0) / Number(hourGoal)) *
+                    100,
+                  100,
+                )}
+                className="h-3"
+              />
             </div>
           )}
         </CardHeader>

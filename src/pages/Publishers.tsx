@@ -47,6 +47,7 @@ export default function PublishersPage() {
 
   const [publishers, setPublishers] = useState<Publisher[]>([])
   const [groups, setGroups] = useState<Group[]>([])
+  const [reports6m, setReports6m] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
 
@@ -81,6 +82,13 @@ export default function PublishersPage() {
       const [pubs, grps] = await Promise.all([getPublishers(), getGroups()])
       setPublishers(pubs)
       setGroups(grps)
+
+      const endY = new Date().getFullYear()
+      const startY = endY - 1
+      const reps = await pb.collection('publisher_reports').getFullList({
+        filter: `year >= ${startY}`,
+      })
+      setReports6m(reps)
     } catch (e) {
       toast({ title: 'Erro ao carregar dados', variant: 'destructive' })
     } finally {
@@ -292,7 +300,7 @@ export default function PublishersPage() {
                     <TableHead>Telefone</TableHead>
                     <TableHead>Grupo</TableHead>
                     <TableHead>Tipo</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead>Atividade</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -311,11 +319,34 @@ export default function PublishersPage() {
                         <TableCell>Grupo {pub.expand?.group_id?.number || '-'}</TableCell>
                         <TableCell className="capitalize">{pub.type.replace('_', ' ')}</TableCell>
                         <TableCell>
-                          <span
-                            className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${pub.active ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400'}`}
-                          >
-                            {pub.active ? 'Ativo' : 'Inativo'}
-                          </span>
+                          {(() => {
+                            if (!pub.active)
+                              return (
+                                <Badge variant="secondary" className="text-slate-500">
+                                  Desativado
+                                </Badge>
+                              )
+                            const status = calculateActivityStatus(
+                              pub.id,
+                              reports6m,
+                              new Date().getMonth() + 1,
+                              new Date().getFullYear(),
+                            )
+                            if (status === 'Ativo')
+                              return (
+                                <Badge className="bg-emerald-500 hover:bg-emerald-600">Ativo</Badge>
+                              )
+                            if (status === 'Não Participou')
+                              return (
+                                <Badge
+                                  variant="outline"
+                                  className="text-amber-600 border-amber-600"
+                                >
+                                  Não Participou
+                                </Badge>
+                              )
+                            return <Badge variant="destructive">Inativo (6m)</Badge>
+                          })()}
                         </TableCell>
                         <TableCell className="text-right space-x-2">
                           <Button variant="ghost" size="icon" asChild>
