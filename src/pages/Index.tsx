@@ -36,7 +36,8 @@ import {
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { AlertCircle, CheckCircle2, Clock, Users, BookOpen } from 'lucide-react'
+import { AlertCircle, CheckCircle2, Clock, Users, BookOpen, Download } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import pb from '@/lib/pocketbase/client'
 
 const pieColors = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))']
@@ -197,6 +198,45 @@ export default function Dashboard() {
     }
   }, [last6Months, summaries, groupReports, isSecretario])
 
+  const handleExport = () => {
+    const monthStr = month < 10 ? `0${month}` : `${month}`
+    const data = activePublishers.map((pub) => {
+      const rep = reports.find(
+        (r) => r.publisher_id === pub.id || r.expand?.publisher_id?.id === pub.id,
+      )
+      return {
+        Nome: pub.name,
+        Grupo: pub.expand?.group_id?.number || '?',
+        Categoria:
+          pub.type === 'pioneiro_regular'
+            ? 'Pioneiro Regular'
+            : pub.type === 'pioneiro_auxiliar'
+              ? 'Pioneiro Auxiliar'
+              : 'Publicador',
+        Horas: rep?.hours || 0,
+        Estudos: rep?.bible_studies || 0,
+        Participou: rep?.participated ? 'Sim' : 'Não',
+      }
+    })
+
+    const csvContent = [
+      ['Nome', 'Grupo', 'Categoria', 'Horas', 'Estudos Bíblicos', 'Participou'].join(','),
+      ...data.map(
+        (r) =>
+          `"${r.Nome}","${r.Grupo}","${r.Categoria}",${r.Horas},${r.Estudos},"${r.Participou}"`,
+      ),
+    ].join('\n')
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    link.setAttribute('href', url)
+    link.setAttribute('download', `Relatorio_Congregacao_${monthStr}_${year}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
   const inactiveOrPending = useMemo(() => {
     return activePublishers
       .map((pub) => {
@@ -223,7 +263,16 @@ export default function Dashboard() {
             Visão geral das atividades da congregação {isSecretario ? '' : `(Seu Grupo)`}
           </p>
         </div>
-        <div className="flex gap-2 w-full sm:w-auto">
+        <div className="flex gap-2 w-full sm:w-auto flex-wrap sm:flex-nowrap">
+          <Button
+            variant="outline"
+            onClick={handleExport}
+            disabled={loading}
+            className="w-full sm:w-auto"
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Baixar Relatório
+          </Button>
           <Select
             value={month.toString()}
             onValueChange={(v) => setMonth(parseInt(v))}
