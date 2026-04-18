@@ -49,14 +49,6 @@ export default function PublisherProfile() {
   const canView =
     isSecretario || (isResponsavel && publisher?.expand?.group_id?.number === user?.group_number)
 
-  if (!loading && !publisher) {
-    return <Navigate to="/dashboard" replace />
-  }
-
-  if (!loading && !canView) {
-    return <Navigate to="/dashboard" replace />
-  }
-
   const chartData = useMemo(() => {
     const data = []
     const now = new Date()
@@ -77,6 +69,14 @@ export default function PublisherProfile() {
 
   const totalHours = reports.reduce((acc, r) => acc + (r.hours || 0), 0)
   const totalStudies = reports.reduce((acc, r) => acc + (r.bible_studies || 0), 0)
+
+  if (!loading && !publisher) {
+    return <Navigate to="/dashboard" replace />
+  }
+
+  if (!loading && !canView) {
+    return <Navigate to="/dashboard" replace />
+  }
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-10 animate-fade-in-up">
