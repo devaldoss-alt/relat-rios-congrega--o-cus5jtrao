@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { getPublishers, Publisher } from '@/services/publishers'
+import { getGroups, Group } from '@/services/groups'
 import { getAllPublisherReportsForMonth, PublisherReport } from '@/services/publisher_reports'
 import {
   Select,
@@ -11,6 +12,7 @@ import {
 } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { Download, AlertCircle, Activity, TrendingUp, Clock, Users } from 'lucide-react'
+import { Progress } from '@/components/ui/progress'
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Legend } from 'recharts'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import {
@@ -51,6 +53,7 @@ export default function HealthMetrics() {
 
   const [loading, setLoading] = useState(true)
   const [publishers, setPublishers] = useState<Publisher[]>([])
+  const [groups, setGroups] = useState<Group[]>([])
   const [reportsByPeriod, setReportsByPeriod] = useState<PublisherReport[][]>([[], [], []])
   const [periods, setPeriods] = useState<{ m: number; y: number }[]>([])
 
@@ -75,10 +78,16 @@ export default function HealthMetrics() {
         })
 
         const pubsPromise = getPublishers().catch(() => [])
+        const grpsPromise = getGroups().catch(() => [])
 
-        const [pubs, ...reps] = await Promise.all([pubsPromise, ...reportsPromises])
+        const [pubs, grps, ...reps] = await Promise.all([
+          pubsPromise,
+          grpsPromise,
+          ...reportsPromises,
+        ])
 
         setPublishers(pubs)
+        setGroups(grps)
         setReportsByPeriod(reps)
         setPeriods(reqPeriods)
       } catch (e) {
@@ -138,6 +147,19 @@ export default function HealthMetrics() {
   const participatedCount = currentMonthReports.filter((r) => r.participated).length
   const participationPercentage =
     totalActive > 0 ? Math.round((participatedCount / totalActive) * 100) : 0
+
+  const groupGoal = useMemo(() => {
+    if (isSecretario) {
+      return groups.reduce((acc, g) => acc + (g.hour_goal || 0), 0)
+    } else {
+      const g = groups.find((g) => g.number === user?.group_number)
+      return g?.hour_goal || 0
+    }
+  }, [groups, isSecretario, user])
+
+  const totalCurrentHours = currentMonthReports.reduce((acc, r) => acc + (r.hours || 0), 0)
+  const goalProgress =
+    groupGoal > 0 ? Math.min(Math.round((totalCurrentHours / groupGoal) * 100), 100) : 0
 
   const averages = useMemo(() => {
     let counts = { regular: 0, auxiliar: 0, publicador: 0 }
@@ -296,24 +318,24 @@ export default function HealthMetrics() {
 
             <Card className="shadow-sm">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Média de Horas</CardTitle>
+                <CardTitle className="text-sm font-medium">Meta de Horas do Grupo</CardTitle>
                 <Clock className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-sm space-y-1">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Pioneiros Regulares:</span>
-                    <span className="font-bold">{averages.regular}h</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Pioneiros Auxiliares:</span>
-                    <span className="font-bold">{averages.auxiliar}h</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Publicadores:</span>
-                    <span className="font-bold">{averages.publicador}h</span>
-                  </div>
+                <div className="text-2xl font-bold">
+                  {totalCurrentHours}{' '}
+                  <span className="text-sm text-muted-foreground font-normal">
+                    / {groupGoal > 0 ? groupGoal : '-'}h
+                  </span>
                 </div>
+                {groupGoal > 0 ? (
+                  <>
+                    <Progress value={goalProgress} className="h-2 mt-3" />
+                    <p className="text-xs text-muted-foreground mt-2">{goalProgress}% alcançado</p>
+                  </>
+                ) : (
+                  <p className="text-xs text-muted-foreground mt-1">Nenhuma meta definida</p>
+                )}
               </CardContent>
             </Card>
           </div>

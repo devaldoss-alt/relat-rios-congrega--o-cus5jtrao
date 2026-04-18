@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-18T07:06:26.459Z",
+  "generatedAt": "2026-04-18T07:23:29.050Z",
   "collections": [
     {
       "name": "users",
@@ -284,6 +284,12 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "hour_goal",
+          "type": "number",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": []

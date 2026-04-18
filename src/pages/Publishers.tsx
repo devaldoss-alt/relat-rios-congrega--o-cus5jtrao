@@ -37,7 +37,8 @@ import {
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
-import { Plus, Search, Loader2, Pencil, Trash2 } from 'lucide-react'
+import { Plus, Search, Loader2, Pencil, Trash2, Eye } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { useRealtime } from '@/hooks/use-realtime'
 
 export default function PublishersPage() {
@@ -317,6 +318,11 @@ export default function PublishersPage() {
                           </span>
                         </TableCell>
                         <TableCell className="text-right space-x-2">
+                          <Button variant="ghost" size="icon" asChild>
+                            <Link to={`/publishers/${pub.id}`}>
+                              <Eye className="h-4 w-4 text-blue-500" />
+                            </Link>
+                          </Button>
                           <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(pub)}>
                             <Pencil className="h-4 w-4" />
                           </Button>

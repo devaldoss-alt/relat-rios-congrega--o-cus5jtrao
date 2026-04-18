@@ -14,6 +14,7 @@ import Reports from './pages/Reports'
 import HealthMetrics from './pages/HealthMetrics'
 import Compilation from './pages/Compilation'
 import Publishers from './pages/Publishers'
+import PublisherProfile from './pages/PublisherProfile'
 import ReportsHistory from './pages/ReportsHistory'
 import UsersAdmin from './pages/UsersAdmin'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -66,6 +67,7 @@ const App = () => (
             <Route path="/metrics" element={<HealthMetrics />} />
             <Route path="/compilation" element={<Compilation />} />
             <Route path="/publishers" element={<Publishers />} />
+            <Route path="/publishers/:id" element={<PublisherProfile />} />
             <Route path="/reports-history" element={<ReportsHistory />} />
             <Route path="/users" element={<UsersAdmin />} />
           </Route>

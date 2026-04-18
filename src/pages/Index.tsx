@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { getPublishers, Publisher } from '@/services/publishers'
 import { getAllPublisherReportsForMonth, PublisherReport } from '@/services/publisher_reports'
 import { getMonthlySummaries, MonthlySummary } from '@/services/monthly_summaries'
+import { getGroups, Group } from '@/services/groups'
 import {
   Select,
   SelectContent,
@@ -70,6 +71,7 @@ export default function Dashboard() {
   const [reports, setReports] = useState<PublisherReport[]>([])
   const [summaries, setSummaries] = useState<MonthlySummary[]>([])
   const [groupReports, setGroupReports] = useState<any[]>([])
+  const [groups, setGroups] = useState<Group[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -80,10 +82,12 @@ export default function Dashboard() {
 
         const pubsPromise = getPublishers()
         const repsPromise = getAllPublisherReportsForMonth(monthStr, year)
+        const grpsPromise = getGroups()
 
-        const [pubs, reps] = await Promise.all([pubsPromise, repsPromise])
+        const [pubs, reps, grps] = await Promise.all([pubsPromise, repsPromise, grpsPromise])
         setPublishers(pubs)
         setReports(reps)
+        setGroups(grps)
 
         if (isSecretario) {
           const sums = await getMonthlySummaries().catch(() => [])
@@ -118,6 +122,17 @@ export default function Dashboard() {
   const participatedCount = reports.filter((r) => r.participated).length
   const totalHours = reports.reduce((acc, r) => acc + (r.hours || 0), 0)
   const totalStudies = reports.reduce((acc, r) => acc + (r.bible_studies || 0), 0)
+
+  const groupGoal = useMemo(() => {
+    if (isSecretario) {
+      return groups.reduce((acc, g) => acc + (g.hour_goal || 0), 0)
+    } else {
+      const g = groups.find((g) => g.number === user?.group_number)
+      return g?.hour_goal || 0
+    }
+  }, [groups, isSecretario, user])
+
+  const goalProgress = groupGoal > 0 ? Math.min(Math.round((totalHours / groupGoal) * 100), 100) : 0
 
   const pieData = useMemo(() => {
     const counts = { publicador: 0, pioneiro_auxiliar: 0, pioneiro_regular: 0 }
@@ -354,7 +369,16 @@ export default function Dashboard() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{totalHours}</div>
-                <p className="text-xs text-muted-foreground mt-1">Relatadas no período</p>
+                {groupGoal > 0 ? (
+                  <>
+                    <Progress value={goalProgress} className="h-2 mt-3" />
+                    <p className="text-xs text-muted-foreground mt-2">
+                      {goalProgress}% da meta ({groupGoal}h)
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-xs text-muted-foreground mt-1">Relatadas no período</p>
+                )}
               </CardContent>
             </Card>
 

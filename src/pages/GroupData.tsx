@@ -32,7 +32,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Save, AlertCircle, Loader2 } from 'lucide-react'
+import { Save, AlertCircle, Loader2, Target } from 'lucide-react'
 
 const numberField = z
   .union([z.string(), z.number()])
@@ -93,6 +93,8 @@ export default function GroupData() {
   const [groupReportId, setGroupReportId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
+  const [isSavingGoal, setIsSavingGoal] = useState(false)
+  const [hourGoal, setHourGoal] = useState<string>('')
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -112,6 +114,12 @@ export default function GroupData() {
 
   const selectedGroup = groups.find((g) => g.number.toString() === selectedGroupNumber)
   const selectedGroupId = selectedGroup?.id
+
+  useEffect(() => {
+    if (selectedGroup) {
+      setHourGoal(selectedGroup.hour_goal?.toString() || '')
+    }
+  }, [selectedGroup])
 
   const loadReport = useCallback(async () => {
     if (!selectedGroupId) return
@@ -174,6 +182,21 @@ export default function GroupData() {
 
   if (!isSecretario && !isResponsavel) {
     return <Navigate to="/dashboard" replace />
+  }
+
+  const handleSaveGoal = async () => {
+    if (!selectedGroupId || !isSecretario) return
+    setIsSavingGoal(true)
+    try {
+      await updateGroup(selectedGroupId, { hour_goal: Number(hourGoal) })
+      toast({ title: 'Meta do grupo atualizada com sucesso!' })
+      const updatedGroups = await getGroups()
+      setGroups(updatedGroups)
+    } catch (e) {
+      toast({ title: 'Erro ao atualizar meta', variant: 'destructive' })
+    } finally {
+      setIsSavingGoal(false)
+    }
   }
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
@@ -331,9 +354,9 @@ export default function GroupData() {
                     <SelectValue placeholder="Selecione o Grupo" />
                   </SelectTrigger>
                   <SelectContent>
-                    {[1, 2, 3, 4].map((num) => (
-                      <SelectItem key={num} value={num.toString()}>
-                        Grupo {num}
+                    {groups.map((g) => (
+                      <SelectItem key={g.id} value={g.number.toString()}>
+                        Grupo {g.number}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -343,6 +366,28 @@ export default function GroupData() {
               )}
             </div>
           </div>
+
+          {isSecretario && (
+            <div className="mt-6 pt-6 border-t flex items-end gap-4 max-w-sm">
+              <div className="space-y-2 flex-1">
+                <label className="text-sm font-medium flex items-center gap-2">
+                  <Target className="h-4 w-4 text-primary" />
+                  Meta de Horas Mensais
+                </label>
+                <Input
+                  type="number"
+                  min="0"
+                  placeholder="Ex: 100"
+                  value={hourGoal}
+                  onChange={(e) => setHourGoal(e.target.value)}
+                  className="bg-background"
+                />
+              </div>
+              <Button onClick={handleSaveGoal} disabled={isSavingGoal || !selectedGroupId}>
+                {isSavingGoal ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Salvar Meta'}
+              </Button>
+            </div>
+          )}
         </CardHeader>
       </Card>
 
