@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-18T13:14:24.208Z",
+  "generatedAt": "2026-04-18T21:28:23.920Z",
   "collections": [
     {
       "name": "users",
@@ -290,6 +290,12 @@
           "type": "number",
           "required": false,
           "system": false
+        },
+        {
+          "name": "regular_pioneer_hour_goal",
+          "type": "number",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": []
@@ -574,6 +580,12 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "attendance_goal",
+          "type": "number",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [

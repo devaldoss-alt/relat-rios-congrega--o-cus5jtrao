@@ -7,6 +7,7 @@ export interface MonthlySummary {
   total_active_publishers: number
   avg_attendance_midweek: number
   avg_attendance_weekend: number
+  attendance_goal?: number
   report_data: any
   created: string
   updated: string

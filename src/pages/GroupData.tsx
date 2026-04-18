@@ -5,7 +5,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useAuth } from '@/hooks/use-auth'
 import { Navigate } from 'react-router-dom'
 import { useToast } from '@/components/ui/use-toast'
-import { getGroups } from '@/services/groups'
+import { getGroups, updateGroup } from '@/services/groups'
 import { getGroupReport, createGroupReport, updateGroupReport } from '@/services/group_reports'
 import { getPublishersByGroup } from '@/services/publishers'
 import { getPublisherReports, savePublisherReport } from '@/services/publisher_reports'
@@ -71,7 +71,7 @@ const months = [
   { value: '12', label: 'Dezembro' },
 ]
 
-const years = ['2024', '2025', '2026']
+const years = ['2024', '2025', '2026', '2027']
 
 export default function GroupData() {
   const { user } = useAuth()
@@ -95,7 +95,9 @@ export default function GroupData() {
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [isSavingGoal, setIsSavingGoal] = useState(false)
+
   const [hourGoal, setHourGoal] = useState<string>('')
+  const [pioneerHourGoal, setPioneerHourGoal] = useState<string>('')
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -119,6 +121,7 @@ export default function GroupData() {
   useEffect(() => {
     if (selectedGroup) {
       setHourGoal(selectedGroup.hour_goal?.toString() || '')
+      setPioneerHourGoal(selectedGroup.regular_pioneer_hour_goal?.toString() || '')
     }
   }, [selectedGroup])
 
@@ -189,12 +192,15 @@ export default function GroupData() {
     if (!selectedGroupId || !isSecretario) return
     setIsSavingGoal(true)
     try {
-      await updateGroup(selectedGroupId, { hour_goal: Number(hourGoal) })
-      toast({ title: 'Meta do grupo atualizada com sucesso!' })
+      await updateGroup(selectedGroupId, {
+        hour_goal: Number(hourGoal),
+        regular_pioneer_hour_goal: Number(pioneerHourGoal),
+      })
+      toast({ title: 'Metas do grupo atualizadas com sucesso!' })
       const updatedGroups = await getGroups()
       setGroups(updatedGroups)
     } catch (e) {
-      toast({ title: 'Erro ao atualizar meta', variant: 'destructive' })
+      toast({ title: 'Erro ao atualizar metas', variant: 'destructive' })
     } finally {
       setIsSavingGoal(false)
     }
@@ -369,11 +375,11 @@ export default function GroupData() {
           </div>
 
           {isSecretario && (
-            <div className="mt-6 pt-6 border-t flex items-end gap-4 max-w-sm">
-              <div className="space-y-2 flex-1">
+            <div className="mt-6 pt-6 border-t flex flex-col md:flex-row items-end gap-4">
+              <div className="space-y-2 flex-1 max-w-[200px]">
                 <label className="text-sm font-medium flex items-center gap-2">
                   <Target className="h-4 w-4 text-primary" />
-                  Meta de Horas Mensais
+                  Meta Grupo (Horas)
                 </label>
                 <Input
                   type="number"
@@ -384,8 +390,26 @@ export default function GroupData() {
                   className="bg-background"
                 />
               </div>
-              <Button onClick={handleSaveGoal} disabled={isSavingGoal || !selectedGroupId}>
-                {isSavingGoal ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Salvar Meta'}
+              <div className="space-y-2 flex-1 max-w-[250px]">
+                <label className="text-sm font-medium flex items-center gap-2">
+                  <Target className="h-4 w-4 text-primary" />
+                  Meta Pioneiros Regulares
+                </label>
+                <Input
+                  type="number"
+                  min="0"
+                  placeholder="Horas/publicador"
+                  value={pioneerHourGoal}
+                  onChange={(e) => setPioneerHourGoal(e.target.value)}
+                  className="bg-background"
+                />
+              </div>
+              <Button
+                onClick={handleSaveGoal}
+                disabled={isSavingGoal || !selectedGroupId}
+                className="w-full md:w-auto"
+              >
+                {isSavingGoal ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Salvar Metas'}
               </Button>
             </div>
           )}
@@ -394,7 +418,7 @@ export default function GroupData() {
             <div className="mt-6 pt-6 border-t flex flex-col gap-2">
               <div className="flex justify-between items-center">
                 <span className="text-sm font-medium text-muted-foreground">
-                  Progresso da Meta de Horas ({selectedMonth}/{selectedYear})
+                  Progresso da Meta Geral ({selectedMonth}/{selectedYear})
                 </span>
                 <span className="text-sm font-bold text-primary">
                   {fields.reduce((acc, f) => acc + Number(f.hours || 0), 0)} / {hourGoal}h
@@ -448,9 +472,9 @@ export default function GroupData() {
                         <TableHead className="w-[25%]">Nome do Publicador</TableHead>
                         <TableHead className="w-[15%]">Tipo</TableHead>
                         <TableHead className="w-[10%] text-center">Participou?</TableHead>
-                        <TableHead className="w-[10%]">Horas</TableHead>
+                        <TableHead className="w-[15%]">Horas</TableHead>
                         <TableHead className="w-[10%]">Estudos</TableHead>
-                        <TableHead className="w-[30%]">Observações</TableHead>
+                        <TableHead className="w-[25%]">Observações</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -537,20 +561,29 @@ export default function GroupData() {
                                 render={({ field: inputField }) => (
                                   <FormItem>
                                     <FormControl>
-                                      <Input
-                                        type="number"
-                                        min="0"
-                                        step="0.1"
-                                        className="w-24 bg-background disabled:opacity-50 disabled:cursor-not-allowed"
-                                        disabled={!form.watch(`reports.${index}.participated`)}
-                                        {...inputField}
-                                        onChange={(e) => {
-                                          inputField.onChange(e)
-                                          if (Number(e.target.value) > 0) {
-                                            form.setValue(`reports.${index}.participated`, true)
-                                          }
-                                        }}
-                                      />
+                                      <div className="flex items-center gap-2">
+                                        <Input
+                                          type="number"
+                                          min="0"
+                                          step="0.1"
+                                          className="w-20 bg-background disabled:opacity-50 disabled:cursor-not-allowed"
+                                          disabled={!form.watch(`reports.${index}.participated`)}
+                                          {...inputField}
+                                          onChange={(e) => {
+                                            inputField.onChange(e)
+                                            if (Number(e.target.value) > 0) {
+                                              form.setValue(`reports.${index}.participated`, true)
+                                            }
+                                          }}
+                                        />
+                                        {form.watch(`reports.${index}.type`) ===
+                                          'pioneiro_regular' &&
+                                          Number(pioneerHourGoal) > 0 && (
+                                            <span className="text-xs font-semibold text-primary whitespace-nowrap bg-primary/10 px-1.5 py-0.5 rounded-sm">
+                                              / {pioneerHourGoal}h
+                                            </span>
+                                          )}
+                                      </div>
                                     </FormControl>
                                   </FormItem>
                                 )}
@@ -566,7 +599,7 @@ export default function GroupData() {
                                       <Input
                                         type="number"
                                         min="0"
-                                        className="w-24 bg-background disabled:opacity-50 disabled:cursor-not-allowed"
+                                        className="w-20 bg-background disabled:opacity-50 disabled:cursor-not-allowed"
                                         disabled={!form.watch(`reports.${index}.participated`)}
                                         {...inputField}
                                       />

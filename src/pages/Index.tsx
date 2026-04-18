@@ -50,6 +50,10 @@ export default function Index() {
   const [loading, setLoading] = useState(false)
   const [reports, setReports] = useState<any[]>([])
 
+  // Dashboard Comparativo State
+  const [activePublishers, setActivePublishers] = useState(0)
+  const [avgAttendance, setAvgAttendance] = useState(0)
+
   const monthsInRange = useMemo(() => {
     const res = []
     let currM = startMonth
@@ -64,6 +68,38 @@ export default function Index() {
     }
     return res
   }, [startMonth, startYear, endMonth, endYear])
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        const pubs = await pb.collection('publishers').getFullList({ filter: 'active = true' })
+        setActivePublishers(pubs.length)
+
+        const sums = await pb
+          .collection('monthly_summaries')
+          .getList(1, 1, { sort: '-year,-month' })
+        if (sums.items.length > 0) {
+          const latest = sums.items[0]
+          setAvgAttendance(
+            Math.round((latest.avg_attendance_midweek + latest.avg_attendance_weekend) / 2),
+          )
+        } else {
+          const now = new Date()
+          const start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
+          const meetings = await pb
+            .collection('meeting_attendance')
+            .getFullList({ filter: `meeting_date >= "${start}"` })
+          if (meetings.length > 0) {
+            const total = meetings.reduce((acc, m) => acc + m.in_person + m.zoom, 0)
+            setAvgAttendance(Math.round(total / meetings.length))
+          }
+        }
+      } catch (e) {
+        console.error(e)
+      }
+    }
+    fetchDashboardData()
+  }, [])
 
   useEffect(() => {
     const fetchData = async () => {
@@ -245,6 +281,40 @@ export default function Index() {
               </CardContent>
             </Card>
           </div>
+
+          <Card className="shadow-sm md:col-span-3 border-t-4 border-t-primary">
+            <CardHeader className="bg-muted/30 pb-4 border-b">
+              <CardTitle className="flex items-center gap-2 text-base">
+                Comparativo entre Publicadores Ativos e Assistência Média
+              </CardTitle>
+              <CardDescription>
+                Visão geral da atividade vs assistência no mês mais recente
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col sm:flex-row items-center justify-around gap-8 py-8">
+                <div className="flex flex-col items-center gap-3">
+                  <span className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                    Publicadores Ativos
+                  </span>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-6xl font-bold text-primary">{activePublishers}</span>
+                    <Users className="w-8 h-8 text-primary/40" />
+                  </div>
+                </div>
+                <div className="h-24 w-px bg-border hidden sm:block"></div>
+                <div className="flex flex-col items-center gap-3">
+                  <span className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                    Assistência Média
+                  </span>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-6xl font-bold text-emerald-600">{avgAttendance}</span>
+                    <Users className="w-8 h-8 text-emerald-600/40" />
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
           <Card className="shadow-sm">
             <CardHeader>

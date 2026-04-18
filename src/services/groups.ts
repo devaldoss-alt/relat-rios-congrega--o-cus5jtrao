@@ -5,6 +5,7 @@ export interface Group {
   number: number
   leader?: string
   hour_goal?: number
+  regular_pioneer_hour_goal?: number
 }
 
 export const getGroups = () => pb.collection('groups').getFullList<Group>({ sort: 'number' })

@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft, Clock, BookOpen, Calendar, User as UserIcon } from 'lucide-react'
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Legend } from 'recharts'
+import { ComposedChart, Bar, Line, CartesianGrid, XAxis, YAxis, Legend } from 'recharts'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import {
   Table,
@@ -18,11 +18,13 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
+import pb from '@/lib/pocketbase/client'
 
 export default function PublisherProfile() {
   const { id } = useParams()
   const { user } = useAuth()
   const [publisher, setPublisher] = useState<Publisher | null>(null)
+  const [group, setGroup] = useState<any>(null)
   const [reports, setReports] = useState<PublisherReport[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -33,6 +35,10 @@ export default function PublisherProfile() {
       try {
         const pub = await getPublisher(id)
         setPublisher(pub)
+        if (pub.group_id) {
+          const g = await pb.collection('groups').getOne(pub.group_id)
+          setGroup(g)
+        }
         const reps = await getPublisherReportsHistory(id, 12)
         setReports(reps.items)
       } catch (e) {
@@ -49,6 +55,9 @@ export default function PublisherProfile() {
   const canView =
     isSecretario || (isResponsavel && publisher?.expand?.group_id?.number === user?.group_number)
 
+  const isRegularPioneer = publisher?.type === 'pioneiro_regular'
+  const pioneerGoal = group?.regular_pioneer_hour_goal || 0
+
   const chartData = useMemo(() => {
     const data = []
     const now = new Date()
@@ -62,10 +71,11 @@ export default function PublisherProfile() {
         name: `${mStr}/${y}`,
         Horas: rep?.hours || 0,
         Estudos: rep?.bible_studies || 0,
+        Meta: isRegularPioneer ? pioneerGoal : undefined,
       })
     }
     return data
-  }, [reports])
+  }, [reports, isRegularPioneer, pioneerGoal])
 
   const totalHours = reports.reduce((acc, r) => acc + (r.hours || 0), 0)
   const totalStudies = reports.reduce((acc, r) => acc + (r.bible_studies || 0), 0)
@@ -172,10 +182,14 @@ export default function PublisherProfile() {
                 config={{
                   Horas: { label: 'Horas', color: 'hsl(var(--chart-1))' },
                   Estudos: { label: 'Estudos', color: 'hsl(var(--chart-2))' },
+                  Meta: { label: 'Meta de Horas', color: 'hsl(var(--primary))' },
                 }}
                 className="h-full w-full"
               >
-                <BarChart data={chartData} margin={{ top: 20, right: 0, left: -20, bottom: 0 }}>
+                <ComposedChart
+                  data={chartData}
+                  margin={{ top: 20, right: 0, left: -20, bottom: 0 }}
+                >
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
                   <YAxis fontSize={12} tickLine={false} axisLine={false} />
@@ -183,7 +197,17 @@ export default function PublisherProfile() {
                   <Legend verticalAlign="top" height={36} />
                   <Bar dataKey="Horas" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} />
                   <Bar dataKey="Estudos" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} />
-                </BarChart>
+                  {isRegularPioneer && pioneerGoal > 0 && (
+                    <Line
+                      type="monotone"
+                      dataKey="Meta"
+                      stroke="hsl(var(--primary))"
+                      strokeWidth={2}
+                      strokeDasharray="4 4"
+                      dot={false}
+                    />
+                  )}
+                </ComposedChart>
               </ChartContainer>
             </CardContent>
           </Card>

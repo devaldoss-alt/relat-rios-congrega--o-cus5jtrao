@@ -9,21 +9,23 @@ import {
 } from '@/components/ui/select'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ChartContainer } from '@/components/ui/chart'
-import { Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis } from 'recharts'
+import { Bar, ComposedChart, Line, CartesianGrid, Tooltip, XAxis, YAxis, Legend } from 'recharts'
 import { Loader2, BarChart3, Users } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface AttendanceChartProps {
   data: any[]
+  summaries: any[]
   loading: boolean
 }
 
 const chartConfig = {
   inPerson: { label: 'Presencial', color: 'hsl(var(--chart-1))' },
   zoom: { label: 'Zoom', color: 'hsl(var(--chart-2))' },
+  goal: { label: 'Meta', color: 'hsl(var(--primary))' },
 }
 
-export function AttendanceChart({ data, loading }: AttendanceChartProps) {
+export function AttendanceChart({ data, summaries, loading }: AttendanceChartProps) {
   const currentYear = new Date().getFullYear().toString()
   const [selectedYear, setSelectedYear] = useState(currentYear)
   const [meetingType, setMeetingType] = useState<'domingo' | 'quinta'>('domingo')
@@ -45,11 +47,18 @@ export function AttendanceChart({ data, loading }: AttendanceChartProps) {
     const stats = Array.from({ length: 12 }, (_, i) => {
       const date = new Date(2000, i, 1)
       const monthName = date.toLocaleString('pt-BR', { month: 'short' }).replace('.', '')
+
+      const monthStr = (i + 1).toString().padStart(2, '0')
+      const summary = summaries.find(
+        (s) => s.year.toString() === selectedYear && s.month === monthStr,
+      )
+
       return {
         month: monthName.charAt(0).toUpperCase() + monthName.slice(1),
         inPersonSum: 0,
         zoomSum: 0,
         count: 0,
+        goal: summary?.attendance_goal || 0,
       }
     })
 
@@ -65,10 +74,11 @@ export function AttendanceChart({ data, loading }: AttendanceChartProps) {
       inPerson: stat.count > 0 ? Math.round(stat.inPersonSum / stat.count) : 0,
       zoom: stat.count > 0 ? Math.round(stat.zoomSum / stat.count) : 0,
       total: stat.count > 0 ? Math.round((stat.inPersonSum + stat.zoomSum) / stat.count) : 0,
+      goal: stat.goal,
     }))
-  }, [data, selectedYear, meetingType])
+  }, [data, summaries, selectedYear, meetingType])
 
-  const hasChartData = chartData.some((d) => d.total > 0)
+  const hasChartData = chartData.some((d) => d.total > 0 || d.goal > 0)
 
   const renderTooltip = useCallback(
     ({ active, payload, label }: any) => {
@@ -76,8 +86,10 @@ export function AttendanceChart({ data, loading }: AttendanceChartProps) {
         const d = payload[0].payload
         const inVal = d.inPerson || 0
         const zoomVal = d.zoom || 0
+        const goalVal = d.goal || 0
+
         return (
-          <div className="bg-background border rounded-lg shadow-sm p-3 text-sm min-w-[150px]">
+          <div className="bg-background border rounded-lg shadow-sm p-3 text-sm min-w-[160px]">
             <p className="font-semibold mb-2">{label}</p>
             <div className="space-y-1.5">
               {showInPerson && (
@@ -98,6 +110,15 @@ export function AttendanceChart({ data, loading }: AttendanceChartProps) {
                   <span className="font-medium text-foreground">{zoomVal}</span>
                 </div>
               )}
+              {goalVal > 0 && (
+                <div className="flex justify-between items-center gap-4 text-primary mt-2">
+                  <span className="flex items-center gap-1.5">
+                    <div className="w-2.5 h-0.5 bg-primary" />
+                    Meta Mensal
+                  </span>
+                  <span className="font-bold">{goalVal}</span>
+                </div>
+              )}
             </div>
             <div className="flex justify-between gap-4 font-semibold mt-2 pt-2 border-t">
               <span>Total</span>
@@ -113,7 +134,7 @@ export function AttendanceChart({ data, loading }: AttendanceChartProps) {
 
   return (
     <Card className="shadow-sm">
-      <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-2">
+      <CardHeader className="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4 pb-2">
         <div>
           <CardTitle className="flex items-center gap-2">
             <BarChart3 className="w-5 h-5 text-primary" />
@@ -123,15 +144,19 @@ export function AttendanceChart({ data, loading }: AttendanceChartProps) {
             Acompanhe a média de presença nas reuniões ao longo do ano.
           </CardDescription>
         </div>
-        <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+        <div className="flex flex-col sm:flex-row gap-3 w-full xl:w-auto">
           <Tabs
             value={meetingType}
             onValueChange={(v) => setMeetingType(v as 'domingo' | 'quinta')}
-            className="w-full sm:w-[260px]"
+            className="w-full sm:w-[420px]"
           >
             <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="domingo">Fim de Semana</TabsTrigger>
-              <TabsTrigger value="quinta">Meio de Semana</TabsTrigger>
+              <TabsTrigger value="domingo" className="text-xs sm:text-sm">
+                Reunião de Fim de Semana
+              </TabsTrigger>
+              <TabsTrigger value="quinta" className="text-xs sm:text-sm">
+                Reunião Vida e Ministério
+              </TabsTrigger>
             </TabsList>
           </Tabs>
           <Select value={selectedYear} onValueChange={setSelectedYear}>
@@ -163,7 +188,7 @@ export function AttendanceChart({ data, loading }: AttendanceChartProps) {
         ) : (
           <div className="flex flex-col">
             <ChartContainer config={chartConfig} className="h-[300px] w-full">
-              <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <ComposedChart data={chartData} margin={{ top: 20, right: 10, left: -20, bottom: 0 }}>
                 <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-muted" />
                 <XAxis
                   dataKey="month"
@@ -197,10 +222,19 @@ export function AttendanceChart({ data, loading }: AttendanceChartProps) {
                     maxBarSize={40}
                   />
                 )}
-              </BarChart>
+                <Line
+                  type="monotone"
+                  dataKey="goal"
+                  stroke="var(--color-goal)"
+                  strokeWidth={2}
+                  strokeDasharray="4 4"
+                  dot={false}
+                  activeDot={{ r: 6 }}
+                />
+              </ComposedChart>
             </ChartContainer>
 
-            <div className="flex justify-center items-center gap-6 mt-4">
+            <div className="flex justify-center items-center gap-6 mt-4 flex-wrap">
               <button
                 onClick={() => setShowInPerson(!showInPerson)}
                 className={cn(
@@ -221,6 +255,10 @@ export function AttendanceChart({ data, loading }: AttendanceChartProps) {
                 <div className="w-3 h-3 rounded-full bg-[hsl(var(--chart-2))]" />
                 <span className="font-medium">Zoom</span>
               </button>
+              <div className="flex items-center gap-2 text-sm">
+                <div className="w-4 h-0.5 bg-primary" />
+                <span className="font-medium text-muted-foreground">Meta de Assistência</span>
+              </div>
             </div>
           </div>
         )}
