@@ -78,12 +78,28 @@ routerAdd(
         }
 
         const dateStr = cols[dateIdx] ? cols[dateIdx].trim() : ''
-        const typeStr = cols[typeIdx] ? cols[typeIdx].trim().toLowerCase() : ''
+        const rawTypeStr = cols[typeIdx] ? cols[typeIdx].trim().toLowerCase() : ''
         const inPerson = parseInt(cols[inPersonIdx], 10) || 0
         const zoom = parseInt(cols[zoomIdx], 10) || 0
 
         if (!dateStr) continue
-        if (typeStr !== 'quinta' && typeStr !== 'domingo') continue
+
+        let typeStr = ''
+        if (
+          rawTypeStr === 'reunião vida e ministério' ||
+          rawTypeStr === 'reuniao vida e ministerio' ||
+          rawTypeStr === 'quinta'
+        ) {
+          typeStr = 'quinta'
+        } else if (
+          rawTypeStr === 'reunião de fim de semana' ||
+          rawTypeStr === 'reuniao de fim de semana' ||
+          rawTypeStr === 'domingo'
+        ) {
+          typeStr = 'domingo'
+        }
+
+        if (!typeStr) continue
 
         const dateParts = dateStr.split('/')
         if (dateParts.length !== 3) continue
@@ -99,9 +115,9 @@ routerAdd(
         const startStr = isoDateStr.substring(0, 10) + ' 00:00:00.000Z'
         const endStr = isoDateStr.substring(0, 10) + ' 23:59:59.000Z'
 
-        let exists = false
+        let existingRecord = null
         try {
-          const existing = txApp.findFirstRecordByFilter(
+          existingRecord = txApp.findFirstRecordByFilter(
             'meeting_attendance',
             'meeting_date >= {:start} && meeting_date <= {:end} && meeting_type = {:type}',
             {
@@ -110,12 +126,16 @@ routerAdd(
               type: typeStr,
             },
           )
-          exists = !!existing
         } catch (err) {
-          exists = false
+          existingRecord = null
         }
 
-        if (!exists) {
+        if (existingRecord) {
+          existingRecord.set('in_person', inPerson)
+          existingRecord.set('zoom', zoom)
+          txApp.save(existingRecord)
+          importedCount++
+        } else {
           const record = new Record(collection)
           record.set('meeting_date', isoDateStr)
           record.set('meeting_type', typeStr)
