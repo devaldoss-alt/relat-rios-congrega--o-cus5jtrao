@@ -40,6 +40,50 @@ import { useToast } from '@/hooks/use-toast'
 import { Plus, Search, Loader2, Pencil, Trash2, Eye } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useRealtime } from '@/hooks/use-realtime'
+import pb from '@/lib/pocketbase/client'
+import { Badge } from '@/components/ui/badge'
+
+function calculateActivityStatus(
+  publisherId: string,
+  reports: any[],
+  currentMonth: number,
+  currentYear: number,
+) {
+  const currentMonthStr = currentMonth.toString().padStart(2, '0')
+  const thisMonthReport = reports.find(
+    (r) => r.publisher_id === publisherId && r.month === currentMonthStr && r.year === currentYear,
+  )
+
+  if (thisMonthReport && (thisMonthReport.hours > 0 || thisMonthReport.participated)) {
+    return 'Ativo'
+  }
+
+  let inactiveMonths = 0
+  for (let i = 0; i < 6; i++) {
+    let m = currentMonth - i
+    let y = currentYear
+    if (m <= 0) {
+      m += 12
+      y -= 1
+    }
+    const mStr = m.toString().padStart(2, '0')
+    const rep = reports.find(
+      (r) => r.publisher_id === publisherId && r.month === mStr && r.year === y,
+    )
+
+    if (!rep || (!rep.hours && !rep.participated)) {
+      inactiveMonths++
+    } else {
+      break
+    }
+  }
+
+  if (inactiveMonths >= 6) {
+    return 'Inativo'
+  }
+
+  return 'Não Participou'
+}
 
 export default function PublishersPage() {
   const { user } = useAuth()
