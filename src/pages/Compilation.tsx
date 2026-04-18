@@ -28,6 +28,7 @@ import {
 } from '@/services/monthly_summaries'
 import { useToast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
+import pb from '@/lib/pocketbase/client'
 
 const MONTHS = [
   { value: 1, label: 'Janeiro' },
@@ -194,12 +195,25 @@ export default function CompilationPage() {
   }
 
   const handleSaveToHistory = async () => {
-    if (!metrics) return
+    if (!metrics || !data) return
 
     setSaving(true)
     try {
+      // 1. Save Group Reports
+      for (const gRep of data.groupReports) {
+        try {
+          const existing = await pb
+            .collection('group_reports')
+            .getFirstListItem(`group_id="${gRep.group_id}" && month="${gRep.month}"`)
+          await pb.collection('group_reports').update(existing.id, gRep)
+        } catch {
+          await pb.collection('group_reports').create(gRep)
+        }
+      }
+
+      // 2. Save Monthly Summary
       const monthStr = month.toString()
-      const existing = await findMonthlySummary(year, monthStr)
+      const existingSum = await findMonthlySummary(year, monthStr)
       const payload = {
         month: monthStr,
         year,
@@ -213,12 +227,12 @@ export default function CompilationPage() {
         },
       }
 
-      if (existing) {
-        await updateMonthlySummary(existing.id, payload)
-        toast({ title: 'Histórico atualizado com sucesso!' })
+      if (existingSum) {
+        await updateMonthlySummary(existingSum.id, payload)
+        toast({ title: 'Histórico e relatórios de grupos atualizados com sucesso!' })
       } else {
         await createMonthlySummary(payload)
-        toast({ title: 'Relatório salvo com sucesso!' })
+        toast({ title: 'Histórico e relatórios de grupos salvos com sucesso!' })
       }
     } catch (error) {
       toast({ title: 'Erro ao salvar no histórico', variant: 'destructive' })
