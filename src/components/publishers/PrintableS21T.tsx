@@ -224,8 +224,8 @@ export function PrintableS21T({ publisher, reports, serviceYear }: Props) {
           </tbody>
         </table>
 
-        <div className="mt-auto pt-8 text-[10px] text-gray-800 font-bold tracking-tight text-right">
-          S-21-T 11/23
+        <div className="mt-auto pt-8 flex justify-end w-full">
+          <span className="text-[12px] text-black font-bold tracking-tight">S-21-T 11/23</span>
         </div>
       </div>
     </div>
