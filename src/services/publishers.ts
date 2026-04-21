@@ -9,6 +9,14 @@ export interface Publisher {
   phone?: string
   address?: string
   notes?: string
+  birth_date?: string
+  baptism_date?: string
+  gender?: 'Masculino' | 'Feminino'
+  hope?: 'Outras ovelhas' | 'Ungido'
+  is_elder?: boolean
+  is_ministerial_servant?: boolean
+  is_special_pioneer?: boolean
+  is_field_missionary?: boolean
   created?: string
   expand?: {
     group_id?: {

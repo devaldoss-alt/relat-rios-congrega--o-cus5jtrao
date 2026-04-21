@@ -33,6 +33,18 @@ export const getPublisherReportsHistory = async (publisherId: string, limit = 12
   })
 }
 
+export const getPublisherReportsByServiceYear = async (
+  publisherId: string,
+  serviceYear: number,
+) => {
+  const startYear = serviceYear - 1
+  const endYear = serviceYear
+  return pb.collection('publisher_reports').getFullList<PublisherReport>({
+    filter: `publisher_id = '${publisherId}' && ((year = ${startYear} && month >= '09') || (year = ${endYear} && month <= '08'))`,
+    sort: 'year,month',
+  })
+}
+
 export const savePublisherReport = async (data: Partial<PublisherReport>) => {
   if (data.id) {
     return pb.collection('publisher_reports').update<PublisherReport>(data.id, data)
