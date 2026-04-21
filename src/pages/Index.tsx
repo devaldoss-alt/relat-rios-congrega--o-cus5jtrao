@@ -88,9 +88,14 @@ export default function Index() {
       const mStr = p.m.toString().padStart(2, '0')
       const monthReps = reports.filter((r) => r.month === mStr && r.year === p.y)
 
+      const pioneerReps = monthReps.filter(
+        (r) => r.type === 'pioneiro_regular' || r.type === 'pioneiro_auxiliar',
+      )
+
       return {
         name: `${mStr}/${p.y.toString().slice(-2)}`,
         horas: monthReps.reduce((sum, r) => sum + (r.hours || 0), 0),
+        horasPioneiros: pioneerReps.reduce((sum, r) => sum + (r.hours || 0), 0),
         estudos: monthReps.reduce((sum, r) => sum + (r.bible_studies || 0), 0),
         publicadores: monthReps.filter(
           (r) =>
@@ -322,13 +327,13 @@ export default function Index() {
                 Tendência de Horas no Serviço de Campo
               </CardTitle>
               <CardDescription>
-                Comparativo de horas realizadas no período selecionado
+                Horas dos Pioneiros Regulares e Auxiliares no período selecionado
               </CardDescription>
             </CardHeader>
             <CardContent className="h-[350px]">
               <ChartContainer
                 config={{
-                  horas: { label: 'Horas Totais', color: 'hsl(var(--chart-1))' },
+                  horasPioneiros: { label: 'Horas (Pioneiros)', color: 'hsl(var(--chart-1))' },
                 }}
                 className="h-full w-full"
               >
@@ -340,8 +345,8 @@ export default function Index() {
                   <Legend verticalAlign="top" height={36} />
                   <Line
                     type="monotone"
-                    dataKey="horas"
-                    stroke="var(--color-horas)"
+                    dataKey="horasPioneiros"
+                    stroke="var(--color-horasPioneiros)"
                     strokeWidth={3}
                     dot={{ r: 4 }}
                     activeDot={{ r: 6 }}

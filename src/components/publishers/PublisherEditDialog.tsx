@@ -31,9 +31,11 @@ export function PublisherEditDialog({ publisher, open, onOpenChange, onSaved }: 
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState<Partial<Publisher>>({})
+  const [isUnbaptized, setIsUnbaptized] = useState(false)
 
   useEffect(() => {
     if (publisher && open) {
+      setIsUnbaptized(!publisher.baptism_date)
       setFormData({
         name: publisher.name,
         birth_date: publisher.birth_date ? publisher.birth_date.split('T')[0] : '',
@@ -59,7 +61,11 @@ export function PublisherEditDialog({ publisher, open, onOpenChange, onSaved }: 
       const dataToSave = {
         ...formData,
         birth_date: formData.birth_date ? `${formData.birth_date} 12:00:00.000Z` : '',
-        baptism_date: formData.baptism_date ? `${formData.baptism_date} 12:00:00.000Z` : '',
+        baptism_date: isUnbaptized
+          ? ''
+          : formData.baptism_date
+            ? `${formData.baptism_date} 12:00:00.000Z`
+            : '',
       }
       const updated = await updatePublisher(publisher.id, dataToSave)
       toast({ title: 'Publicador atualizado', description: 'Os dados foram salvos com sucesso.' })
@@ -122,7 +128,18 @@ export function PublisherEditDialog({ publisher, open, onOpenChange, onSaved }: 
                 type="date"
                 value={formData.baptism_date || ''}
                 onChange={(e) => handleChange('baptism_date', e.target.value)}
+                disabled={isUnbaptized}
               />
+              <label className="flex items-center space-x-2 mt-2 cursor-pointer">
+                <Checkbox
+                  checked={isUnbaptized}
+                  onCheckedChange={(checked) => {
+                    setIsUnbaptized(!!checked)
+                    if (checked) handleChange('baptism_date', '')
+                  }}
+                />
+                <span className="text-sm font-medium">Publicador Não Batizado</span>
+              </label>
             </div>
             <div className="space-y-2 md:col-span-2">
               <Label>Esperança</Label>

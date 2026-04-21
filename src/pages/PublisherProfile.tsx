@@ -167,6 +167,14 @@ export default function PublisherProfile() {
                       Missionário em campo
                     </Badge>
                   )}
+                  {!publisher.baptism_date && (
+                    <Badge
+                      variant="destructive"
+                      className="bg-red-100 text-red-800 hover:bg-red-200 border-red-200"
+                    >
+                      Não Batizado
+                    </Badge>
+                  )}
                 </div>
               </CardHeader>
             </Card>
