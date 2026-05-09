@@ -58,72 +58,75 @@ routerAdd(
       return e.internalServerError('Colunas necessárias não encontradas na planilha')
     }
 
-    const cutoffDate = new Date()
-    cutoffDate.setDate(cutoffDate.getDate() - 30)
-    cutoffDate.setHours(0, 0, 0, 0)
+    const cutoffDate = new Date('2025-09-01T00:00:00Z')
+
+    const attendanceMap = new Map()
+
+    for (let j = 1; j < rows.length; j++) {
+      if (!rows[j].trim()) continue
+
+      const colsLine = rows[j].replace(/"/g, '').replace(/\r/g, '')
+      const cols = colsLine.split(',')
+      if (cols.length < 4) continue
+
+      const dateStr = cols[dateIdx] ? cols[dateIdx].trim() : ''
+      const rawTypeStr = cols[typeIdx] ? cols[typeIdx].trim().toLowerCase() : ''
+      const inPerson = parseInt(cols[inPersonIdx], 10) || 0
+      const zoom = parseInt(cols[zoomIdx], 10) || 0
+
+      if (!dateStr) continue
+
+      let typeStr = ''
+      if (
+        rawTypeStr === 'reunião vida e ministério' ||
+        rawTypeStr === 'reuniao vida e ministerio' ||
+        rawTypeStr === 'quinta'
+      ) {
+        typeStr = 'quinta'
+      } else if (
+        rawTypeStr === 'reunião de fim de semana' ||
+        rawTypeStr === 'reuniao de fim de semana' ||
+        rawTypeStr === 'domingo'
+      ) {
+        typeStr = 'domingo'
+      }
+
+      if (!typeStr) continue
+
+      const dateParts = dateStr.split('/')
+      if (dateParts.length !== 3) continue
+
+      const rowDate = new Date(
+        dateParts[2] + '-' + dateParts[1] + '-' + dateParts[0] + 'T12:00:00Z',
+      )
+      if (isNaN(rowDate.getTime()) || rowDate < cutoffDate) continue
+
+      const isoDateStr = rowDate.toISOString().split('T')[0] + ' 12:00:00.000Z'
+      const startStr = isoDateStr.substring(0, 10) + ' 00:00:00.000Z'
+      const endStr = isoDateStr.substring(0, 10) + ' 23:59:59.000Z'
+
+      const key = startStr + '|' + typeStr
+      const total = inPerson + zoom
+
+      if (!attendanceMap.has(key) || attendanceMap.get(key).total < total) {
+        attendanceMap.set(key, { inPerson, zoom, total, isoDateStr, startStr, endStr, typeStr })
+      }
+    }
 
     let importedCount = 0
     const collection = $app.findCollectionByNameOrId('meeting_attendance')
 
     $app.runInTransaction((txApp) => {
-      for (let j = 1; j < rows.length; j++) {
-        if (!rows[j].trim()) {
-          continue
-        }
-
-        const colsLine = rows[j].replace(/"/g, '').replace(/\r/g, '')
-        const cols = colsLine.split(',')
-        if (cols.length < 4) {
-          continue
-        }
-
-        const dateStr = cols[dateIdx] ? cols[dateIdx].trim() : ''
-        const rawTypeStr = cols[typeIdx] ? cols[typeIdx].trim().toLowerCase() : ''
-        const inPerson = parseInt(cols[inPersonIdx], 10) || 0
-        const zoom = parseInt(cols[zoomIdx], 10) || 0
-
-        if (!dateStr) continue
-
-        let typeStr = ''
-        if (
-          rawTypeStr === 'reunião vida e ministério' ||
-          rawTypeStr === 'reuniao vida e ministerio' ||
-          rawTypeStr === 'quinta'
-        ) {
-          typeStr = 'quinta'
-        } else if (
-          rawTypeStr === 'reunião de fim de semana' ||
-          rawTypeStr === 'reuniao de fim de semana' ||
-          rawTypeStr === 'domingo'
-        ) {
-          typeStr = 'domingo'
-        }
-
-        if (!typeStr) continue
-
-        const dateParts = dateStr.split('/')
-        if (dateParts.length !== 3) continue
-
-        const rowDate = new Date(
-          dateParts[2] + '-' + dateParts[1] + '-' + dateParts[0] + 'T12:00:00Z',
-        )
-        if (isNaN(rowDate.getTime()) || rowDate < cutoffDate) {
-          continue
-        }
-
-        const isoDateStr = rowDate.toISOString().split('T')[0] + ' 12:00:00.000Z'
-        const startStr = isoDateStr.substring(0, 10) + ' 00:00:00.000Z'
-        const endStr = isoDateStr.substring(0, 10) + ' 23:59:59.000Z'
-
+      for (const data of attendanceMap.values()) {
         let existingRecord = null
         try {
           existingRecord = txApp.findFirstRecordByFilter(
             'meeting_attendance',
             'meeting_date >= {:start} && meeting_date <= {:end} && meeting_type = {:type}',
             {
-              start: startStr,
-              end: endStr,
-              type: typeStr,
+              start: data.startStr,
+              end: data.endStr,
+              type: data.typeStr,
             },
           )
         } catch (err) {
@@ -131,16 +134,16 @@ routerAdd(
         }
 
         if (existingRecord) {
-          existingRecord.set('in_person', inPerson)
-          existingRecord.set('zoom', zoom)
+          existingRecord.set('in_person', data.inPerson)
+          existingRecord.set('zoom', data.zoom)
           txApp.save(existingRecord)
           importedCount++
         } else {
           const record = new Record(collection)
-          record.set('meeting_date', isoDateStr)
-          record.set('meeting_type', typeStr)
-          record.set('in_person', inPerson)
-          record.set('zoom', zoom)
+          record.set('meeting_date', data.isoDateStr)
+          record.set('meeting_type', data.typeStr)
+          record.set('in_person', data.inPerson)
+          record.set('zoom', data.zoom)
           txApp.save(record)
           importedCount++
         }
