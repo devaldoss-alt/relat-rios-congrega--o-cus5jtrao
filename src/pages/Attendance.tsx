@@ -66,10 +66,7 @@ export default function Attendance() {
   const loadData = async () => {
     try {
       const records = await getMeetingAttendance()
-      // Filter for records from September 2025 onwards as per requirements
-      const cutoffDate = new Date('2025-09-01T00:00:00Z')
-      const filtered = records.filter((r) => new Date(r.meeting_date) >= cutoffDate)
-      setData(filtered)
+      setData(records)
 
       const sums = await getMonthlySummaries()
       setSummaries(sums)
@@ -158,6 +155,7 @@ export default function Attendance() {
   const availableYears = useMemo(() => {
     const years = new Set(data.map((d) => new Date(d.meeting_date).getFullYear().toString()))
     years.add(new Date().getFullYear().toString())
+    years.add('2025')
     return Array.from(years).sort((a, b) => b.localeCompare(a))
   }, [data])
 
@@ -249,10 +247,8 @@ export default function Attendance() {
 
       <Card className="shadow-sm">
         <CardHeader>
-          <CardTitle>Registros Recentes</CardTitle>
-          <CardDescription>
-            Lista de assistência das reuniões a partir de Setembro de 2025.
-          </CardDescription>
+          <CardTitle>Histórico de Reuniões</CardTitle>
+          <CardDescription>Lista de assistência de todas as reuniões registradas.</CardDescription>
         </CardHeader>
         <CardContent>
           {loading ? (
