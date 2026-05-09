@@ -120,6 +120,7 @@ export default function UsersAdmin() {
           email: values.email,
           role: values.role,
           group_number: values.group_number,
+          group_name: `Grupo ${values.group_number}`,
         }
         if (values.password) {
           payload.password = values.password
