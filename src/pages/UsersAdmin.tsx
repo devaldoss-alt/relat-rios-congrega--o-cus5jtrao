@@ -121,6 +121,7 @@ export default function UsersAdmin() {
           role: values.role,
           group_number: values.group_number,
           group_name: `Grupo ${values.group_number}`,
+          emailVisibility: true,
         }
         if (values.password) {
           payload.password = values.password
@@ -137,6 +138,7 @@ export default function UsersAdmin() {
         await createUser({
           ...values,
           group_name: `Grupo ${values.group_number}`,
+          emailVisibility: true,
         })
         toast({ title: 'Usuário criado com sucesso' })
       }
@@ -213,7 +215,11 @@ export default function UsersAdmin() {
                           {u.name || 'Sem nome'}
                         </div>
                       </TableCell>
-                      <TableCell>{u.email}</TableCell>
+                      <TableCell>
+                        {u.email || (
+                          <span className="text-muted-foreground italic text-xs">Oculto</span>
+                        )}
+                      </TableCell>
                       <TableCell>
                         <Badge variant={u.role === 'Secretário' ? 'default' : 'outline'}>
                           {u.role}
