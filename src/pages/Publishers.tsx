@@ -19,6 +19,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Table,
   TableBody,
@@ -34,10 +36,11 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
-import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
-import { Plus, Search, Loader2, Pencil, Trash2, Eye } from 'lucide-react'
+import { Plus, Search, Loader2, Pencil, Trash2, Eye, Users, BookOpen } from 'lucide-react'
+import { MassEntryDialog } from '@/components/publishers/MassEntryDialog'
 import { Link } from 'react-router-dom'
 import { useRealtime } from '@/hooks/use-realtime'
 import pb from '@/lib/pocketbase/client'
@@ -110,7 +113,16 @@ export default function PublishersPage() {
     phone: '',
     address: '',
     notes: '',
+    gender: undefined,
+    hope: 'Outras ovelhas',
+    birth_date: '',
+    baptism_date: '',
+    is_elder: false,
+    is_ministerial_servant: false,
+    is_special_pioneer: false,
+    is_field_missionary: false,
   })
+  const [isUnbaptized, setIsUnbaptized] = useState(false)
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -148,6 +160,7 @@ export default function PublishersPage() {
   const handleOpenDialog = (pub?: Publisher) => {
     if (pub) {
       setEditingId(pub.id)
+      setIsUnbaptized(!pub.baptism_date)
       setFormData({
         name: pub.name,
         group_id: pub.group_id,
@@ -156,9 +169,18 @@ export default function PublishersPage() {
         phone: pub.phone || '',
         address: pub.address || '',
         notes: pub.notes || '',
+        gender: pub.gender,
+        hope: pub.hope || 'Outras ovelhas',
+        birth_date: pub.birth_date ? pub.birth_date.split('T')[0] : '',
+        baptism_date: pub.baptism_date ? pub.baptism_date.split('T')[0] : '',
+        is_elder: pub.is_elder,
+        is_ministerial_servant: pub.is_ministerial_servant,
+        is_special_pioneer: pub.is_special_pioneer,
+        is_field_missionary: pub.is_field_missionary,
       })
     } else {
       setEditingId(null)
+      setIsUnbaptized(false)
       setFormData({
         name: '',
         group_id: '',
@@ -167,6 +189,14 @@ export default function PublishersPage() {
         phone: '',
         address: '',
         notes: '',
+        gender: undefined,
+        hope: 'Outras ovelhas',
+        birth_date: '',
+        baptism_date: '',
+        is_elder: false,
+        is_ministerial_servant: false,
+        is_special_pioneer: false,
+        is_field_missionary: false,
       })
     }
     setOpen(true)
@@ -177,13 +207,23 @@ export default function PublishersPage() {
       return toast({ title: 'Preencha os campos obrigatórios', variant: 'destructive' })
     }
 
+    const dataToSave = {
+      ...formData,
+      birth_date: formData.birth_date ? `${formData.birth_date} 12:00:00.000Z` : '',
+      baptism_date: isUnbaptized
+        ? ''
+        : formData.baptism_date
+          ? `${formData.baptism_date} 12:00:00.000Z`
+          : '',
+    }
+
     setSaving(true)
     try {
       if (editingId) {
-        await updatePublisher(editingId, formData)
+        await updatePublisher(editingId, dataToSave)
         toast({ title: 'Publicador atualizado com sucesso!' })
       } else {
-        await createPublisher(formData)
+        await createPublisher(dataToSave)
         toast({ title: 'Publicador criado com sucesso!' })
       }
       setOpen(false)
@@ -220,6 +260,11 @@ export default function PublishersPage() {
     .filter((p) => filterType === 'all' || p.type === filterType)
     .sort((a, b) => a.name.localeCompare(b.name))
 
+  const activeFiltered = filtered.filter((p) => p.active)
+  const countPublicadores = activeFiltered.filter((p) => p.type === 'publicador').length
+  const countAuxiliares = activeFiltered.filter((p) => p.type === 'pioneiro_auxiliar').length
+  const countRegulares = activeFiltered.filter((p) => p.type === 'pioneiro_regular').length
+
   return (
     <div className="space-y-6 animate-fade-in-up">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -227,104 +272,261 @@ export default function PublishersPage() {
           <h1 className="text-3xl font-bold tracking-tight">Gestão de Publicadores</h1>
           <p className="text-muted-foreground mt-1">Gerencie os membros da congregação</p>
         </div>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={() => handleOpenDialog()}>
-              <Plus className="mr-2 h-4 w-4" /> Novo Publicador
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{editingId ? 'Editar Publicador' : 'Novo Publicador'}</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto px-1">
-              <div className="space-y-2">
-                <Label>Nome</Label>
-                <Input
-                  value={formData.name || ''}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Nome completo"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Grupo</Label>
-                <Select
-                  value={formData.group_id}
-                  onValueChange={(v) => setFormData({ ...formData, group_id: v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione o grupo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {groups.map((g) => (
-                      <SelectItem key={g.id} value={g.id}>
-                        Grupo {g.number}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Tipo</Label>
-                <Select
-                  value={formData.type}
-                  onValueChange={(v: any) => setFormData({ ...formData, type: v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Tipo de serviço" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="publicador">Publicador</SelectItem>
-                    <SelectItem value="pioneiro_auxiliar">Pioneiro Auxiliar</SelectItem>
-                    <SelectItem value="pioneiro_regular">Pioneiro Regular</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Telefone</Label>
-                <Input
-                  value={formData.phone || ''}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  placeholder="(00) 00000-0000"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Endereço</Label>
-                <Input
-                  value={formData.address || ''}
-                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  placeholder="Rua, número, bairro..."
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Observações</Label>
-                <Textarea
-                  value={formData.notes || ''}
-                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  placeholder="Informações adicionais..."
-                  rows={3}
-                />
-              </div>
-
-              <div className="flex items-center space-x-2 pt-2">
-                <Switch
-                  checked={formData.active}
-                  onCheckedChange={(c) => setFormData({ ...formData, active: c })}
-                />
-                <Label>Publicador Ativo</Label>
-              </div>
-            </div>
-            <div className="flex justify-end">
-              <Button onClick={handleSave} disabled={saving}>
-                {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Salvar
+        <div className="flex items-center gap-2">
+          <MassEntryDialog groups={groups} onSaved={loadData} />
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button onClick={() => handleOpenDialog()}>
+                <Plus className="mr-2 h-4 w-4" /> Novo Publicador
               </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>{editingId ? 'Editar Publicador' : 'Novo Publicador'}</DialogTitle>
+              </DialogHeader>
+              <Tabs defaultValue="basic" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="basic">Dados Básicos</TabsTrigger>
+                  <TabsTrigger value="details">S-21-T / Detalhes</TabsTrigger>
+                </TabsList>
+
+                <TabsContent
+                  value="basic"
+                  className="space-y-4 py-4 max-h-[60vh] overflow-y-auto px-1"
+                >
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2 md:col-span-2">
+                      <Label>Nome Completo</Label>
+                      <Input
+                        value={formData.name || ''}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        placeholder="Nome completo"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Grupo</Label>
+                      <Select
+                        value={formData.group_id}
+                        onValueChange={(v) => setFormData({ ...formData, group_id: v })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione o grupo" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {[...groups]
+                            .sort((a, b) => a.number - b.number)
+                            .map((g) => (
+                              <SelectItem key={g.id} value={g.id}>
+                                Grupo {g.number}
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Tipo de Serviço</Label>
+                      <Select
+                        value={formData.type}
+                        onValueChange={(v: any) => setFormData({ ...formData, type: v })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Tipo de serviço" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="publicador">Publicador</SelectItem>
+                          <SelectItem value="pioneiro_auxiliar">Pioneiro Auxiliar</SelectItem>
+                          <SelectItem value="pioneiro_regular">Pioneiro Regular</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Telefone</Label>
+                      <Input
+                        value={formData.phone || ''}
+                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                        placeholder="(00) 00000-0000"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Sexo</Label>
+                      <Select
+                        value={formData.gender || ''}
+                        onValueChange={(v: any) => setFormData({ ...formData, gender: v })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Masculino">Masculino</SelectItem>
+                          <SelectItem value="Feminino">Feminino</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2 md:col-span-2">
+                      <Label>Endereço</Label>
+                      <Input
+                        value={formData.address || ''}
+                        onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                        placeholder="Rua, número, bairro..."
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center space-x-2 pt-2">
+                    <Switch
+                      checked={formData.active}
+                      onCheckedChange={(c) => setFormData({ ...formData, active: c })}
+                    />
+                    <Label>Publicador Ativo</Label>
+                  </div>
+                </TabsContent>
+
+                <TabsContent
+                  value="details"
+                  className="space-y-4 py-4 max-h-[60vh] overflow-y-auto px-1"
+                >
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Data de Nascimento</Label>
+                      <Input
+                        type="date"
+                        value={formData.birth_date || ''}
+                        onChange={(e) => setFormData({ ...formData, birth_date: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Data de Batismo</Label>
+                      <Input
+                        type="date"
+                        value={formData.baptism_date || ''}
+                        onChange={(e) => setFormData({ ...formData, baptism_date: e.target.value })}
+                        disabled={isUnbaptized}
+                      />
+                      <label className="flex items-center space-x-2 mt-2 cursor-pointer">
+                        <Checkbox
+                          checked={isUnbaptized}
+                          onCheckedChange={(checked) => {
+                            setIsUnbaptized(!!checked)
+                            if (checked) setFormData({ ...formData, baptism_date: '' })
+                          }}
+                        />
+                        <span className="text-sm font-medium">Publicador Não Batizado</span>
+                      </label>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Esperança</Label>
+                      <Select
+                        value={formData.hope || ''}
+                        onValueChange={(v: any) => setFormData({ ...formData, hope: v })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Outras ovelhas">Outras ovelhas</SelectItem>
+                          <SelectItem value="Ungido">Ungido</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-3 md:col-span-2 mt-2">
+                      <Label className="text-base font-semibold">Designações / Privilégios</Label>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border p-4 rounded-lg bg-muted/30">
+                        <label className="flex items-center space-x-2 cursor-pointer">
+                          <Checkbox
+                            checked={formData.is_elder}
+                            onCheckedChange={(c) => setFormData({ ...formData, is_elder: !!c })}
+                          />
+                          <span className="text-sm">Ancião</span>
+                        </label>
+                        <label className="flex items-center space-x-2 cursor-pointer">
+                          <Checkbox
+                            checked={formData.is_ministerial_servant}
+                            onCheckedChange={(c) =>
+                              setFormData({ ...formData, is_ministerial_servant: !!c })
+                            }
+                          />
+                          <span className="text-sm">Servo ministerial</span>
+                        </label>
+                        <label className="flex items-center space-x-2 cursor-pointer">
+                          <Checkbox
+                            checked={formData.is_special_pioneer}
+                            onCheckedChange={(c) =>
+                              setFormData({ ...formData, is_special_pioneer: !!c })
+                            }
+                          />
+                          <span className="text-sm">Pioneiro especial</span>
+                        </label>
+                        <label className="flex items-center space-x-2 cursor-pointer">
+                          <Checkbox
+                            checked={formData.is_field_missionary}
+                            onCheckedChange={(c) =>
+                              setFormData({ ...formData, is_field_missionary: !!c })
+                            }
+                          />
+                          <span className="text-sm">Missionário em campo</span>
+                        </label>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2 md:col-span-2">
+                      <Label>Observações</Label>
+                      <Textarea
+                        value={formData.notes || ''}
+                        onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                        placeholder="Informações adicionais..."
+                        rows={2}
+                      />
+                    </div>
+                  </div>
+                </TabsContent>
+              </Tabs>
+              <div className="flex justify-end pt-4 border-t mt-2">
+                <Button onClick={handleSave} disabled={saving}>
+                  {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Salvar
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card>
+          <CardContent className="p-6 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Total de Publicadores</p>
+              <h3 className="text-3xl font-bold mt-2">{countPublicadores}</h3>
             </div>
-          </DialogContent>
-        </Dialog>
+            <div className="h-12 w-12 bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center text-blue-600 dark:text-blue-400">
+              <Users className="h-6 w-6" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-6 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Pioneiros Auxiliares</p>
+              <h3 className="text-3xl font-bold mt-2">{countAuxiliares}</h3>
+            </div>
+            <div className="h-12 w-12 bg-amber-100 dark:bg-amber-900/20 rounded-full flex items-center justify-center text-amber-600 dark:text-amber-400">
+              <BookOpen className="h-6 w-6" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-6 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Pioneiros Regulares</p>
+              <h3 className="text-3xl font-bold mt-2">{countRegulares}</h3>
+            </div>
+            <div className="h-12 w-12 bg-emerald-100 dark:bg-emerald-900/20 rounded-full flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+              <BookOpen className="h-6 w-6" />
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <Card>

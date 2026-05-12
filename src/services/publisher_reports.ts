@@ -52,6 +52,10 @@ export const savePublisherReport = async (data: Partial<PublisherReport>) => {
   return pb.collection('publisher_reports').create<PublisherReport>(data)
 }
 
+export const saveMultiplePublisherReports = async (reports: Partial<PublisherReport>[]) => {
+  return Promise.all(reports.map((r) => savePublisherReport(r)))
+}
+
 export const calculateActivityStatus = (
   pubId: string,
   reports: PublisherReport[],

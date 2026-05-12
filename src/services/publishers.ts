@@ -30,13 +30,11 @@ export const getPublishers = () =>
 export const getPublisher = (id: string) =>
   pb.collection('publishers').getOne<Publisher>(id, { expand: 'group_id' })
 export const getPublishersByGroup = (groupId: string) =>
-  pb
-    .collection('publishers')
-    .getFullList<Publisher>({
-      filter: `group_id = '${groupId}'`,
-      expand: 'group_id',
-      sort: '+name',
-    })
+  pb.collection('publishers').getFullList<Publisher>({
+    filter: `group_id = '${groupId}'`,
+    expand: 'group_id',
+    sort: '+name',
+  })
 export const createPublisher = (data: Partial<Publisher>) =>
   pb.collection('publishers').create<Publisher>(data)
 export const updatePublisher = (id: string, data: Partial<Publisher>) =>
