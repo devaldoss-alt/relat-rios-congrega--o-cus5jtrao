@@ -156,6 +156,7 @@ export default function GroupData() {
             notes: existing?.notes || '',
           }
         })
+        .sort((a, b) => a.name.localeCompare(b.name))
 
       form.reset({ reports: mergedReports })
     } catch (err) {
@@ -361,11 +362,13 @@ export default function GroupData() {
                     <SelectValue placeholder="Selecione o Grupo" />
                   </SelectTrigger>
                   <SelectContent>
-                    {groups.map((g) => (
-                      <SelectItem key={g.id} value={g.number.toString()}>
-                        Grupo {g.number}
-                      </SelectItem>
-                    ))}
+                    {[...groups]
+                      .sort((a, b) => a.number - b.number)
+                      .map((g) => (
+                        <SelectItem key={g.id} value={g.number.toString()}>
+                          Grupo {g.number}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               ) : (

@@ -97,6 +97,8 @@ export default function PublishersPage() {
   const [reports6m, setReports6m] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [filterGroup, setFilterGroup] = useState('all')
+  const [filterType, setFilterType] = useState('all')
 
   const [open, setOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -212,7 +214,11 @@ export default function PublishersPage() {
     )
   }
 
-  const filtered = publishers.filter((p) => p.name.toLowerCase().includes(search.toLowerCase()))
+  const filtered = [...publishers]
+    .filter((p) => p.name.toLowerCase().includes(search.toLowerCase()))
+    .filter((p) => filterGroup === 'all' || p.group_id === filterGroup)
+    .filter((p) => filterType === 'all' || p.type === filterType)
+    .sort((a, b) => a.name.localeCompare(b.name))
 
   return (
     <div className="space-y-6 animate-fade-in-up">
@@ -323,14 +329,45 @@ export default function PublishersPage() {
 
       <Card>
         <CardHeader className="py-4">
-          <div className="relative w-full sm:w-72">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar por nome..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-8"
-            />
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <div className="relative w-full sm:w-72">
+              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar por nome..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-8"
+              />
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+              <Select value={filterGroup} onValueChange={setFilterGroup}>
+                <SelectTrigger className="w-full sm:w-[160px]">
+                  <SelectValue placeholder="Todos os Grupos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os Grupos</SelectItem>
+                  {[...groups]
+                    .sort((a, b) => a.number - b.number)
+                    .map((g) => (
+                      <SelectItem key={g.id} value={g.id}>
+                        Grupo {g.number}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={filterType} onValueChange={setFilterType}>
+                <SelectTrigger className="w-full sm:w-[160px]">
+                  <SelectValue placeholder="Todos os Tipos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os Tipos</SelectItem>
+                  <SelectItem value="publicador">Publicador</SelectItem>
+                  <SelectItem value="pioneiro_auxiliar">Pioneiro Auxiliar</SelectItem>
+                  <SelectItem value="pioneiro_regular">Pioneiro Regular</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
