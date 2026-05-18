@@ -52,9 +52,17 @@ export function PrintableS21T({ publisher, reports, serviceYear }: Props) {
           REGISTRO DE PUBLICADOR DE CONGREGAÇÃO
         </h1>
 
-        <div className="bg-[#e6ebf5] px-2 py-1 mb-1 flex items-center">
-          <span className="font-bold mr-2 text-[12px]">Nome:</span>
-          <span className="flex-1 border-b border-black">{publisher.name}</span>
+        <div className="bg-[#e6ebf5] px-2 py-1 mb-1 flex flex-col gap-1">
+          <div className="flex items-center">
+            <span className="font-bold mr-2 text-[12px]">Nome:</span>
+            <span className="flex-1 border-b border-black mr-4">{publisher.name}</span>
+            <span className="font-bold mr-2 text-[12px]">Telefone:</span>
+            <span className="w-32 border-b border-black">{publisher.phone || ''}</span>
+          </div>
+          <div className="flex items-center">
+            <span className="font-bold mr-2 text-[12px]">Endereço:</span>
+            <span className="flex-1 border-b border-black">{publisher.address || ''}</span>
+          </div>
         </div>
 
         <div className="grid grid-cols-[1fr_auto] gap-6 bg-[#e6ebf5] px-2 py-1 mb-1">
@@ -145,9 +153,9 @@ export function PrintableS21T({ publisher, reports, serviceYear }: Props) {
           </label>
         </div>
 
-        <table className="w-full border-collapse border border-black text-center text-[12px] table-fixed">
+        <table className="w-full border-collapse border-2 border-black text-center text-[12px] table-fixed">
           <thead>
-            <tr className="bg-[#e6ebf5]">
+            <tr className="bg-[#e6ebf5] border-b-2 border-black">
               <th className="border border-black p-1 font-bold w-[16%] leading-tight">
                 Ano de serviço
                 <br />

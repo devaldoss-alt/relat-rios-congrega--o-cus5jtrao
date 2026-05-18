@@ -261,7 +261,7 @@ export default function PublishersPage() {
     .sort((a, b) => a.name.localeCompare(b.name))
 
   const activeFiltered = filtered.filter((p) => p.active)
-  const countPublicadores = activeFiltered.filter((p) => p.type === 'publicador').length
+  const countTotal = activeFiltered.length
   const countAuxiliares = activeFiltered.filter((p) => p.type === 'pioneiro_auxiliar').length
   const countRegulares = activeFiltered.filter((p) => p.type === 'pioneiro_regular').length
 
@@ -498,7 +498,7 @@ export default function PublishersPage() {
           <CardContent className="p-6 flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Total de Publicadores</p>
-              <h3 className="text-3xl font-bold mt-2">{countPublicadores}</h3>
+              <h3 className="text-3xl font-bold mt-2">{countTotal}</h3>
             </div>
             <div className="h-12 w-12 bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center text-blue-600 dark:text-blue-400">
               <Users className="h-6 w-6" />

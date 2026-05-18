@@ -126,7 +126,7 @@ export default function PublisherProfile() {
               <Edit className="w-4 h-4 mr-2" /> Editar Dados
             </Button>
             <Button onClick={() => window.print()}>
-              <Printer className="w-4 h-4 mr-2" /> Imprimir S-21-T
+              <Printer className="w-4 h-4 mr-2" /> Gerar Registro (S-21-T)
             </Button>
           </div>
         </div>
