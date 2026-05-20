@@ -9,7 +9,17 @@ import {
 } from '@/components/ui/select'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ChartContainer } from '@/components/ui/chart'
-import { Bar, ComposedChart, Line, CartesianGrid, Tooltip, XAxis, YAxis, Legend } from 'recharts'
+import {
+  Bar,
+  ComposedChart,
+  Line,
+  CartesianGrid,
+  Tooltip,
+  XAxis,
+  YAxis,
+  Legend,
+  LabelList,
+} from 'recharts'
 import { Loader2, BarChart3, Users } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -169,7 +179,7 @@ export function AttendanceChart({ data, summaries, loading, selectedYear }: Atte
         ) : (
           <div className="flex flex-col">
             <ChartContainer config={chartConfig} className="h-[300px] w-full">
-              <ComposedChart data={chartData} margin={{ top: 20, right: 10, left: -20, bottom: 0 }}>
+              <ComposedChart data={chartData} margin={{ top: 35, right: 10, left: -20, bottom: 0 }}>
                 <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-muted" />
                 <XAxis
                   dataKey="month"
@@ -192,7 +202,27 @@ export function AttendanceChart({ data, summaries, loading, selectedYear }: Atte
                     fill="var(--color-inPerson)"
                     radius={showZoom ? [0, 0, 4, 4] : [4, 4, 4, 4]}
                     maxBarSize={40}
-                  />
+                  >
+                    <LabelList
+                      dataKey="inPerson"
+                      position="center"
+                      fill="#ffffff"
+                      fontSize={11}
+                      fontWeight={500}
+                      formatter={(val: number) => (val > 0 ? val : '')}
+                    />
+                    {!showZoom && (
+                      <LabelList
+                        dataKey="total"
+                        position="top"
+                        fill="hsl(var(--foreground))"
+                        fontSize={12}
+                        fontWeight={600}
+                        offset={10}
+                        formatter={(val: number) => (val > 0 ? val : '')}
+                      />
+                    )}
+                  </Bar>
                 )}
                 {showZoom && (
                   <Bar
@@ -201,7 +231,25 @@ export function AttendanceChart({ data, summaries, loading, selectedYear }: Atte
                     fill="var(--color-zoom)"
                     radius={showInPerson ? [4, 4, 0, 0] : [4, 4, 4, 4]}
                     maxBarSize={40}
-                  />
+                  >
+                    <LabelList
+                      dataKey="zoom"
+                      position="center"
+                      fill="#ffffff"
+                      fontSize={11}
+                      fontWeight={500}
+                      formatter={(val: number) => (val > 0 ? val : '')}
+                    />
+                    <LabelList
+                      dataKey="total"
+                      position="top"
+                      fill="hsl(var(--foreground))"
+                      fontSize={12}
+                      fontWeight={600}
+                      offset={10}
+                      formatter={(val: number) => (val > 0 ? val : '')}
+                    />
+                  </Bar>
                 )}
                 <Line
                   type="monotone"
