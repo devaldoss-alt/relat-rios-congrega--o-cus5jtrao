@@ -1,7 +1,7 @@
 routerAdd(
   'POST',
   '/backend/v1/sync-attendance',
-  (e) => {
+  async (e) => {
     const authRole = e.auth?.getString('role')
     if (authRole !== 'Secretário') {
       return e.forbiddenError('Apenas o Secretário pode sincronizar')
@@ -10,20 +10,20 @@ routerAdd(
     try {
       const url =
         'https://docs.google.com/spreadsheets/d/1IDlk36sxh14G1vqrl-i8JltLVUjagmWpMiHHoZUgkN8/gviz/tq?tqx=out:csv&sheet=Assist%C3%AAncia%20%C3%A0s%20Reuni%C3%B5es'
-      const res = $http.send({ url: url, method: 'GET' })
 
-      if (res.statusCode !== 200) {
+      const res = await fetch(url)
+
+      if (!res.ok) {
         return e.badRequestError(
           'Falha ao buscar dados do Google Sheets. A planilha pode estar indisponível.',
         )
       }
 
-      const bytes = res.body
-      const csvText = new TextDecoder().decode(bytes)
+      const csvText = await res.text()
 
       const rows = csvText.split('\n')
       if (rows.length < 2) {
-        return e.json(200, { imported: 0 })
+        return e.json(200, { imported: 0, ignored: 0, errors: [] })
       }
 
       const headersLine = rows[0].replace(/"/g, '').replace(/\r/g, '')
@@ -89,20 +89,14 @@ routerAdd(
           continue
         }
 
-        if (!inPersonStr && inPersonStr !== '0') {
-          errors.push(`Linha ${j + 1}: Valor 'presenciais' ausente.`)
+        if (inPersonStr === '' && zoomStr === '') {
+          errors.push(`Linha ${j + 1}: Valores de presença ausentes.`)
           ignoredCount++
           continue
         }
 
-        if (!zoomStr && zoomStr !== '0') {
-          errors.push(`Linha ${j + 1}: Valor 'zoom' ausente.`)
-          ignoredCount++
-          continue
-        }
-
-        const inPerson = parseInt(inPersonStr, 10)
-        const zoom = parseInt(zoomStr, 10)
+        const inPerson = inPersonStr !== '' ? parseInt(inPersonStr, 10) : 0
+        const zoom = zoomStr !== '' ? parseInt(zoomStr, 10) : 0
 
         if (isNaN(inPerson) || isNaN(zoom)) {
           errors.push(`Linha ${j + 1}: Valores de presença inválidos.`)
@@ -136,11 +130,10 @@ routerAdd(
           continue
         }
 
-        // Correct year typo (e.g. 0026 -> 2026, 0025 -> 2025)
-        if (dateParts[2] === '0026') {
-          dateParts[2] = '2026'
-        } else if (dateParts[2] === '0025') {
-          dateParts[2] = '2025'
+        if (dateParts[2].startsWith('00')) {
+          dateParts[2] = '20' + dateParts[2].substring(2)
+        } else if (dateParts[2].length === 2) {
+          dateParts[2] = '20' + dateParts[2]
         }
 
         const rowDate = new Date(
@@ -160,36 +153,45 @@ routerAdd(
         const total = inPerson + zoom
 
         if (!attendanceMap.has(key) || attendanceMap.get(key).total < total) {
-          attendanceMap.set(key, { inPerson, zoom, total, isoDateStr, startStr, endStr, typeStr })
+          attendanceMap.set(key, {
+            inPerson,
+            zoom,
+            total,
+            isoDateStr,
+            startStr,
+            endStr,
+            typeStr,
+            originalDate: dateStr,
+          })
         }
       }
 
       let importedCount = 0
       const collection = $app.findCollectionByNameOrId('meeting_attendance')
 
-      $app.runInTransaction((txApp) => {
-        for (const data of attendanceMap.values()) {
-          let existingRecord = null
-          try {
-            existingRecord = txApp.findFirstRecordByFilter(
-              'meeting_attendance',
-              'meeting_date >= {:start} && meeting_date <= {:end} && meeting_type = {:type}',
-              {
-                start: data.startStr,
-                end: data.endStr,
-                type: data.typeStr,
-              },
-            )
-          } catch (err) {
-            existingRecord = null
-          }
+      for (const data of attendanceMap.values()) {
+        let existingRecord = null
+        try {
+          existingRecord = $app.findFirstRecordByFilter(
+            'meeting_attendance',
+            'meeting_date >= {:start} && meeting_date <= {:end} && meeting_type = {:type}',
+            {
+              start: data.startStr,
+              end: data.endStr,
+              type: data.typeStr,
+            },
+          )
+        } catch (err) {
+          existingRecord = null
+        }
 
+        try {
           if (existingRecord) {
             const existingTotal = existingRecord.getInt('in_person') + existingRecord.getInt('zoom')
             if (data.total > existingTotal) {
               existingRecord.set('in_person', data.inPerson)
               existingRecord.set('zoom', data.zoom)
-              txApp.save(existingRecord)
+              $app.save(existingRecord)
               importedCount++
             }
           } else {
@@ -198,11 +200,16 @@ routerAdd(
             record.set('meeting_type', data.typeStr)
             record.set('in_person', data.inPerson)
             record.set('zoom', data.zoom)
-            txApp.save(record)
+            $app.save(record)
             importedCount++
           }
+        } catch (saveErr) {
+          errors.push(
+            `Erro ao salvar reunião de ${data.originalDate}: ${saveErr.message || 'Falha de validação'}`,
+          )
+          ignoredCount++
         }
-      })
+      }
 
       return e.json(200, {
         imported: importedCount,
