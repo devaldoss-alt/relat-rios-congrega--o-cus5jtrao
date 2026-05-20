@@ -27,7 +27,7 @@ import {
   createMonthlySummary,
   updateMonthlySummary,
 } from '@/services/monthly_summaries'
-import { Loader2, RefreshCw, Target } from 'lucide-react'
+import { Loader2, RefreshCw, Target, Calendar } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { AttendanceChart } from '@/components/attendance/AttendanceChart'
 
@@ -54,10 +54,12 @@ export default function Attendance() {
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
 
+  const currentYear = new Date().getFullYear().toString()
+  const [globalYear, setGlobalYear] = useState<string>(currentYear)
+
   const [goalMonth, setGoalMonth] = useState<string>(
     (new Date().getMonth() + 1).toString().padStart(2, '0'),
   )
-  const [goalYear, setGoalYear] = useState<string>(new Date().getFullYear().toString())
   const [attendanceGoal, setAttendanceGoal] = useState<string>('')
   const [savingGoal, setSavingGoal] = useState(false)
 
@@ -82,13 +84,13 @@ export default function Attendance() {
   }, [])
 
   useEffect(() => {
-    const summary = summaries.find((s) => s.year.toString() === goalYear && s.month === goalMonth)
+    const summary = summaries.find((s) => s.year.toString() === globalYear && s.month === goalMonth)
     if (summary && summary.attendance_goal) {
       setAttendanceGoal(summary.attendance_goal.toString())
     } else {
       setAttendanceGoal('')
     }
-  }, [goalMonth, goalYear, summaries])
+  }, [goalMonth, globalYear, summaries])
 
   useRealtime('meeting_attendance', () => {
     loadData()
@@ -101,15 +103,20 @@ export default function Attendance() {
     setSyncing(true)
     try {
       const res = await syncMeetingAttendance()
+      let desc = `${res.imported} reuniões importadas/atualizadas.`
+      if (res.errors && res.errors.length > 0) {
+        desc += ` Algumas linhas foram ignoradas. Veja o console para detalhes.`
+        console.warn('Sincronização - Linhas ignoradas:', res.errors)
+      }
       toast({
         title: 'Sincronização concluída!',
-        description: `${res.imported} reuniões importadas.`,
+        description: desc,
       })
       await loadData()
     } catch (error: any) {
       toast({
         title: 'Erro na sincronização',
-        description: error?.message || 'Falha ao importar dados.',
+        description: error?.response?.message || error?.message || 'Falha ao importar dados.',
         variant: 'destructive',
       })
     } finally {
@@ -120,12 +127,12 @@ export default function Attendance() {
   const handleSaveGoal = async () => {
     setSavingGoal(true)
     try {
-      const summary = await findMonthlySummary(Number(goalYear), goalMonth)
+      const summary = await findMonthlySummary(Number(globalYear), goalMonth)
       if (summary) {
         await updateMonthlySummary(summary.id, { attendance_goal: Number(attendanceGoal) })
       } else {
         await createMonthlySummary({
-          year: Number(goalYear),
+          year: Number(globalYear),
           month: goalMonth,
           attendance_goal: Number(attendanceGoal),
           total_active_publishers: 0,
@@ -149,6 +156,7 @@ export default function Attendance() {
       day: '2-digit',
       month: 'long',
       year: 'numeric',
+      timeZone: 'UTC',
     }).format(date)
   }
 
@@ -156,8 +164,13 @@ export default function Attendance() {
     const years = new Set(data.map((d) => new Date(d.meeting_date).getFullYear().toString()))
     years.add(new Date().getFullYear().toString())
     years.add('2025')
+    years.add('2026')
     return Array.from(years).sort((a, b) => b.localeCompare(a))
   }, [data])
+
+  const filteredData = useMemo(() => {
+    return data.filter((d) => new Date(d.meeting_date).getFullYear().toString() === globalYear)
+  }, [data, globalYear])
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-10">
@@ -166,20 +179,37 @@ export default function Attendance() {
           <h2 className="text-2xl font-bold tracking-tight">Assistência às Reuniões</h2>
           <p className="text-muted-foreground">Controle de presença e assistência das reuniões.</p>
         </div>
-        {isSecretary && (
-          <Button
-            onClick={handleSync}
-            disabled={syncing}
-            className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition-all"
-          >
-            {syncing ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <RefreshCw className="mr-2 h-4 w-4" />
-            )}
-            Sincronizar com Google Sheets
-          </Button>
-        )}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center bg-background border rounded-md px-3 py-1 shadow-sm">
+            <Calendar className="w-4 h-4 mr-2 text-muted-foreground" />
+            <Select value={globalYear} onValueChange={setGlobalYear}>
+              <SelectTrigger className="w-[100px] border-0 bg-transparent p-0 focus:ring-0 focus:ring-offset-0">
+                <SelectValue placeholder="Ano" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableYears.map((y) => (
+                  <SelectItem key={y} value={y}>
+                    {y}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          {isSecretary && (
+            <Button
+              onClick={handleSync}
+              disabled={syncing}
+              className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition-all"
+            >
+              {syncing ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="mr-2 h-4 w-4" />
+              )}
+              Sincronizar
+            </Button>
+          )}
+        </div>
       </div>
 
       {isSecretary && (
@@ -187,10 +217,10 @@ export default function Attendance() {
           <CardHeader className="pb-4">
             <CardTitle className="text-lg flex items-center gap-2">
               <Target className="h-5 w-5 text-primary" />
-              Meta de Assistência Mensal
+              Meta de Assistência Mensal ({globalYear})
             </CardTitle>
             <CardDescription>
-              Defina a meta de assistência média esperada para a congregação.
+              Defina a meta de assistência média esperada para a congregação no mês selecionado.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -205,21 +235,6 @@ export default function Attendance() {
                     {MONTHS.map((m) => (
                       <SelectItem key={m.value} value={m.value}>
                         {m.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2 w-full sm:w-[120px]">
-                <label className="text-sm font-medium">Ano</label>
-                <Select value={goalYear} onValueChange={setGoalYear}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableYears.map((y) => (
-                      <SelectItem key={y} value={y}>
-                        {y}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -243,22 +258,27 @@ export default function Attendance() {
         </Card>
       )}
 
-      <AttendanceChart data={data} summaries={summaries} loading={loading} />
+      <AttendanceChart
+        data={data}
+        summaries={summaries}
+        loading={loading}
+        selectedYear={globalYear}
+      />
 
       <Card className="shadow-sm">
         <CardHeader>
-          <CardTitle>Histórico de Reuniões</CardTitle>
-          <CardDescription>Lista de assistência de todas as reuniões registradas.</CardDescription>
+          <CardTitle>Histórico de Reuniões ({globalYear})</CardTitle>
+          <CardDescription>Lista de assistência das reuniões no ano selecionado.</CardDescription>
         </CardHeader>
         <CardContent>
           {loading ? (
             <div className="flex justify-center items-center h-48">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
-          ) : data.length === 0 ? (
+          ) : filteredData.length === 0 ? (
             <div className="flex flex-col items-center justify-center p-8 text-center border-2 border-dashed rounded-lg bg-muted/10 mt-2">
               <p className="text-muted-foreground text-sm font-medium">
-                Nenhuma reunião encontrada para o período.
+                Nenhuma reunião encontrada para {globalYear}.
               </p>
             </div>
           ) : (
@@ -274,7 +294,7 @@ export default function Attendance() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {data.map((record) => {
+                  {filteredData.map((record) => {
                     const total = record.in_person + record.zoom
                     const label =
                       record.meeting_type === 'domingo'

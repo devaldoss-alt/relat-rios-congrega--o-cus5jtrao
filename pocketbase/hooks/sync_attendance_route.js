@@ -52,55 +52,91 @@ routerAdd(
       const headers = headersLine.split(',')
       const cleanHeaders = headers.map((h) => h.trim().toLowerCase())
 
-      const dateIdx = cleanHeaders.findIndex((h) => h === 'data')
-      const typeIdx = cleanHeaders.findIndex((h) => h === 'tipo')
-      const inPersonIdx = cleanHeaders.findIndex((h) => h === 'presenciais')
-      const zoomIdx = cleanHeaders.findIndex((h) => h === 'zoom')
+      const dateIdx = cleanHeaders.findIndex((h) => h === 'data' || h.includes('data'))
+      const typeIdx = cleanHeaders.findIndex((h) => h === 'tipo' || h.includes('tipo'))
+      const inPersonIdx = cleanHeaders.findIndex(
+        (h) => h === 'presenciais' || h.includes('presencial'),
+      )
+      const zoomIdx = cleanHeaders.findIndex((h) => h === 'zoom' || h.includes('zoom'))
 
       if (dateIdx === -1 || typeIdx === -1 || inPersonIdx === -1 || zoomIdx === -1) {
         return e.badRequestError('Colunas necessárias não encontradas na planilha.')
       }
 
       const attendanceMap = new Map()
+      const errors = []
 
       for (let j = 1; j < rows.length; j++) {
-        if (!rows[j].trim()) continue
+        const rowStr = rows[j].trim()
+        if (!rowStr) continue
 
-        const colsLine = rows[j].replace(/"/g, '').replace(/\r/g, '')
-        const cols = colsLine.split(',')
-        if (cols.length < 4) continue
+        let cols = []
+        let inQuotes = false
+        let currentVal = ''
+        for (let c = 0; c < rowStr.length; c++) {
+          const char = rowStr[c]
+          if (char === '"') {
+            inQuotes = !inQuotes
+          } else if (char === ',' && !inQuotes) {
+            cols.push(currentVal.trim())
+            currentVal = ''
+          } else {
+            currentVal += char
+          }
+        }
+        cols.push(currentVal.trim())
 
-        const dateStr = cols[dateIdx] ? cols[dateIdx].trim() : ''
-        const rawTypeStr = cols[typeIdx] ? cols[typeIdx].trim().toLowerCase() : ''
-        const inPerson = parseInt(cols[inPersonIdx], 10) || 0
-        const zoom = parseInt(cols[zoomIdx], 10) || 0
+        if (cols.length <= Math.max(dateIdx, typeIdx, inPersonIdx, zoomIdx)) {
+          continue
+        }
 
-        if (!dateStr) continue
+        const dateStr = cols[dateIdx] ? cols[dateIdx].replace(/"/g, '').trim() : ''
+        const rawTypeStr = cols[typeIdx] ? cols[typeIdx].replace(/"/g, '').trim().toLowerCase() : ''
+
+        if (!dateStr && !rawTypeStr) continue
+
+        const inPersonStr = cols[inPersonIdx] ? cols[inPersonIdx].replace(/"/g, '').trim() : '0'
+        const zoomStr = cols[zoomIdx] ? cols[zoomIdx].replace(/"/g, '').trim() : '0'
+
+        if (!dateStr) {
+          errors.push(`Linha ${j + 1}: Data ausente.`)
+          continue
+        }
+
+        const inPerson = parseInt(inPersonStr, 10) || 0
+        const zoom = parseInt(zoomStr, 10) || 0
 
         let typeStr = ''
         if (
-          rawTypeStr === 'reunião vida e ministério' ||
-          rawTypeStr === 'reuniao vida e ministerio' ||
+          rawTypeStr.includes('vida e') ||
+          rawTypeStr.includes('ministério') ||
           rawTypeStr === 'quinta'
         ) {
           typeStr = 'quinta'
-        } else if (
-          rawTypeStr === 'reunião de fim de semana' ||
-          rawTypeStr === 'reuniao de fim de semana' ||
-          rawTypeStr === 'domingo'
-        ) {
+        } else if (rawTypeStr.includes('fim de semana') || rawTypeStr === 'domingo') {
           typeStr = 'domingo'
         }
 
-        if (!typeStr) continue
+        if (!typeStr) {
+          errors.push(`Linha ${j + 1}: Tipo de reunião inválido ("${rawTypeStr}").`)
+          continue
+        }
 
         const dateParts = dateStr.split('/')
-        if (dateParts.length !== 3) continue
+        if (dateParts.length !== 3) {
+          errors.push(
+            `Linha ${j + 1}: Formato de data inválido ("${dateStr}"). Esperado DD/MM/YYYY.`,
+          )
+          continue
+        }
 
         const rowDate = new Date(
           dateParts[2] + '-' + dateParts[1] + '-' + dateParts[0] + 'T12:00:00Z',
         )
-        if (isNaN(rowDate.getTime())) continue
+        if (isNaN(rowDate.getTime())) {
+          errors.push(`Linha ${j + 1}: Data inválida ("${dateStr}").`)
+          continue
+        }
 
         const isoDateStr = rowDate.toISOString().split('T')[0] + ' 12:00:00.000Z'
         const startStr = isoDateStr.substring(0, 10) + ' 00:00:00.000Z'
@@ -154,9 +190,9 @@ routerAdd(
         }
       })
 
-      return e.json(200, { imported: importedCount })
+      return e.json(200, { imported: importedCount, errors: errors.slice(0, 10) })
     } catch (err) {
-      return e.badRequestError('Erro inesperado durante a sincronização dos dados.')
+      return e.badRequestError('Erro inesperado durante a sincronização dos dados: ' + err.message)
     }
   },
   $apis.requireAuth(),

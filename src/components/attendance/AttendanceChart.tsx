@@ -17,6 +17,7 @@ interface AttendanceChartProps {
   data: any[]
   summaries: any[]
   loading: boolean
+  selectedYear: string
 }
 
 const chartConfig = {
@@ -25,18 +26,10 @@ const chartConfig = {
   goal: { label: 'Meta', color: 'hsl(var(--primary))' },
 }
 
-export function AttendanceChart({ data, summaries, loading }: AttendanceChartProps) {
-  const currentYear = new Date().getFullYear().toString()
-  const [selectedYear, setSelectedYear] = useState(currentYear)
+export function AttendanceChart({ data, summaries, loading, selectedYear }: AttendanceChartProps) {
   const [meetingType, setMeetingType] = useState<'domingo' | 'quinta'>('domingo')
   const [showInPerson, setShowInPerson] = useState(true)
   const [showZoom, setShowZoom] = useState(true)
-
-  const availableYears = useMemo(() => {
-    const years = new Set(data.map((d) => new Date(d.meeting_date).getFullYear().toString()))
-    years.add(currentYear)
-    return Array.from(years).sort((a, b) => b.localeCompare(a))
-  }, [data, currentYear])
 
   const chartData = useMemo(() => {
     const filtered = data.filter((d) => {
@@ -159,18 +152,6 @@ export function AttendanceChart({ data, summaries, loading }: AttendanceChartPro
               </TabsTrigger>
             </TabsList>
           </Tabs>
-          <Select value={selectedYear} onValueChange={setSelectedYear}>
-            <SelectTrigger className="w-full sm:w-[100px]">
-              <SelectValue placeholder="Ano" />
-            </SelectTrigger>
-            <SelectContent>
-              {availableYears.map((year) => (
-                <SelectItem key={year} value={year}>
-                  {year}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
         </div>
       </CardHeader>
       <CardContent className="pt-4">
