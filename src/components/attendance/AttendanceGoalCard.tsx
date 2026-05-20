@@ -59,21 +59,32 @@ export function AttendanceGoalCard({ globalYear, summaries, onSaved }: Attendanc
   const handleSaveGoal = async () => {
     setSavingGoal(true)
     try {
+      const goalValue = Number(attendanceGoal)
+      if (!attendanceGoal || goalValue <= 0 || !Number.isInteger(goalValue)) {
+        toast({
+          title: 'Erro de validação',
+          description: 'A meta deve ser um número inteiro positivo.',
+          variant: 'destructive',
+        })
+        setSavingGoal(false)
+        return
+      }
+
       const summary = await findMonthlySummary(Number(globalYear), goalMonth)
       if (summary) {
-        await updateMonthlySummary(summary.id, { attendance_goal: Number(attendanceGoal) })
+        await updateMonthlySummary(summary.id, { attendance_goal: goalValue })
       } else {
         await createMonthlySummary({
           year: Number(globalYear),
           month: goalMonth,
-          attendance_goal: Number(attendanceGoal),
+          attendance_goal: goalValue,
           total_active_publishers: 0,
           avg_attendance_midweek: 0,
           avg_attendance_weekend: 0,
           report_data: {},
         })
       }
-      toast({ title: 'Meta de assistência salva com sucesso!' })
+      toast({ title: 'Meta salva com sucesso!' })
       onSaved()
     } catch (e: unknown) {
       toast({
@@ -118,9 +129,20 @@ export function AttendanceGoalCard({ globalYear, summaries, onSaved }: Attendanc
             <label className="text-sm font-medium">Meta (Pessoas)</label>
             <Input
               type="number"
-              min="0"
+              min="1"
+              step="1"
               value={attendanceGoal}
-              onChange={(e) => setAttendanceGoal(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value
+                if (val === '' || /^\d+$/.test(val)) {
+                  setAttendanceGoal(val)
+                }
+              }}
+              onKeyDown={(e) => {
+                if (['.', ',', '-', 'e', 'E'].includes(e.key)) {
+                  e.preventDefault()
+                }
+              }}
               placeholder="Ex: 120"
             />
           </div>

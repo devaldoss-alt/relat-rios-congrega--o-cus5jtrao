@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-20T18:38:45.731Z",
+  "generatedAt": "2026-05-20T18:50:07.174Z",
   "collections": [
     {
       "name": "users",
@@ -596,25 +596,25 @@
         {
           "name": "total_active_publishers",
           "type": "number",
-          "required": true,
+          "required": false,
           "system": false
         },
         {
           "name": "avg_attendance_midweek",
           "type": "number",
-          "required": true,
+          "required": false,
           "system": false
         },
         {
           "name": "avg_attendance_weekend",
           "type": "number",
-          "required": true,
+          "required": false,
           "system": false
         },
         {
           "name": "report_data",
           "type": "json",
-          "required": true,
+          "required": false,
           "system": false
         },
         {
