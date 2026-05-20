@@ -1,23 +1,29 @@
 import pb from '@/lib/pocketbase/client'
+import { calculateActivityStatus } from './publisher_reports'
 
 export const getCompilationData = async (year: number, month: number) => {
   const monthPaddedStr = month < 10 ? `0${month}` : `${month}`
 
-  // 1. Fetch raw publisher reports for the month
-  const pubReports = await pb.collection('publisher_reports').getFullList({
-    filter: `month="${monthPaddedStr}" && year=${year}`,
+  // 1. Fetch publishers (so we can count them even if they have NO reports this month)
+  const publishers = await pb.collection('publishers').getFullList({
+    expand: 'group_id',
+  })
+
+  // 2. Fetch reports for the past 6 months (last 2 years is safe enough)
+  const reports = await pb.collection('publisher_reports').getFullList({
+    filter: `year = ${year} || year = ${year - 1}`,
     expand: 'publisher_id,publisher_id.group_id',
   })
 
-  // 2. Fetch groups to initialize group data
+  // 3. Fetch groups to initialize group data
   const groups = await pb.collection('groups').getFullList()
 
-  // 3. Initialize in-memory aggregation map
+  // 4. Initialize in-memory aggregation map
   const groupReportsMap = new Map()
   for (const g of groups) {
     groupReportsMap.set(g.id, {
       group_id: g.id,
-      month: `${year}-${month.toString().padStart(2, '0')}`,
+      month: `${year}-${monthPaddedStr}`,
       publishers_count: 0,
       auxiliary_pioneers_count: 0,
       regular_pioneers_count: 0,
@@ -30,34 +36,53 @@ export const getCompilationData = async (year: number, month: number) => {
     })
   }
 
-  // 4. Aggregate data from publisher reports into group reports
-  for (const r of pubReports) {
-    const pub = r.expand?.publisher_id
-    if (!pub) continue
+  // 5. Aggregate data using 6-month rule
+  for (const pub of publishers) {
+    const currentMonthReport = reports.find(
+      (r) => r.publisher_id === pub.id && r.month === monthPaddedStr && r.year === year,
+    )
+
+    // Skip if they are system inactive and didn't report this month
+    if (!pub.active && !currentMonthReport) {
+      continue
+    }
+
     const gid = pub.group_id
     if (!groupReportsMap.has(gid)) continue
-
     const gRep = groupReportsMap.get(gid)
-    const type = r.type || pub.type
+
+    const status = calculateActivityStatus(pub.id, reports as any, month, year)
+
+    // Type comes from current report or publisher's current type
+    const type = currentMonthReport?.type || pub.type
+
+    // Included if Ativo or Não Participou (Irregular but active in 6 months)
+    const isCounted = status === 'Ativo' || status === 'Não Participou'
 
     if (type === 'pioneiro_regular') {
-      if (r.participated || r.hours > 0) gRep.regular_pioneers_count++
-      gRep.regular_pioneer_hours += r.hours || 0
-      gRep.regular_pioneer_bible_studies += r.bible_studies || 0
+      if (isCounted) gRep.regular_pioneers_count++
+      if (currentMonthReport) {
+        gRep.regular_pioneer_hours += currentMonthReport.hours || 0
+        gRep.regular_pioneer_bible_studies += currentMonthReport.bible_studies || 0
+      }
     } else if (type === 'pioneiro_auxiliar') {
-      if (r.participated || r.hours > 0) gRep.auxiliary_pioneers_count++
-      gRep.auxiliary_pioneer_hours += r.hours || 0
-      gRep.auxiliary_pioneer_bible_studies += r.bible_studies || 0
+      if (isCounted) gRep.auxiliary_pioneers_count++
+      if (currentMonthReport) {
+        gRep.auxiliary_pioneer_hours += currentMonthReport.hours || 0
+        gRep.auxiliary_pioneer_bible_studies += currentMonthReport.bible_studies || 0
+      }
     } else {
-      if (r.participated || r.hours > 0) gRep.publishers_count++
-      gRep.publisher_hours += r.hours || 0
-      gRep.publisher_bible_studies += r.bible_studies || 0
+      if (isCounted) gRep.publishers_count++
+      if (currentMonthReport) {
+        gRep.publisher_hours += currentMonthReport.hours || 0
+        gRep.publisher_bible_studies += currentMonthReport.bible_studies || 0
+      }
     }
   }
 
   const groupReports = Array.from(groupReportsMap.values())
 
-  // 5. Fetch attendance
+  // 6. Fetch attendance
   const startStr = `${year}-${month.toString().padStart(2, '0')}-01 00:00:00.000Z`
   const nextYear = month === 12 ? year + 1 : year
   const nextMonth = month === 12 ? 1 : month + 1

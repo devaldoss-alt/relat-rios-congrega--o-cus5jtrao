@@ -8,7 +8,12 @@ import { useToast } from '@/components/ui/use-toast'
 import { getGroups, updateGroup } from '@/services/groups'
 import { getGroupReport, createGroupReport, updateGroupReport } from '@/services/group_reports'
 import { getPublishersByGroup } from '@/services/publishers'
-import { getPublisherReports, savePublisherReport } from '@/services/publisher_reports'
+import {
+  getPublisherReports,
+  savePublisherReport,
+  calculateActivityStatus,
+} from '@/services/publisher_reports'
+import pb from '@/lib/pocketbase/client'
 import { useRealtime } from '@/hooks/use-realtime'
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -46,6 +51,7 @@ const reportSchema = z.object({
   name: z.string(),
   type: z.string(),
   active: z.boolean(),
+  activity_status: z.string().optional(),
   participated: z.boolean().default(false),
   hours: numberField,
   bible_studies: numberField,
@@ -134,22 +140,32 @@ export default function GroupData() {
       setGroupReportId(gReport?.id || null)
 
       const pubs = await getPublishersByGroup(selectedGroupId)
-      const pReports = await getPublisherReports(
-        selectedGroupId,
-        selectedMonth,
-        Number(selectedYear),
+      const allPReports = await pb.collection('publisher_reports').getFullList({
+        filter: `publisher_id.group_id = '${selectedGroupId}' && (year = ${selectedYear} || year = ${Number(selectedYear) - 1})`,
+      })
+      const pReports = allPReports.filter(
+        (r) => r.month === selectedMonth && r.year === Number(selectedYear),
       )
 
       const mergedReports = pubs
         .filter((pub) => pub.active || pReports.some((r) => r.publisher_id === pub.id))
         .map((pub) => {
           const existing = pReports.find((r) => r.publisher_id === pub.id)
+
+          const status = calculateActivityStatus(
+            pub.id,
+            allPReports as any,
+            Number(selectedMonth),
+            Number(selectedYear),
+          )
+
           return {
             id: existing?.id,
             publisher_id: pub.id,
             name: pub.name,
             type: existing?.type || pub.type || 'publicador',
             active: pub.active,
+            activity_status: status,
             participated: existing?.participated || false,
             hours: existing?.hours || 0,
             bible_studies: existing?.bible_studies || 0,
@@ -247,19 +263,45 @@ export default function GroupData() {
       let regular_pioneer_hours = 0
       let regular_pioneer_bible_studies = 0
 
+      const prevReports = await pb.collection('publisher_reports').getFullList({
+        filter: `publisher_id.group_id = '${selectedGroupId}' && (year = ${selectedYear} || year = ${Number(selectedYear) - 1})`,
+      })
+
+      const allReports = prevReports.filter(
+        (r) => !(r.month === selectedMonth && r.year === Number(selectedYear)),
+      )
+
+      for (const r of values.reports) {
+        allReports.push({
+          publisher_id: r.publisher_id,
+          month: selectedMonth,
+          year: Number(selectedYear),
+          participated: r.participated || r.hours > 0 || r.bible_studies > 0,
+          hours: r.hours,
+          bible_studies: r.bible_studies,
+          type: r.type,
+        } as any)
+      }
+
       for (const report of values.reports) {
-        const isReported = report.participated || report.hours > 0 || report.bible_studies > 0
+        const status = calculateActivityStatus(
+          report.publisher_id,
+          allReports as any,
+          Number(selectedMonth),
+          Number(selectedYear),
+        )
+        const isCounted = status === 'Ativo' || status === 'Não Participou'
 
         if (report.type === 'publicador') {
-          if (isReported) publishers_count++
+          if (isCounted) publishers_count++
           publisher_hours += report.hours
           publisher_bible_studies += report.bible_studies
         } else if (report.type === 'pioneiro_auxiliar') {
-          if (isReported) auxiliary_pioneers_count++
+          if (isCounted) auxiliary_pioneers_count++
           auxiliary_pioneer_hours += report.hours
           auxiliary_pioneer_bible_studies += report.bible_studies
         } else if (report.type === 'pioneiro_regular') {
-          if (isReported) regular_pioneers_count++
+          if (isCounted) regular_pioneers_count++
           regular_pioneer_hours += report.hours
           regular_pioneer_bible_studies += report.bible_studies
         }
@@ -496,11 +538,23 @@ export default function GroupData() {
                             <TableCell className="font-medium">
                               <div className="flex flex-col gap-1">
                                 <span>{field.name}</span>
-                                {!field.active && (
-                                  <span className="text-[10px] uppercase font-bold text-slate-500 bg-slate-200 px-1.5 py-0.5 rounded-sm w-fit">
-                                    Inativo
-                                  </span>
-                                )}
+                                <div className="flex gap-2">
+                                  {!field.active && (
+                                    <span className="text-[10px] uppercase font-bold text-slate-500 bg-slate-200 px-1.5 py-0.5 rounded-sm w-fit">
+                                      Sistema Inativo
+                                    </span>
+                                  )}
+                                  {field.activity_status === 'Não Participou' && (
+                                    <span className="text-[10px] uppercase font-bold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded-sm w-fit">
+                                      Irregular
+                                    </span>
+                                  )}
+                                  {field.activity_status === 'Inativo' && (
+                                    <span className="text-[10px] uppercase font-bold text-red-700 bg-red-100 px-1.5 py-0.5 rounded-sm w-fit">
+                                      Inativo (6 meses)
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             </TableCell>
                             <TableCell>

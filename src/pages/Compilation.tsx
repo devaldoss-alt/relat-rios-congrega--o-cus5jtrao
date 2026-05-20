@@ -334,7 +334,7 @@ export default function CompilationPage() {
               icon={Users}
               iconColor="text-primary"
               value={metrics.activePublishers}
-              subtitle="Total de relatórios entregues"
+              subtitle="Inclui irregulares (regra de 6 meses)"
             />
             <SummaryCard
               title="Assistência Fim de Semana"
