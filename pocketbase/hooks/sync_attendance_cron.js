@@ -73,6 +73,9 @@ cronAdd('sync_attendance_daily', '0 0 * * *', () => {
       }
       cols.push(currentVal.trim())
 
+      const isColsEmpty = cols.every(c => !c.replace(/"/g, '').trim())
+      if (isColsEmpty) continue
+
       if (cols.length <= Math.max(dateIdx, typeIdx, inPersonIdx, zoomIdx)) {
         continue
       }
@@ -86,6 +89,9 @@ cronAdd('sync_attendance_daily', '0 0 * * *', () => {
       const zoomStr = cols[zoomIdx] ? cols[zoomIdx].replace(/"/g, '').trim() : ''
 
       if (!dateStr) continue
+
+      if (!inPersonStr && inPersonStr !== '0') continue
+      if (!zoomStr && zoomStr !== '0') continue
 
       const inPerson = parseInt(inPersonStr, 10)
       const zoom = parseInt(zoomStr, 10)
@@ -109,6 +115,13 @@ cronAdd('sync_attendance_daily', '0 0 * * *', () => {
 
       const dateParts = dateStr.split('/')
       if (dateParts.length !== 3) continue
+
+      // Correct year typo (e.g. 0026 -> 2026, 0025 -> 2025)
+      if (dateParts[2] === '0026') {
+        dateParts[2] = '2026'
+      } else if (dateParts[2] === '0025') {
+        dateParts[2] = '2025'
+      }
 
       const rowDate = new Date(
         dateParts[2] + '-' + dateParts[1] + '-' + dateParts[0] + 'T12:00:00Z',

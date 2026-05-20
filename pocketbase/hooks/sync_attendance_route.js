@@ -87,6 +87,9 @@ routerAdd(
         }
         cols.push(currentVal.trim())
 
+        const isColsEmpty = cols.every(c => !c.replace(/"/g, '').trim())
+        if (isColsEmpty) continue
+
         if (cols.length <= Math.max(dateIdx, typeIdx, inPersonIdx, zoomIdx)) {
           ignoredCount++
           continue
@@ -96,7 +99,6 @@ routerAdd(
         const rawTypeStr = cols[typeIdx] ? cols[typeIdx].replace(/"/g, '').trim().toLowerCase() : ''
 
         if (!dateStr && !rawTypeStr) {
-          ignoredCount++
           continue
         }
 
@@ -105,6 +107,18 @@ routerAdd(
 
         if (!dateStr) {
           errors.push(`Linha ${j + 1}: Data ausente.`)
+          ignoredCount++
+          continue
+        }
+
+        if (!inPersonStr && inPersonStr !== '0') {
+          errors.push(`Linha ${j + 1}: Valor 'presenciais' ausente.`)
+          ignoredCount++
+          continue
+        }
+
+        if (!zoomStr && zoomStr !== '0') {
+          errors.push(`Linha ${j + 1}: Valor 'zoom' ausente.`)
           ignoredCount++
           continue
         }
@@ -142,6 +156,13 @@ routerAdd(
           )
           ignoredCount++
           continue
+        }
+
+        // Correct year typo (e.g. 0026 -> 2026, 0025 -> 2025)
+        if (dateParts[2] === '0026') {
+          dateParts[2] = '2026'
+        } else if (dateParts[2] === '0025') {
+          dateParts[2] = '2025'
         }
 
         const rowDate = new Date(
@@ -208,7 +229,7 @@ routerAdd(
       return e.json(200, {
         imported: importedCount,
         ignored: ignoredCount,
-        errors: errors.slice(0, 10),
+        errors: errors,
       })
     } catch (err) {
       return e.badRequestError('Erro inesperado durante a sincronização dos dados: ' + err.message)

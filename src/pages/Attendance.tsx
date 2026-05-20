@@ -20,7 +20,15 @@ import {
 import { useToast } from '@/hooks/use-toast'
 import { useAuth } from '@/hooks/use-auth'
 import { useRealtime } from '@/hooks/use-realtime'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { getMeetingAttendance, syncMeetingAttendance } from '@/services/meeting_attendance'
+import { getErrorMessage } from '@/lib/pocketbase/errors'
 import {
   getMonthlySummaries,
   findMonthlySummary,
@@ -53,6 +61,7 @@ export default function Attendance() {
   const [summaries, setSummaries] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
+  const [syncReport, setSyncReport] = useState<{ imported: number; ignored: number; errors: string[] } | null>(null)
 
   const currentYear = new Date().getFullYear().toString()
   const [globalYear, setGlobalYear] = useState<string>(currentYear)
@@ -105,20 +114,22 @@ export default function Attendance() {
       const res = await syncMeetingAttendance()
       const ignoredCount =
         res.ignored !== undefined ? res.ignored : res.errors ? res.errors.length : 0
-      const desc = `${res.imported} reuniões importadas/atualizadas. ${ignoredCount} linhas foram ignoradas por inconsistência de dados.`
 
-      if (res.errors && res.errors.length > 0) {
-        console.warn('Sincronização - Erros nas linhas ignoradas:', res.errors)
-      }
+      setSyncReport({
+        imported: res.imported,
+        ignored: ignoredCount,
+        errors: res.errors || [],
+      })
+
       toast({
         title: 'Sincronização concluída!',
-        description: desc,
+        description: `${res.imported} reuniões importadas. ${ignoredCount} linhas ignoradas.`,
       })
       await loadData()
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Erro na sincronização',
-        description: error?.response?.message || error?.message || 'Falha ao importar dados.',
+        description: getErrorMessage(error),
         variant: 'destructive',
       })
     } finally {
@@ -145,8 +156,8 @@ export default function Attendance() {
       }
       toast({ title: 'Meta de assistência salva com sucesso!' })
       await loadData()
-    } catch (e: any) {
-      toast({ title: 'Erro ao salvar meta', description: e.message, variant: 'destructive' })
+    } catch (e: unknown) {
+      toast({ title: 'Erro ao salvar meta', description: getErrorMessage(e), variant: 'destructive' })
     } finally {
       setSavingGoal(false)
     }
@@ -266,6 +277,40 @@ export default function Attendance() {
         loading={loading}
         selectedYear={globalYear}
       />
+
+      <Dialog open={!!syncReport} onOpenChange={(open) => !open && setSyncReport(null)}>
+        <DialogContent className="max-w-md max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Relatório de Sincronização</DialogTitle>
+            <DialogDescription>Resumo da importação da planilha de assistência.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 overflow-y-auto pr-2">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-green-50 text-green-700 p-3 rounded-md">
+                <p className="text-sm font-medium">Importados/Atualizados</p>
+                <p className="text-2xl font-bold">{syncReport?.imported || 0}</p>
+              </div>
+              <div className="bg-amber-50 text-amber-700 p-3 rounded-md">
+                <p className="text-sm font-medium">Linhas Ignoradas</p>
+                <p className="text-2xl font-bold">{syncReport?.ignored || 0}</p>
+              </div>
+            </div>
+
+            {syncReport?.errors && syncReport.errors.length > 0 && (
+              <div className="mt-4">
+                <h4 className="text-sm font-medium mb-2">Erros e Alertas Encontrados</h4>
+                <div className="bg-muted p-3 rounded-md text-sm space-y-2 max-h-[300px] overflow-y-auto">
+                  {syncReport.errors.map((err, i) => (
+                    <p key={i} className="text-red-600">
+                      {err}
+                    </p>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Card className="shadow-sm">
         <CardHeader>
