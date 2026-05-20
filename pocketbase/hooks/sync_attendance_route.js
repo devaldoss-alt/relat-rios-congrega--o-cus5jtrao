@@ -52,19 +52,20 @@ routerAdd(
       const headers = headersLine.split(',')
       const cleanHeaders = headers.map((h) => h.trim().toLowerCase())
 
-      const dateIdx = cleanHeaders.findIndex((h) => h === 'data' || h.includes('data'))
-      const typeIdx = cleanHeaders.findIndex((h) => h === 'tipo' || h.includes('tipo'))
-      const inPersonIdx = cleanHeaders.findIndex(
-        (h) => h === 'presenciais' || h.includes('presencial'),
-      )
-      const zoomIdx = cleanHeaders.findIndex((h) => h === 'zoom' || h.includes('zoom'))
+      const dateIdx = cleanHeaders.findIndex((h) => h === 'data')
+      const typeIdx = cleanHeaders.findIndex((h) => h === 'tipo')
+      const inPersonIdx = cleanHeaders.findIndex((h) => h === 'presenciais' || h === 'presencial')
+      const zoomIdx = cleanHeaders.findIndex((h) => h === 'zoom')
 
       if (dateIdx === -1 || typeIdx === -1 || inPersonIdx === -1 || zoomIdx === -1) {
-        return e.badRequestError('Colunas necessárias não encontradas na planilha.')
+        return e.badRequestError(
+          'Colunas necessárias (Data, Tipo, Presenciais, Zoom) não encontradas na planilha.',
+        )
       }
 
       const attendanceMap = new Map()
       const errors = []
+      let ignoredCount = 0
 
       for (let j = 1; j < rows.length; j++) {
         const rowStr = rows[j].trim()
@@ -87,24 +88,35 @@ routerAdd(
         cols.push(currentVal.trim())
 
         if (cols.length <= Math.max(dateIdx, typeIdx, inPersonIdx, zoomIdx)) {
+          ignoredCount++
           continue
         }
 
         const dateStr = cols[dateIdx] ? cols[dateIdx].replace(/"/g, '').trim() : ''
         const rawTypeStr = cols[typeIdx] ? cols[typeIdx].replace(/"/g, '').trim().toLowerCase() : ''
 
-        if (!dateStr && !rawTypeStr) continue
-
-        const inPersonStr = cols[inPersonIdx] ? cols[inPersonIdx].replace(/"/g, '').trim() : '0'
-        const zoomStr = cols[zoomIdx] ? cols[zoomIdx].replace(/"/g, '').trim() : '0'
-
-        if (!dateStr) {
-          errors.push(`Linha ${j + 1}: Data ausente.`)
+        if (!dateStr && !rawTypeStr) {
+          ignoredCount++
           continue
         }
 
-        const inPerson = parseInt(inPersonStr, 10) || 0
-        const zoom = parseInt(zoomStr, 10) || 0
+        const inPersonStr = cols[inPersonIdx] ? cols[inPersonIdx].replace(/"/g, '').trim() : ''
+        const zoomStr = cols[zoomIdx] ? cols[zoomIdx].replace(/"/g, '').trim() : ''
+
+        if (!dateStr) {
+          errors.push(`Linha ${j + 1}: Data ausente.`)
+          ignoredCount++
+          continue
+        }
+
+        const inPerson = parseInt(inPersonStr, 10)
+        const zoom = parseInt(zoomStr, 10)
+
+        if (isNaN(inPerson) || isNaN(zoom)) {
+          errors.push(`Linha ${j + 1}: Valores de presença inválidos.`)
+          ignoredCount++
+          continue
+        }
 
         let typeStr = ''
         if (
@@ -119,6 +131,7 @@ routerAdd(
 
         if (!typeStr) {
           errors.push(`Linha ${j + 1}: Tipo de reunião inválido ("${rawTypeStr}").`)
+          ignoredCount++
           continue
         }
 
@@ -127,6 +140,7 @@ routerAdd(
           errors.push(
             `Linha ${j + 1}: Formato de data inválido ("${dateStr}"). Esperado DD/MM/YYYY.`,
           )
+          ignoredCount++
           continue
         }
 
@@ -135,6 +149,7 @@ routerAdd(
         )
         if (isNaN(rowDate.getTime())) {
           errors.push(`Linha ${j + 1}: Data inválida ("${dateStr}").`)
+          ignoredCount++
           continue
         }
 
@@ -190,7 +205,11 @@ routerAdd(
         }
       })
 
-      return e.json(200, { imported: importedCount, errors: errors.slice(0, 10) })
+      return e.json(200, {
+        imported: importedCount,
+        ignored: ignoredCount,
+        errors: errors.slice(0, 10),
+      })
     } catch (err) {
       return e.badRequestError('Erro inesperado durante a sincronização dos dados: ' + err.message)
     }

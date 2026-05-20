@@ -103,10 +103,12 @@ export default function Attendance() {
     setSyncing(true)
     try {
       const res = await syncMeetingAttendance()
-      let desc = `${res.imported} reuniões importadas/atualizadas.`
+      const ignoredCount =
+        res.ignored !== undefined ? res.ignored : res.errors ? res.errors.length : 0
+      const desc = `${res.imported} reuniões importadas/atualizadas. ${ignoredCount} linhas foram ignoradas por inconsistência de dados.`
+
       if (res.errors && res.errors.length > 0) {
-        desc += ` Algumas linhas foram ignoradas. Veja o console para detalhes.`
-        console.warn('Sincronização - Linhas ignoradas:', res.errors)
+        console.warn('Sincronização - Erros nas linhas ignoradas:', res.errors)
       }
       toast({
         title: 'Sincronização concluída!',

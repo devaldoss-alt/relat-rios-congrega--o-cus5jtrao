@@ -44,7 +44,7 @@ cronAdd('sync_attendance_daily', '0 0 * * *', () => {
 
     const dateIdx = cleanHeaders.findIndex((h) => h === 'data')
     const typeIdx = cleanHeaders.findIndex((h) => h === 'tipo')
-    const inPersonIdx = cleanHeaders.findIndex((h) => h === 'presenciais')
+    const inPersonIdx = cleanHeaders.findIndex((h) => h === 'presenciais' || h === 'presencial')
     const zoomIdx = cleanHeaders.findIndex((h) => h === 'zoom')
 
     if (dateIdx === -1 || typeIdx === -1 || inPersonIdx === -1 || zoomIdx === -1) {
@@ -54,31 +54,54 @@ cronAdd('sync_attendance_daily', '0 0 * * *', () => {
     const attendanceMap = new Map()
 
     for (let j = 1; j < rows.length; j++) {
-      if (!rows[j].trim()) continue
+      const rowStr = rows[j].trim()
+      if (!rowStr) continue
 
-      const colsLine = rows[j].replace(/"/g, '').replace(/\r/g, '')
-      const cols = colsLine.split(',')
-      if (cols.length < 4) continue
+      let cols = []
+      let inQuotes = false
+      let currentVal = ''
+      for (let c = 0; c < rowStr.length; c++) {
+        const char = rowStr[c]
+        if (char === '"') {
+          inQuotes = !inQuotes
+        } else if (char === ',' && !inQuotes) {
+          cols.push(currentVal.trim())
+          currentVal = ''
+        } else {
+          currentVal += char
+        }
+      }
+      cols.push(currentVal.trim())
 
-      const dateStr = cols[dateIdx] ? cols[dateIdx].trim() : ''
-      const rawTypeStr = cols[typeIdx] ? cols[typeIdx].trim().toLowerCase() : ''
-      const inPerson = parseInt(cols[inPersonIdx], 10) || 0
-      const zoom = parseInt(cols[zoomIdx], 10) || 0
+      if (cols.length <= Math.max(dateIdx, typeIdx, inPersonIdx, zoomIdx)) {
+        continue
+      }
+
+      const dateStr = cols[dateIdx] ? cols[dateIdx].replace(/"/g, '').trim() : ''
+      const rawTypeStr = cols[typeIdx] ? cols[typeIdx].replace(/"/g, '').trim().toLowerCase() : ''
+
+      if (!dateStr && !rawTypeStr) continue
+
+      const inPersonStr = cols[inPersonIdx] ? cols[inPersonIdx].replace(/"/g, '').trim() : ''
+      const zoomStr = cols[zoomIdx] ? cols[zoomIdx].replace(/"/g, '').trim() : ''
 
       if (!dateStr) continue
 
+      const inPerson = parseInt(inPersonStr, 10)
+      const zoom = parseInt(zoomStr, 10)
+
+      if (isNaN(inPerson) || isNaN(zoom)) {
+        continue
+      }
+
       let typeStr = ''
       if (
-        rawTypeStr === 'reunião vida e ministério' ||
-        rawTypeStr === 'reuniao vida e ministerio' ||
+        rawTypeStr.includes('vida e') ||
+        rawTypeStr.includes('ministério') ||
         rawTypeStr === 'quinta'
       ) {
         typeStr = 'quinta'
-      } else if (
-        rawTypeStr === 'reunião de fim de semana' ||
-        rawTypeStr === 'reuniao de fim de semana' ||
-        rawTypeStr === 'domingo'
-      ) {
+      } else if (rawTypeStr.includes('fim de semana') || rawTypeStr === 'domingo') {
         typeStr = 'domingo'
       }
 
