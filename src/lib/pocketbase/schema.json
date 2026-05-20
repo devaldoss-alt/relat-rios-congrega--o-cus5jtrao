@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-20T14:37:01.297Z",
+  "generatedAt": "2026-05-20T14:42:21.755Z",
   "collections": [
     {
       "name": "users",
@@ -29,28 +29,41 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         },
         {
           "name": "role",
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["Secretário", "Responsável"]
+          "selectValues": [
+            "Secretário",
+            "Responsável"
+          ]
         },
         {
           "name": "group_name",
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["Grupo 1", "Grupo 2", "Grupo 3", "Grupo 4"]
+          "selectValues": [
+            "Grupo 1",
+            "Grupo 2",
+            "Grupo 3",
+            "Grupo 4"
+          ]
         },
         {
           "name": "group_number",
@@ -117,17 +130,24 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
-      "indexes": ["CREATE INDEX idx_reports_date ON reports (meeting_date)"]
+      "indexes": [
+        "CREATE INDEX idx_reports_date ON reports (meeting_date)"
+      ]
     },
     {
       "name": "finances",
@@ -151,7 +171,10 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["Entrada", "Saída"]
+          "selectValues": [
+            "Entrada",
+            "Saída"
+          ]
         },
         {
           "name": "category",
@@ -176,17 +199,24 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
-      "indexes": ["CREATE INDEX idx_finances_date ON finances (transaction_date)"]
+      "indexes": [
+        "CREATE INDEX idx_finances_date ON finances (transaction_date)"
+      ]
     },
     {
       "name": "members",
@@ -210,7 +240,11 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["Ativo", "Inativo", "Visitante"]
+          "selectValues": [
+            "Ativo",
+            "Inativo",
+            "Visitante"
+          ]
         },
         {
           "name": "baptism_date",
@@ -235,17 +269,24 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
-      "indexes": ["CREATE INDEX idx_members_name ON members (name)"]
+      "indexes": [
+        "CREATE INDEX idx_members_name ON members (name)"
+      ]
     },
     {
       "name": "groups",
@@ -276,14 +317,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         },
         {
           "name": "hour_goal",
@@ -329,7 +375,11 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["publicador", "pioneiro_auxiliar", "pioneiro_regular"]
+          "selectValues": [
+            "publicador",
+            "pioneiro_auxiliar",
+            "pioneiro_regular"
+          ]
         },
         {
           "name": "active",
@@ -342,14 +392,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         },
         {
           "name": "phone",
@@ -386,14 +441,20 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["Masculino", "Feminino"]
+          "selectValues": [
+            "Masculino",
+            "Feminino"
+          ]
         },
         {
           "name": "hope",
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["Outras ovelhas", "Ungido"]
+          "selectValues": [
+            "Outras ovelhas",
+            "Ungido"
+          ]
         },
         {
           "name": "is_elder",
@@ -505,14 +566,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": []
@@ -539,7 +605,10 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["quinta", "domingo"]
+          "selectValues": [
+            "quinta",
+            "domingo"
+          ]
         },
         {
           "name": "in_person",
@@ -558,14 +627,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": []
@@ -622,14 +696,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         },
         {
           "name": "attendance_goal",
@@ -695,21 +774,30 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         },
         {
           "name": "type",
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["publicador", "pioneiro_auxiliar", "pioneiro_regular"]
+          "selectValues": [
+            "publicador",
+            "pioneiro_auxiliar",
+            "pioneiro_regular"
+          ]
         },
         {
           "name": "participated",
