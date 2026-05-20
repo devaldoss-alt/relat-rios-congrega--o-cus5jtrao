@@ -9,29 +9,7 @@ cronAdd('sync_attendance_daily', '0 0 * * *', () => {
     }
 
     const bytes = res.body
-    let csvText = ''
-    let i = 0
-
-    while (i < bytes.length) {
-      const c = bytes[i++]
-      if (c < 0x80) {
-        csvText += String.fromCharCode(c)
-      } else if (c > 0xbf && c < 0xe0) {
-        const c2 = bytes[i++]
-        csvText += String.fromCharCode(((c & 0x1f) << 6) | (c2 & 0x3f))
-      } else if (c > 0xdf && c < 0xf0) {
-        const c2 = bytes[i++]
-        const c3 = bytes[i++]
-        csvText += String.fromCharCode(((c & 0x0f) << 12) | ((c2 & 0x3f) << 6) | (c3 & 0x3f))
-      } else {
-        const c2 = bytes[i++]
-        const c3 = bytes[i++]
-        const c4 = bytes[i++]
-        let cp = ((c & 0x07) << 18) | ((c2 & 0x3f) << 12) | ((c3 & 0x3f) << 6) | (c4 & 0x3f)
-        cp -= 0x10000
-        csvText += String.fromCharCode((cp >> 10) | 0xd800, (cp & 0x3ff) | 0xdc00)
-      }
-    }
+    const csvText = new TextDecoder().decode(bytes)
 
     const rows = csvText.split('\n')
     if (rows.length < 2) {
@@ -73,7 +51,7 @@ cronAdd('sync_attendance_daily', '0 0 * * *', () => {
       }
       cols.push(currentVal.trim())
 
-      const isColsEmpty = cols.every(c => !c.replace(/"/g, '').trim())
+      const isColsEmpty = cols.every((c) => !c.replace(/"/g, '').trim())
       if (isColsEmpty) continue
 
       if (cols.length <= Math.max(dateIdx, typeIdx, inPersonIdx, zoomIdx)) {
