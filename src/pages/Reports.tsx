@@ -11,8 +11,13 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Progress } from '@/components/ui/progress'
 import { Textarea } from '@/components/ui/textarea'
 import { FileText } from 'lucide-react'
-import { getAllPublisherReportsForMonth, PublisherReport } from '@/services/publisher_reports'
+import {
+  getPublisherReportsFor6Months,
+  calculateActivityStatus,
+  PublisherReport,
+} from '@/services/publisher_reports'
 import { getGroups, Group } from '@/services/groups'
+import { getPublishers, Publisher } from '@/services/publishers'
 import { useAuth } from '@/hooks/use-auth'
 
 const MONTHS = [
@@ -42,20 +47,22 @@ export default function Reports() {
   )
 
   const [loading, setLoading] = useState(false)
-  const [reports, setReports] = useState<PublisherReport[]>([])
+  const [reports6m, setReports6m] = useState<PublisherReport[]>([])
   const [groups, setGroups] = useState<Group[]>([])
+  const [allPublishers, setAllPublishers] = useState<Publisher[]>([])
 
   useEffect(() => {
     const loadData = async () => {
       setLoading(true)
       try {
-        const monthStr = month < 10 ? `0${month}` : `${month}`
-        const [reps, grps] = await Promise.all([
-          getAllPublisherReportsForMonth(monthStr, year),
+        const [reps, grps, pubs] = await Promise.all([
+          getPublisherReportsFor6Months(month, year),
           getGroups(),
+          getPublishers(),
         ])
-        setReports(reps)
+        setReports6m(reps)
         setGroups(grps)
+        setAllPublishers(pubs)
       } catch (e) {
         console.error(e)
       } finally {
@@ -65,47 +72,56 @@ export default function Reports() {
     loadData()
   }, [month, year])
 
-  const filteredReports = useMemo(() => {
-    if (selectedGroup === 'all') return reports
-    return reports.filter(
-      (r) =>
-        r.expand?.publisher_id?.group_id ===
-        groups.find((g) => g.number.toString() === selectedGroup)?.id,
+  const filteredPublishers = useMemo(() => {
+    if (selectedGroup === 'all') return allPublishers
+    return allPublishers.filter(
+      (p) => p.group_id === groups.find((g) => g.number.toString() === selectedGroup)?.id,
     )
-  }, [reports, selectedGroup, groups])
+  }, [allPublishers, selectedGroup, groups])
 
   const s1Data = useMemo(() => {
     const data = {
-      publicadores: { count: 0, studies: 0, hours: 0 },
-      auxiliares: { count: 0, hours: 0, studies: 0 },
-      regulares: { count: 0, hours: 0, studies: 0 },
+      publicadores: { ativos: 0, relatorios: 0, hours: 0, studies: 0 },
+      auxiliares: { ativos: 0, relatorios: 0, hours: 0, studies: 0 },
+      regulares: { ativos: 0, relatorios: 0, hours: 0, studies: 0 },
     }
 
-    filteredReports.forEach((r) => {
-      const participated = r.participated || r.hours > 0 || r.bible_studies > 0
-      if (!participated) return
+    filteredPublishers.forEach((pub) => {
+      const status = calculateActivityStatus(pub.id, reports6m, month, year)
 
-      const type = r.type || r.expand?.publisher_id?.type || 'publicador'
+      const currentMonthStr = month.toString().padStart(2, '0')
+      const currentRep = reports6m.find(
+        (r) =>
+          (r.publisher_id === pub.id || r.expand?.publisher_id?.id === pub.id) &&
+          r.month === currentMonthStr &&
+          r.year === year,
+      )
 
-      if (type === 'publicador') {
-        data.publicadores.count++
-        data.publicadores.hours += r.hours || 0
-        data.publicadores.studies += r.bible_studies || 0
-      } else if (type === 'pioneiro_auxiliar') {
-        data.auxiliares.count++
-        data.auxiliares.hours += r.hours || 0
-        data.auxiliares.studies += r.bible_studies || 0
-      } else if (type === 'pioneiro_regular') {
-        data.regulares.count++
-        data.regulares.hours += r.hours || 0
-        data.regulares.studies += r.bible_studies || 0
+      const type = currentRep?.type || pub.type || 'publicador'
+
+      let cat = data.publicadores
+      if (type === 'pioneiro_auxiliar') cat = data.auxiliares
+      else if (type === 'pioneiro_regular') cat = data.regulares
+
+      if (status !== 'Inativo') {
+        cat.ativos++
+      }
+
+      if (status === 'Ativo') {
+        cat.relatorios++
+        if (currentRep) {
+          cat.hours += currentRep.hours || 0
+          cat.studies += currentRep.bible_studies || 0
+        }
       }
     })
     return data
-  }, [filteredReports])
+  }, [filteredPublishers, reports6m, month, year])
 
   const total = {
-    count: s1Data.publicadores.count + s1Data.auxiliares.count + s1Data.regulares.count,
+    ativos: s1Data.publicadores.ativos + s1Data.auxiliares.ativos + s1Data.regulares.ativos,
+    relatorios:
+      s1Data.publicadores.relatorios + s1Data.auxiliares.relatorios + s1Data.regulares.relatorios,
     hours: s1Data.publicadores.hours + s1Data.auxiliares.hours + s1Data.regulares.hours,
     studies: s1Data.publicadores.studies + s1Data.auxiliares.studies + s1Data.regulares.studies,
   }
@@ -216,15 +232,19 @@ export default function Reports() {
             <CardHeader className="bg-muted/30 pb-2">
               <CardTitle className="text-sm font-medium">Publicadores</CardTitle>
             </CardHeader>
-            <CardContent className="pt-4 grid grid-cols-2 gap-2 text-center">
+            <CardContent className="pt-4 grid grid-cols-3 gap-1 text-center">
               <div>
-                <p className="text-3xl font-bold text-primary">{s1Data.publicadores.count}</p>
+                <p className="text-2xl font-bold text-primary">{s1Data.publicadores.ativos}</p>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Ativos</p>
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-primary">{s1Data.publicadores.relatorios}</p>
                 <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
                   Relatórios
                 </p>
               </div>
               <div>
-                <p className="text-3xl font-bold text-primary">{s1Data.publicadores.studies}</p>
+                <p className="text-2xl font-bold text-primary">{s1Data.publicadores.studies}</p>
                 <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Estudos</p>
               </div>
             </CardContent>
@@ -234,18 +254,22 @@ export default function Reports() {
             <CardHeader className="bg-muted/30 pb-2">
               <CardTitle className="text-sm font-medium">Pioneiros Auxiliares</CardTitle>
             </CardHeader>
-            <CardContent className="pt-4 grid grid-cols-3 gap-1 text-center">
+            <CardContent className="pt-4 grid grid-cols-4 gap-1 text-center">
               <div>
-                <p className="text-2xl font-bold text-primary">{s1Data.auxiliares.count}</p>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Relats</p>
+                <p className="text-xl font-bold text-primary">{s1Data.auxiliares.ativos}</p>
+                <p className="text-[9px] text-muted-foreground uppercase tracking-wide">Ativos</p>
               </div>
               <div>
-                <p className="text-2xl font-bold text-primary">{s1Data.auxiliares.hours}</p>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Horas</p>
+                <p className="text-xl font-bold text-primary">{s1Data.auxiliares.relatorios}</p>
+                <p className="text-[9px] text-muted-foreground uppercase tracking-wide">Relats</p>
               </div>
               <div>
-                <p className="text-2xl font-bold text-primary">{s1Data.auxiliares.studies}</p>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Estudos</p>
+                <p className="text-xl font-bold text-primary">{s1Data.auxiliares.hours}</p>
+                <p className="text-[9px] text-muted-foreground uppercase tracking-wide">Horas</p>
+              </div>
+              <div>
+                <p className="text-xl font-bold text-primary">{s1Data.auxiliares.studies}</p>
+                <p className="text-[9px] text-muted-foreground uppercase tracking-wide">Estudos</p>
               </div>
             </CardContent>
           </Card>
@@ -254,18 +278,22 @@ export default function Reports() {
             <CardHeader className="bg-muted/30 pb-2">
               <CardTitle className="text-sm font-medium">Pioneiros Regulares</CardTitle>
             </CardHeader>
-            <CardContent className="pt-4 grid grid-cols-3 gap-1 text-center">
+            <CardContent className="pt-4 grid grid-cols-4 gap-1 text-center">
               <div>
-                <p className="text-2xl font-bold text-primary">{s1Data.regulares.count}</p>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Relats</p>
+                <p className="text-xl font-bold text-primary">{s1Data.regulares.ativos}</p>
+                <p className="text-[9px] text-muted-foreground uppercase tracking-wide">Ativos</p>
               </div>
               <div>
-                <p className="text-2xl font-bold text-primary">{s1Data.regulares.hours}</p>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Horas</p>
+                <p className="text-xl font-bold text-primary">{s1Data.regulares.relatorios}</p>
+                <p className="text-[9px] text-muted-foreground uppercase tracking-wide">Relats</p>
               </div>
               <div>
-                <p className="text-2xl font-bold text-primary">{s1Data.regulares.studies}</p>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Estudos</p>
+                <p className="text-xl font-bold text-primary">{s1Data.regulares.hours}</p>
+                <p className="text-[9px] text-muted-foreground uppercase tracking-wide">Horas</p>
+              </div>
+              <div>
+                <p className="text-xl font-bold text-primary">{s1Data.regulares.studies}</p>
+                <p className="text-[9px] text-muted-foreground uppercase tracking-wide">Estudos</p>
               </div>
             </CardContent>
           </Card>
@@ -274,18 +302,22 @@ export default function Reports() {
             <CardHeader className="bg-primary/10 pb-2">
               <CardTitle className="text-sm font-bold text-primary">Totais</CardTitle>
             </CardHeader>
-            <CardContent className="pt-4 grid grid-cols-3 gap-1 text-center">
+            <CardContent className="pt-4 grid grid-cols-4 gap-1 text-center">
               <div>
-                <p className="text-2xl font-bold text-primary">{total.count}</p>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Relats</p>
+                <p className="text-xl font-bold text-primary">{total.ativos}</p>
+                <p className="text-[9px] text-muted-foreground uppercase tracking-wide">Ativos</p>
               </div>
               <div>
-                <p className="text-2xl font-bold text-primary">{total.hours}</p>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Horas</p>
+                <p className="text-xl font-bold text-primary">{total.relatorios}</p>
+                <p className="text-[9px] text-muted-foreground uppercase tracking-wide">Relats</p>
               </div>
               <div>
-                <p className="text-2xl font-bold text-primary">{total.studies}</p>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Estudos</p>
+                <p className="text-xl font-bold text-primary">{total.hours}</p>
+                <p className="text-[9px] text-muted-foreground uppercase tracking-wide">Horas</p>
+              </div>
+              <div>
+                <p className="text-xl font-bold text-primary">{total.studies}</p>
+                <p className="text-[9px] text-muted-foreground uppercase tracking-wide">Estudos</p>
               </div>
             </CardContent>
           </Card>

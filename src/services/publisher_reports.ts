@@ -25,6 +25,24 @@ export const getAllPublisherReportsForMonth = (month: string, year: number) => {
   })
 }
 
+export const getPublisherReportsFor6Months = async (endMonth: number, endYear: number) => {
+  const filters = []
+  for (let i = 0; i < 6; i++) {
+    let m = endMonth - i
+    let y = endYear
+    if (m <= 0) {
+      m += 12
+      y -= 1
+    }
+    const mStr = m.toString().padStart(2, '0')
+    filters.push(`(month = '${mStr}' && year = ${y})`)
+  }
+  return pb.collection('publisher_reports').getFullList<PublisherReport>({
+    filter: filters.join(' || '),
+    expand: 'publisher_id,publisher_id.group_id',
+  })
+}
+
 export const getPublisherReportsHistory = async (publisherId: string, limit = 12) => {
   return pb.collection('publisher_reports').getList<PublisherReport>(1, limit, {
     filter: `publisher_id = '${publisherId}'`,
