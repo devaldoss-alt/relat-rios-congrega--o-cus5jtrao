@@ -72,8 +72,12 @@ export default function Index() {
     const fetchData = async () => {
       setLoading(true)
       try {
+        const syStartYear = endMonth >= 9 ? endYear : endYear - 1
+        const minYear = Math.min(startYear, syStartYear)
+
         const reps = await pb.collection('publisher_reports').getFullList({
-          filter: `year >= ${startYear} && year <= ${endYear}`,
+          filter: `year >= ${minYear} && year <= ${endYear}`,
+          expand: 'publisher_id',
         })
         setReports(reps)
 
@@ -132,6 +136,57 @@ export default function Index() {
     return chartData[chartData.length - 1]
   }, [chartData])
 
+  const pioneerMonthlyData = useMemo(() => {
+    const monthReps = reports.filter(
+      (r) =>
+        r.month === endMonth.toString().padStart(2, '0') &&
+        r.year === endYear &&
+        r.type === 'pioneiro_regular',
+    )
+    return monthReps
+      .map((r) => ({
+        name: r.expand?.publisher_id?.name?.split(' ')[0] || 'Desconhecido',
+        fullName: r.expand?.publisher_id?.name || 'Desconhecido',
+        horas: r.hours || 0,
+        meta: 50,
+      }))
+      .sort((a, b) => b.horas - a.horas)
+  }, [reports, endMonth, endYear])
+
+  const pioneerAnnualData = useMemo(() => {
+    const syStartYear = endMonth >= 9 ? endYear : endYear - 1
+    const syEndYear = syStartYear + 1
+
+    const syReports = reports.filter((r) => {
+      if (r.type !== 'pioneiro_regular') return false
+      const isAfterStart =
+        r.year > syStartYear || (r.year === syStartYear && parseInt(r.month) >= 9)
+      const isBeforeOrAtEnd =
+        r.year < endYear || (r.year === endYear && parseInt(r.month) <= endMonth)
+      const isWithinSYLimit = r.year < syEndYear || (r.year === syEndYear && parseInt(r.month) <= 8)
+      return isAfterStart && isBeforeOrAtEnd && isWithinSYLimit
+    })
+
+    const grouped = syReports.reduce(
+      (acc, r) => {
+        const pubId = r.publisher_id
+        if (!acc[pubId]) {
+          acc[pubId] = {
+            name: r.expand?.publisher_id?.name?.split(' ')[0] || 'Desconhecido',
+            fullName: r.expand?.publisher_id?.name || 'Desconhecido',
+            horas: 0,
+            meta: 600,
+          }
+        }
+        acc[pubId].horas += r.hours || 0
+        return acc
+      },
+      {} as Record<string, { name: string; fullName: string; horas: number; meta: number }>,
+    )
+
+    return Object.values(grouped).sort((a, b) => b.horas - a.horas)
+  }, [reports, endMonth, endYear])
+
   const comparativeChartData = useMemo(() => {
     return monthsInRange.map((p) => {
       const mStr = p.m.toString().padStart(2, '0')
@@ -148,7 +203,10 @@ export default function Index() {
       const monthAtt = attendance.filter((a) => a.meeting_date.startsWith(`${p.y}-${mStr}`))
       const avgAtt =
         monthAtt.length > 0
-          ? Math.round(monthAtt.reduce((s, a) => s + a.in_person + a.zoom, 0) / monthAtt.length)
+          ? Math.round(
+              monthAtt.reduce((s, a) => s + (a.in_person || 0) + (a.zoom || 0), 0) /
+                monthAtt.length,
+            )
           : sum
             ? Math.round((sum.avg_attendance_midweek + sum.avg_attendance_weekend) / 2)
             : 0
@@ -321,7 +379,7 @@ export default function Index() {
               >
                 <ComposedChart
                   data={comparativeChartData}
-                  margin={{ top: 10, right: 0, left: -20, bottom: 0 }}
+                  margin={{ top: 20, right: 0, left: -20, bottom: 0 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
@@ -355,7 +413,126 @@ export default function Index() {
             </CardContent>
           </Card>
 
-          <Card className="shadow-sm">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Card className="shadow-sm">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  Pioneiros Regulares: Mensal
+                </CardTitle>
+                <CardDescription>
+                  Mês atual ({endMonth.toString().padStart(2, '0')}/{endYear}) vs Meta (50h)
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="h-[350px]">
+                {pioneerMonthlyData.length === 0 ? (
+                  <div className="h-full flex items-center justify-center text-muted-foreground text-sm">
+                    Sem dados neste mês.
+                  </div>
+                ) : (
+                  <ChartContainer
+                    config={{
+                      horas: { label: 'Horas', color: 'hsl(var(--chart-1))' },
+                      meta: { label: 'Meta', color: 'hsl(var(--destructive))' },
+                    }}
+                    className="h-full w-full"
+                  >
+                    <ComposedChart
+                      data={pioneerMonthlyData}
+                      margin={{ top: 20, right: 0, left: -20, bottom: 0 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
+                      <YAxis fontSize={12} tickLine={false} axisLine={false} />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Legend verticalAlign="top" height={36} />
+                      <Bar
+                        dataKey="horas"
+                        fill="var(--color-horas)"
+                        radius={[4, 4, 0, 0]}
+                        maxBarSize={40}
+                      >
+                        <LabelList
+                          dataKey="horas"
+                          position="top"
+                          className="fill-foreground"
+                          fontSize={12}
+                        />
+                      </Bar>
+                      <Line
+                        type="monotone"
+                        dataKey="meta"
+                        stroke="var(--color-meta)"
+                        strokeWidth={2}
+                        dot={false}
+                        strokeDasharray="5 5"
+                      />
+                    </ComposedChart>
+                  </ChartContainer>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-sm">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  Pioneiros Regulares: Anual
+                </CardTitle>
+                <CardDescription>
+                  Ano de Serviço ({endMonth >= 9 ? endYear : endYear - 1}/
+                  {endMonth >= 9 ? endYear + 1 : endYear}) vs Meta (600h)
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="h-[350px]">
+                {pioneerAnnualData.length === 0 ? (
+                  <div className="h-full flex items-center justify-center text-muted-foreground text-sm">
+                    Sem dados neste ano.
+                  </div>
+                ) : (
+                  <ChartContainer
+                    config={{
+                      horas: { label: 'Acumulado', color: 'hsl(var(--chart-2))' },
+                      meta: { label: 'Meta Anual', color: 'hsl(var(--destructive))' },
+                    }}
+                    className="h-full w-full"
+                  >
+                    <ComposedChart
+                      data={pioneerAnnualData}
+                      margin={{ top: 20, right: 0, left: -20, bottom: 0 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
+                      <YAxis fontSize={12} tickLine={false} axisLine={false} />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Legend verticalAlign="top" height={36} />
+                      <Bar
+                        dataKey="horas"
+                        fill="var(--color-horas)"
+                        radius={[4, 4, 0, 0]}
+                        maxBarSize={40}
+                      >
+                        <LabelList
+                          dataKey="horas"
+                          position="top"
+                          className="fill-foreground"
+                          fontSize={12}
+                        />
+                      </Bar>
+                      <Line
+                        type="monotone"
+                        dataKey="meta"
+                        stroke="var(--color-meta)"
+                        strokeWidth={2}
+                        dot={false}
+                        strokeDasharray="5 5"
+                      />
+                    </ComposedChart>
+                  </ChartContainer>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card className="shadow-sm md:col-span-3">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 Tendência de Horas no Serviço de Campo

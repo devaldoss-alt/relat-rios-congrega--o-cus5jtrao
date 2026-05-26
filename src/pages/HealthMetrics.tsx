@@ -30,6 +30,7 @@ import {
   Legend,
   Cell,
   LabelList,
+  Tooltip,
 } from 'recharts'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { getPublishers, Publisher } from '@/services/publishers'
@@ -37,6 +38,28 @@ import { calculateActivityStatus, PublisherReport } from '@/services/publisher_r
 import { AlertCircle, Users, Activity, BookOpen, Clock } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import pb from '@/lib/pocketbase/client'
+
+const CustomIrregularTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload
+    return (
+      <div className="bg-background border rounded-lg shadow-sm p-3 text-sm min-w-[160px] z-50">
+        <p className="font-semibold mb-2">{label}</p>
+        <p className="text-destructive font-medium mb-2">Irregulares: {data.irregularCount}</p>
+        {data.irregularNames?.length > 0 ? (
+          <ul className="text-xs text-muted-foreground list-disc pl-4 space-y-1">
+            {data.irregularNames.map((n: string, i: number) => (
+              <li key={i}>{n}</li>
+            ))}
+          </ul>
+        ) : (
+          <span className="text-xs text-muted-foreground">Nenhum</span>
+        )}
+      </div>
+    )
+  }
+  return null
+}
 
 const MONTHS = [
   { value: 1, label: 'Jan' },
@@ -134,18 +157,19 @@ export default function HealthMetrics() {
       const monthAtt = attendance.filter((a) => a.meeting_date.startsWith(`${p.y}-${mStr}`))
       const avgInPerson =
         monthAtt.length > 0
-          ? Math.round(monthAtt.reduce((sum, a) => sum + a.in_person, 0) / monthAtt.length)
+          ? Math.round(monthAtt.reduce((sum, a) => sum + (a.in_person || 0), 0) / monthAtt.length)
           : 0
       const avgZoom =
         monthAtt.length > 0
-          ? Math.round(monthAtt.reduce((sum, a) => sum + a.zoom, 0) / monthAtt.length)
+          ? Math.round(monthAtt.reduce((sum, a) => sum + (a.zoom || 0), 0) / monthAtt.length)
           : 0
 
       const weekendAtt = monthAtt.filter((a) => a.meeting_type === 'domingo')
       const avgWeekend =
         weekendAtt.length > 0
           ? Math.round(
-              weekendAtt.reduce((sum, a) => sum + a.in_person + a.zoom, 0) / weekendAtt.length,
+              weekendAtt.reduce((sum, a) => sum + (a.in_person || 0) + (a.zoom || 0), 0) /
+                weekendAtt.length,
             )
           : 0
 
@@ -153,7 +177,8 @@ export default function HealthMetrics() {
       const avgMidweek =
         midweekAtt.length > 0
           ? Math.round(
-              midweekAtt.reduce((sum, a) => sum + a.in_person + a.zoom, 0) / midweekAtt.length,
+              midweekAtt.reduce((sum, a) => sum + (a.in_person || 0) + (a.zoom || 0), 0) /
+                midweekAtt.length,
             )
           : 0
 
@@ -166,9 +191,13 @@ export default function HealthMetrics() {
       const hoursPublishers = pubReps.reduce((sum, r) => sum + (r.hours || 0), 0)
 
       let irregularCount = 0
+      const irregularNames: string[] = []
       activePublishers.forEach((pub) => {
         const status = calculateActivityStatus(pub.id, allReports, p.m, p.y)
-        if (status === 'Não Participou') irregularCount++
+        if (status === 'Não Participou') {
+          irregularCount++
+          irregularNames.push(pub.name)
+        }
       })
 
       const totalActivePubs = activePublishers.length
@@ -189,6 +218,7 @@ export default function HealthMetrics() {
         hoursPioneers,
         hoursPublishers,
         irregularCount,
+        irregularNames,
         participationRate,
         studiesPerCapita,
       }
@@ -385,7 +415,7 @@ export default function HealthMetrics() {
                   config={{ p: { label: 'Participantes', color: 'hsl(var(--chart-1))' } }}
                   className="h-full w-full"
                 >
-                  <BarChart data={chartData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
+                  <BarChart data={chartData} margin={{ top: 20, right: 0, left: -20, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
                     <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
                     <YAxis fontSize={12} tickLine={false} axisLine={false} />
@@ -421,7 +451,7 @@ export default function HealthMetrics() {
                   config={{ s: { label: 'Estudos', color: 'hsl(var(--chart-4))' } }}
                   className="h-full w-full"
                 >
-                  <BarChart data={chartData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
+                  <BarChart data={chartData} margin={{ top: 20, right: 0, left: -20, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
                     <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
                     <YAxis fontSize={12} tickLine={false} axisLine={false} />
@@ -460,7 +490,7 @@ export default function HealthMetrics() {
                   }}
                   className="h-full w-full"
                 >
-                  <LineChart data={chartData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
+                  <LineChart data={chartData} margin={{ top: 20, right: 0, left: -20, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
                     <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
                     <YAxis fontSize={12} tickLine={false} axisLine={false} />
@@ -500,7 +530,7 @@ export default function HealthMetrics() {
                   }}
                   className="h-full w-full"
                 >
-                  <LineChart data={chartData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
+                  <LineChart data={chartData} margin={{ top: 20, right: 0, left: -20, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
                     <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
                     <YAxis fontSize={12} tickLine={false} axisLine={false} />
@@ -537,11 +567,14 @@ export default function HealthMetrics() {
                   config={{ irr: { label: 'Irregulares', color: 'hsl(var(--destructive))' } }}
                   className="h-full w-full"
                 >
-                  <BarChart data={chartData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
+                  <BarChart data={chartData} margin={{ top: 20, right: 0, left: -20, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
                     <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
                     <YAxis fontSize={12} tickLine={false} axisLine={false} />
-                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Tooltip
+                      content={<CustomIrregularTooltip />}
+                      cursor={{ fill: 'hsl(var(--muted)/0.4)' }}
+                    />
                     <Bar
                       dataKey="irregularCount"
                       fill="var(--color-irr)"
@@ -554,50 +587,6 @@ export default function HealthMetrics() {
                         offset={10}
                         className="fill-foreground"
                         fontSize={12}
-                      />
-                    </Bar>
-                  </BarChart>
-                </ChartContainer>
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-sm">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  Concentração de Horas
-                </CardTitle>
-                <CardDescription>Pioneiros vs Restante da Congregação</CardDescription>
-              </CardHeader>
-              <CardContent className="h-[280px]">
-                <ChartContainer
-                  config={{
-                    hp: { label: 'Pioneiros', color: 'hsl(var(--chart-1))' },
-                    hpub: { label: 'Outros Publicadores', color: 'hsl(var(--chart-2))' },
-                  }}
-                  className="h-full w-full"
-                >
-                  <BarChart data={chartData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
-                    <YAxis fontSize={12} tickLine={false} axisLine={false} />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Legend verticalAlign="top" height={36} />
-                    <Bar dataKey="hoursPioneers" fill="var(--color-hp)" radius={[4, 4, 0, 0]}>
-                      <LabelList
-                        dataKey="hoursPioneers"
-                        position="top"
-                        offset={10}
-                        className="fill-foreground"
-                        fontSize={10}
-                      />
-                    </Bar>
-                    <Bar dataKey="hoursPublishers" fill="var(--color-hpub)" radius={[4, 4, 0, 0]}>
-                      <LabelList
-                        dataKey="hoursPublishers"
-                        position="top"
-                        offset={10}
-                        className="fill-foreground"
-                        fontSize={10}
                       />
                     </Bar>
                   </BarChart>
