@@ -29,11 +29,12 @@ import {
   YAxis,
   Legend,
   Cell,
+  LabelList,
 } from 'recharts'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { getPublishers, Publisher } from '@/services/publishers'
 import { calculateActivityStatus, PublisherReport } from '@/services/publisher_reports'
-import { AlertCircle, TrendingUp, Users } from 'lucide-react'
+import { AlertCircle, Users, Activity, BookOpen, Clock } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import pb from '@/lib/pocketbase/client'
 
@@ -131,20 +132,68 @@ export default function HealthMetrics() {
       const studies = reps.reduce((sum, r) => sum + (r.bible_studies || 0), 0)
 
       const monthAtt = attendance.filter((a) => a.meeting_date.startsWith(`${p.y}-${mStr}`))
-      const avgAtt =
+      const avgInPerson =
         monthAtt.length > 0
-          ? Math.round(monthAtt.reduce((sum, a) => sum + a.in_person + a.zoom, 0) / monthAtt.length)
+          ? Math.round(monthAtt.reduce((sum, a) => sum + a.in_person, 0) / monthAtt.length)
           : 0
+      const avgZoom =
+        monthAtt.length > 0
+          ? Math.round(monthAtt.reduce((sum, a) => sum + a.zoom, 0) / monthAtt.length)
+          : 0
+
+      const weekendAtt = monthAtt.filter((a) => a.meeting_type === 'domingo')
+      const avgWeekend =
+        weekendAtt.length > 0
+          ? Math.round(
+              weekendAtt.reduce((sum, a) => sum + a.in_person + a.zoom, 0) / weekendAtt.length,
+            )
+          : 0
+
+      const midweekAtt = monthAtt.filter((a) => a.meeting_type === 'quinta')
+      const avgMidweek =
+        midweekAtt.length > 0
+          ? Math.round(
+              midweekAtt.reduce((sum, a) => sum + a.in_person + a.zoom, 0) / midweekAtt.length,
+            )
+          : 0
+
+      const pioReps = reps.filter(
+        (r) => r.type === 'pioneiro_regular' || r.type === 'pioneiro_auxiliar',
+      )
+      const pubReps = reps.filter((r) => r.type === 'publicador' || !r.type)
+
+      const hoursPioneers = pioReps.reduce((sum, r) => sum + (r.hours || 0), 0)
+      const hoursPublishers = pubReps.reduce((sum, r) => sum + (r.hours || 0), 0)
+
+      let irregularCount = 0
+      activePublishers.forEach((pub) => {
+        const status = calculateActivityStatus(pub.id, allReports, p.m, p.y)
+        if (status === 'Não Participou') irregularCount++
+      })
+
+      const totalActivePubs = activePublishers.length
+      const participationRate =
+        totalActivePubs > 0 ? Math.round((participations / totalActivePubs) * 100) : 0
+      const studiesPerCapita =
+        totalActivePubs > 0 ? Number((studies / totalActivePubs).toFixed(2)) : 0
 
       return {
         name: `${mStr}/${p.y.toString().slice(-2)}`,
         participantes: participations,
         horas: hours,
         estudos: studies,
-        assistencia: avgAtt,
+        avgWeekend,
+        avgMidweek,
+        avgInPerson,
+        avgZoom,
+        hoursPioneers,
+        hoursPublishers,
+        irregularCount,
+        participationRate,
+        studiesPerCapita,
       }
     })
-  }, [monthsInRange, allReports, attendance])
+  }, [monthsInRange, allReports, attendance, activePublishers])
 
   const profileData = useMemo(() => {
     return [
@@ -166,13 +215,16 @@ export default function HealthMetrics() {
     ].filter((d) => d.value > 0)
   }, [activePublishers])
 
+  const endMonthMetrics = useMemo(() => {
+    if (chartData.length === 0) return null
+    return chartData[chartData.length - 1]
+  }, [chartData])
+
   const reminders = useMemo(() => {
     return activePublishers
       .map((pub) => {
         const status = calculateActivityStatus(pub.id, allReports, endMonth, endYear)
-        if (status !== 'Ativo') {
-          return { pub, status }
-        }
+        if (status !== 'Ativo') return { pub, status }
         return null
       })
       .filter(Boolean) as { pub: Publisher; status: string }[]
@@ -184,7 +236,7 @@ export default function HealthMetrics() {
     <div className="space-y-8 pb-10 max-w-7xl mx-auto animate-fade-in-up">
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Métricas e Dashboard</h2>
+          <h2 className="text-3xl font-bold tracking-tight">Métricas de Saúde</h2>
           <p className="text-muted-foreground mt-1">
             Análise de tendências da congregação por período personalizado.
           </p>
@@ -272,182 +324,380 @@ export default function HealthMetrics() {
           <Skeleton className="h-[350px] w-full" />
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card className="shadow-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Users className="h-4 w-4 text-primary" /> Relatórios de Serviço
-              </CardTitle>
-              <CardDescription>Quantidade de publicadores que participaram</CardDescription>
-            </CardHeader>
-            <CardContent className="h-[280px]">
-              <ChartContainer
-                config={{ p: { label: 'Participantes', color: 'hsl(var(--chart-1))' } }}
-                className="h-full w-full"
-              >
-                <BarChart data={chartData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
-                  <YAxis fontSize={12} tickLine={false} axisLine={false} />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar dataKey="participantes" fill="var(--color-p)" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ChartContainer>
-            </CardContent>
-          </Card>
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Taxa de Participação</CardTitle>
+                <Activity className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{endMonthMetrics?.participationRate || 0}%</div>
+                <p className="text-xs text-muted-foreground">Publicadores ativos que relataram</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Estudos per Capita</CardTitle>
+                <BookOpen className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{endMonthMetrics?.studiesPerCapita || 0}</div>
+                <p className="text-xs text-muted-foreground">Média de estudos por ativo</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Publicadores Irregulares</CardTitle>
+                <AlertCircle className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{endMonthMetrics?.irregularCount || 0}</div>
+                <p className="text-xs text-muted-foreground">1 a 5 meses sem relatar</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Horas: Pioneiros vs Pub</CardTitle>
+                <Clock className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {endMonthMetrics?.hoursPioneers || 0}{' '}
+                  <span className="text-lg font-normal text-muted-foreground mx-1">vs</span>{' '}
+                  {endMonthMetrics?.hoursPublishers || 0}
+                </div>
+                <p className="text-xs text-muted-foreground">Concentração de horas</p>
+              </CardContent>
+            </Card>
+          </div>
 
-          <Card className="shadow-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <TrendingUp className="h-4 w-4 text-emerald-500" /> Atividade & Assistência
-              </CardTitle>
-              <CardDescription>
-                Comparativo entre horas trabalhadas e assistência (média)
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="h-[280px]">
-              <ChartContainer
-                config={{
-                  h: { label: 'Horas', color: 'hsl(var(--chart-2))' },
-                  a: { label: 'Assistência (Média)', color: 'hsl(var(--chart-3))' },
-                }}
-                className="h-full w-full"
-              >
-                <LineChart data={chartData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
-                  <YAxis fontSize={12} tickLine={false} axisLine={false} />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Legend verticalAlign="top" height={36} />
-                  <Line
-                    type="monotone"
-                    dataKey="horas"
-                    stroke="var(--color-h)"
-                    strokeWidth={2}
-                    dot={{ r: 4 }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="assistencia"
-                    stroke="var(--color-a)"
-                    strokeWidth={2}
-                    dot={{ r: 4 }}
-                  />
-                </LineChart>
-              </ChartContainer>
-            </CardContent>
-          </Card>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+            <Card className="shadow-sm">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Users className="h-4 w-4 text-primary" /> Relatórios de Serviço
+                </CardTitle>
+                <CardDescription>Quantidade de publicadores que participaram</CardDescription>
+              </CardHeader>
+              <CardContent className="h-[280px]">
+                <ChartContainer
+                  config={{ p: { label: 'Participantes', color: 'hsl(var(--chart-1))' } }}
+                  className="h-full w-full"
+                >
+                  <BarChart data={chartData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
+                    <YAxis fontSize={12} tickLine={false} axisLine={false} />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Bar
+                      dataKey="participantes"
+                      fill="var(--color-p)"
+                      radius={[4, 4, 0, 0]}
+                      maxBarSize={40}
+                    >
+                      <LabelList
+                        dataKey="participantes"
+                        position="top"
+                        offset={10}
+                        className="fill-foreground"
+                        fontSize={12}
+                      />
+                    </Bar>
+                  </BarChart>
+                </ChartContainer>
+              </CardContent>
+            </Card>
 
-          <Card className="shadow-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">Estudos Bíblicos</CardTitle>
-              <CardDescription>Evolução do número de estudos dirigidos</CardDescription>
-            </CardHeader>
-            <CardContent className="h-[280px]">
-              <ChartContainer
-                config={{ s: { label: 'Estudos', color: 'hsl(var(--chart-4))' } }}
-                className="h-full w-full"
-              >
-                <BarChart data={chartData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
-                  <YAxis fontSize={12} tickLine={false} axisLine={false} />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar dataKey="estudos" fill="var(--color-s)" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ChartContainer>
-            </CardContent>
-          </Card>
+            <Card className="shadow-sm">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  Estudos Bíblicos
+                </CardTitle>
+                <CardDescription>Evolução do número de estudos dirigidos</CardDescription>
+              </CardHeader>
+              <CardContent className="h-[280px]">
+                <ChartContainer
+                  config={{ s: { label: 'Estudos', color: 'hsl(var(--chart-4))' } }}
+                  className="h-full w-full"
+                >
+                  <BarChart data={chartData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
+                    <YAxis fontSize={12} tickLine={false} axisLine={false} />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Bar
+                      dataKey="estudos"
+                      fill="var(--color-s)"
+                      radius={[4, 4, 0, 0]}
+                      maxBarSize={40}
+                    >
+                      <LabelList
+                        dataKey="estudos"
+                        position="top"
+                        offset={10}
+                        className="fill-foreground"
+                        fontSize={12}
+                      />
+                    </Bar>
+                  </BarChart>
+                </ChartContainer>
+              </CardContent>
+            </Card>
 
-          <Card className="shadow-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                Perfil da Congregação
-              </CardTitle>
-              <CardDescription>Distribuição dos publicadores ativos atuais</CardDescription>
-            </CardHeader>
-            <CardContent className="h-[280px]">
-              <ChartContainer
-                config={{
-                  pub: { label: 'Publicadores', color: 'hsl(var(--chart-1))' },
-                  aux: { label: 'P. Auxiliares', color: 'hsl(var(--chart-2))' },
-                  reg: { label: 'P. Regulares', color: 'hsl(var(--chart-3))' },
-                }}
-                className="h-full w-full"
-              >
-                <PieChart>
-                  <Pie
-                    data={profileData}
-                    dataKey="value"
-                    nameKey="name"
-                    innerRadius={60}
-                    outerRadius={80}
-                    paddingAngle={2}
-                  >
-                    {profileData.map((e, i) => (
-                      <Cell key={i} fill={`var(--color-${e.key})`} />
-                    ))}
-                  </Pie>
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Legend verticalAlign="bottom" height={36} />
-                </PieChart>
-              </ChartContainer>
-            </CardContent>
-          </Card>
+            <Card className="shadow-sm">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  Assistência: Reuniões
+                </CardTitle>
+                <CardDescription>Fim de semana vs Meio de semana</CardDescription>
+              </CardHeader>
+              <CardContent className="h-[280px]">
+                <ChartContainer
+                  config={{
+                    we: { label: 'Fim de Semana', color: 'hsl(var(--chart-2))' },
+                    mw: { label: 'Meio de Semana', color: 'hsl(var(--chart-3))' },
+                  }}
+                  className="h-full w-full"
+                >
+                  <LineChart data={chartData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
+                    <YAxis fontSize={12} tickLine={false} axisLine={false} />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Legend verticalAlign="top" height={36} />
+                    <Line
+                      type="monotone"
+                      dataKey="avgWeekend"
+                      stroke="var(--color-we)"
+                      strokeWidth={2}
+                      dot={{ r: 4 }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="avgMidweek"
+                      stroke="var(--color-mw)"
+                      strokeWidth={2}
+                      dot={{ r: 4 }}
+                    />
+                  </LineChart>
+                </ChartContainer>
+              </CardContent>
+            </Card>
 
-          <Card className="shadow-sm border-t-4 border-t-amber-500 col-span-1 lg:col-span-2">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <AlertCircle className="h-5 w-5 text-amber-600" />
-                Lembretes de Pendências
-              </CardTitle>
-              <CardDescription>
-                Publicadores que precisam de atenção baseado no mês selecionado (
-                {endMonth.toString().padStart(2, '0')}/{endYear})
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="overflow-auto max-h-[350px]">
-                <Table>
-                  <TableHeader className="bg-muted/30 sticky top-0">
-                    <TableRow>
-                      <TableHead>Nome</TableHead>
-                      <TableHead>Grupo</TableHead>
-                      <TableHead className="text-center">Status de Atividade</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {reminders.length === 0 ? (
+            <Card className="shadow-sm">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  Assistência: Modalidade
+                </CardTitle>
+                <CardDescription>Evolução Presencial vs Zoom</CardDescription>
+              </CardHeader>
+              <CardContent className="h-[280px]">
+                <ChartContainer
+                  config={{
+                    ip: { label: 'Presencial', color: 'hsl(var(--primary))' },
+                    zm: { label: 'Zoom', color: 'hsl(var(--chart-5))' },
+                  }}
+                  className="h-full w-full"
+                >
+                  <LineChart data={chartData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
+                    <YAxis fontSize={12} tickLine={false} axisLine={false} />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Legend verticalAlign="top" height={36} />
+                    <Line
+                      type="monotone"
+                      dataKey="avgInPerson"
+                      stroke="var(--color-ip)"
+                      strokeWidth={2}
+                      dot={{ r: 4 }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="avgZoom"
+                      stroke="var(--color-zm)"
+                      strokeWidth={2}
+                      dot={{ r: 4 }}
+                    />
+                  </LineChart>
+                </ChartContainer>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-sm">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  Tendência de Irregularidade
+                </CardTitle>
+                <CardDescription>Publicadores sem relatar entre 1 a 5 meses</CardDescription>
+              </CardHeader>
+              <CardContent className="h-[280px]">
+                <ChartContainer
+                  config={{ irr: { label: 'Irregulares', color: 'hsl(var(--destructive))' } }}
+                  className="h-full w-full"
+                >
+                  <BarChart data={chartData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
+                    <YAxis fontSize={12} tickLine={false} axisLine={false} />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Bar
+                      dataKey="irregularCount"
+                      fill="var(--color-irr)"
+                      radius={[4, 4, 0, 0]}
+                      maxBarSize={40}
+                    >
+                      <LabelList
+                        dataKey="irregularCount"
+                        position="top"
+                        offset={10}
+                        className="fill-foreground"
+                        fontSize={12}
+                      />
+                    </Bar>
+                  </BarChart>
+                </ChartContainer>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-sm">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  Concentração de Horas
+                </CardTitle>
+                <CardDescription>Pioneiros vs Restante da Congregação</CardDescription>
+              </CardHeader>
+              <CardContent className="h-[280px]">
+                <ChartContainer
+                  config={{
+                    hp: { label: 'Pioneiros', color: 'hsl(var(--chart-1))' },
+                    hpub: { label: 'Outros Publicadores', color: 'hsl(var(--chart-2))' },
+                  }}
+                  className="h-full w-full"
+                >
+                  <BarChart data={chartData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
+                    <YAxis fontSize={12} tickLine={false} axisLine={false} />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Legend verticalAlign="top" height={36} />
+                    <Bar dataKey="hoursPioneers" fill="var(--color-hp)" radius={[4, 4, 0, 0]}>
+                      <LabelList
+                        dataKey="hoursPioneers"
+                        position="top"
+                        offset={10}
+                        className="fill-foreground"
+                        fontSize={10}
+                      />
+                    </Bar>
+                    <Bar dataKey="hoursPublishers" fill="var(--color-hpub)" radius={[4, 4, 0, 0]}>
+                      <LabelList
+                        dataKey="hoursPublishers"
+                        position="top"
+                        offset={10}
+                        className="fill-foreground"
+                        fontSize={10}
+                      />
+                    </Bar>
+                  </BarChart>
+                </ChartContainer>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-sm">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  Perfil da Congregação
+                </CardTitle>
+                <CardDescription>Distribuição dos publicadores ativos atuais</CardDescription>
+              </CardHeader>
+              <CardContent className="h-[280px]">
+                <ChartContainer
+                  config={{
+                    pub: { label: 'Publicadores', color: 'hsl(var(--chart-1))' },
+                    aux: { label: 'P. Auxiliares', color: 'hsl(var(--chart-2))' },
+                    reg: { label: 'P. Regulares', color: 'hsl(var(--chart-3))' },
+                  }}
+                  className="h-full w-full"
+                >
+                  <PieChart>
+                    <Pie
+                      data={profileData}
+                      dataKey="value"
+                      nameKey="name"
+                      innerRadius={60}
+                      outerRadius={80}
+                      paddingAngle={2}
+                    >
+                      {profileData.map((e, i) => (
+                        <Cell key={i} fill={`var(--color-${e.key})`} />
+                      ))}
+                    </Pie>
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Legend verticalAlign="bottom" height={36} />
+                  </PieChart>
+                </ChartContainer>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-sm border-t-4 border-t-amber-500 col-span-1 lg:col-span-2">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <AlertCircle className="h-5 w-5 text-amber-600" />
+                  Lembretes de Pendências
+                </CardTitle>
+                <CardDescription>
+                  Publicadores que precisam de atenção baseado no mês selecionado (
+                  {endMonth.toString().padStart(2, '0')}/{endYear})
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="overflow-auto max-h-[350px]">
+                  <Table>
+                    <TableHeader className="bg-muted/30 sticky top-0">
                       <TableRow>
-                        <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
-                          Excelente! Nenhuma pendência grave de atividade no momento.
-                        </TableCell>
+                        <TableHead>Nome</TableHead>
+                        <TableHead>Grupo</TableHead>
+                        <TableHead className="text-center">Status de Atividade</TableHead>
                       </TableRow>
-                    ) : (
-                      reminders.map((r) => (
-                        <TableRow key={r.pub.id}>
-                          <TableCell className="font-medium text-sm py-3">{r.pub.name}</TableCell>
-                          <TableCell className="text-sm py-3">
-                            Grupo {r.pub.expand?.group_id?.number || '-'}
-                          </TableCell>
-                          <TableCell className="text-center py-3">
-                            {r.status === 'Não Participou' ? (
-                              <Badge variant="outline" className="text-amber-600 border-amber-600">
-                                Não Participou (1-5m)
-                              </Badge>
-                            ) : (
-                              <Badge variant="destructive">Inativo (+6m)</Badge>
-                            )}
+                    </TableHeader>
+                    <TableBody>
+                      {reminders.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
+                            Excelente! Nenhuma pendência grave de atividade no momento.
                           </TableCell>
                         </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+                      ) : (
+                        reminders.map((r) => (
+                          <TableRow key={r.pub.id}>
+                            <TableCell className="font-medium text-sm py-3">{r.pub.name}</TableCell>
+                            <TableCell className="text-sm py-3">
+                              Grupo {r.pub.expand?.group_id?.number || '-'}
+                            </TableCell>
+                            <TableCell className="text-center py-3">
+                              {r.status === 'Não Participou' ? (
+                                <Badge
+                                  variant="outline"
+                                  className="text-amber-600 border-amber-600"
+                                >
+                                  Não Participou (1-5m)
+                                </Badge>
+                              ) : (
+                                <Badge variant="destructive">Inativo (+6m)</Badge>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </>
       )}
     </div>
   )

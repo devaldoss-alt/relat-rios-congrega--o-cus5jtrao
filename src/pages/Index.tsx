@@ -8,7 +8,17 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
-import { CartesianGrid, XAxis, YAxis, Legend, Line, LineChart, ComposedChart, Bar } from 'recharts'
+import {
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Legend,
+  Line,
+  LineChart,
+  ComposedChart,
+  Bar,
+  LabelList,
+} from 'recharts'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { Clock, Users, BookOpen } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
@@ -41,6 +51,7 @@ export default function Index() {
   const [loading, setLoading] = useState(false)
   const [reports, setReports] = useState<any[]>([])
   const [summaries, setSummaries] = useState<any[]>([])
+  const [attendance, setAttendance] = useState<any[]>([])
 
   const monthsInRange = useMemo(() => {
     const res = []
@@ -70,6 +81,13 @@ export default function Index() {
           filter: `year >= ${startYear} && year <= ${endYear}`,
         })
         setSummaries(sums)
+
+        const startStr = `${startYear}-${startMonth.toString().padStart(2, '0')}`
+        const endStr = `${endYear}-${endMonth.toString().padStart(2, '0')}`
+        const atts = await pb.collection('meeting_attendance').getFullList({
+          filter: `meeting_date >= '${startStr}-01' && meeting_date <= '${endStr}-31'`,
+        })
+        setAttendance(atts)
       } catch (e) {
         console.error(e)
       } finally {
@@ -88,14 +106,18 @@ export default function Index() {
       const mStr = p.m.toString().padStart(2, '0')
       const monthReps = reports.filter((r) => r.month === mStr && r.year === p.y)
 
-      const pioneerReps = monthReps.filter(
-        (r) => r.type === 'pioneiro_regular' || r.type === 'pioneiro_auxiliar',
-      )
+      const regReps = monthReps.filter((r) => r.type === 'pioneiro_regular')
+      const auxReps = monthReps.filter((r) => r.type === 'pioneiro_auxiliar')
+
+      const regHours = regReps.reduce((sum, r) => sum + (r.hours || 0), 0)
+      const auxHours = auxReps.reduce((sum, r) => sum + (r.hours || 0), 0)
 
       return {
         name: `${mStr}/${p.y.toString().slice(-2)}`,
         horas: monthReps.reduce((sum, r) => sum + (r.hours || 0), 0),
-        horasPioneiros: pioneerReps.reduce((sum, r) => sum + (r.hours || 0), 0),
+        horasPioneiroRegular: regHours,
+        horasPioneiroAuxiliar: auxHours,
+        horasPioneirosTotal: regHours + auxHours,
         estudos: monthReps.reduce((sum, r) => sum + (r.bible_studies || 0), 0),
         publicadores: monthReps.filter(
           (r) =>
@@ -123,9 +145,13 @@ export default function Index() {
             r.participated || (r.hours && r.hours > 0) || (r.bible_studies && r.bible_studies > 0),
         ).length
 
-      const avgAtt = sum
-        ? Math.round((sum.avg_attendance_midweek + sum.avg_attendance_weekend) / 2)
-        : 0
+      const monthAtt = attendance.filter((a) => a.meeting_date.startsWith(`${p.y}-${mStr}`))
+      const avgAtt =
+        monthAtt.length > 0
+          ? Math.round(monthAtt.reduce((s, a) => s + a.in_person + a.zoom, 0) / monthAtt.length)
+          : sum
+            ? Math.round((sum.avg_attendance_midweek + sum.avg_attendance_weekend) / 2)
+            : 0
 
       return {
         name: `${mStr}/${p.y.toString().slice(-2)}`,
@@ -133,7 +159,7 @@ export default function Index() {
         assistenciaMedia: avgAtt,
       }
     })
-  }, [monthsInRange, summaries, reports])
+  }, [monthsInRange, summaries, reports, attendance])
 
   return (
     <div className="space-y-8 pb-10 max-w-7xl mx-auto animate-fade-in-up">
@@ -307,7 +333,15 @@ export default function Index() {
                     fill="var(--color-publicadoresAtivos)"
                     radius={[4, 4, 0, 0]}
                     maxBarSize={40}
-                  />
+                  >
+                    <LabelList
+                      dataKey="publicadoresAtivos"
+                      position="top"
+                      offset={10}
+                      className="fill-foreground"
+                      fontSize={12}
+                    />
+                  </Bar>
                   <Line
                     type="monotone"
                     dataKey="assistenciaMedia"
@@ -333,7 +367,15 @@ export default function Index() {
             <CardContent className="h-[350px]">
               <ChartContainer
                 config={{
-                  horasPioneiros: { label: 'Horas (Pioneiros)', color: 'hsl(var(--chart-1))' },
+                  horasPioneiroRegular: {
+                    label: 'Pioneiros Regulares',
+                    color: 'hsl(var(--chart-1))',
+                  },
+                  horasPioneiroAuxiliar: {
+                    label: 'Pioneiros Auxiliares',
+                    color: 'hsl(var(--chart-2))',
+                  },
+                  horasPioneirosTotal: { label: 'Total Pioneiros', color: 'hsl(var(--chart-3))' },
                 }}
                 className="h-full w-full"
               >
@@ -345,9 +387,24 @@ export default function Index() {
                   <Legend verticalAlign="top" height={36} />
                   <Line
                     type="monotone"
-                    dataKey="horasPioneiros"
-                    stroke="var(--color-horasPioneiros)"
+                    dataKey="horasPioneiroRegular"
+                    stroke="var(--color-horasPioneiroRegular)"
+                    strokeWidth={2}
+                    dot={{ r: 4 }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="horasPioneiroAuxiliar"
+                    stroke="var(--color-horasPioneiroAuxiliar)"
+                    strokeWidth={2}
+                    dot={{ r: 4 }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="horasPioneirosTotal"
+                    stroke="var(--color-horasPioneirosTotal)"
                     strokeWidth={3}
+                    strokeDasharray="5 5"
                     dot={{ r: 4 }}
                     activeDot={{ r: 6 }}
                   />
