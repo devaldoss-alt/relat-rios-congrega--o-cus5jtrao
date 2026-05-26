@@ -170,7 +170,9 @@ export default function ReportsHistoryPage() {
                         <TableCell className="text-right">
                           {selected.report_data.publishers?.reports || 0}
                         </TableCell>
-                        <TableCell className="text-right">-</TableCell>
+                        <TableCell className="text-right">
+                          {selected.report_data.publishers?.hours || 0}
+                        </TableCell>
                         <TableCell className="text-right">
                           {selected.report_data.publishers?.studies || 0}
                         </TableCell>
@@ -207,7 +209,8 @@ export default function ReportsHistoryPage() {
                             (selected.report_data.regular?.reports || 0)}
                         </TableCell>
                         <TableCell className="text-right">
-                          {(selected.report_data.auxiliary?.hours || 0) +
+                          {(selected.report_data.publishers?.hours || 0) +
+                            (selected.report_data.auxiliary?.hours || 0) +
                             (selected.report_data.regular?.hours || 0)}
                         </TableCell>
                         <TableCell className="text-right">

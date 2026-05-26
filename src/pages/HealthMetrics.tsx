@@ -31,11 +31,21 @@ import {
   Cell,
   LabelList,
   Tooltip,
+  ReferenceLine,
 } from 'recharts'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { getPublishers, Publisher } from '@/services/publishers'
 import { calculateActivityStatus, PublisherReport } from '@/services/publisher_reports'
-import { AlertCircle, Users, Activity, BookOpen, Clock, Printer, Download } from 'lucide-react'
+import {
+  AlertCircle,
+  Users,
+  Activity,
+  BookOpen,
+  Clock,
+  Printer,
+  Download,
+  Loader2,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/hooks/use-auth'
 import pb from '@/lib/pocketbase/client'
@@ -286,6 +296,81 @@ export default function HealthMetrics() {
       })
       .filter(Boolean) as { pub: Publisher; status: string }[]
   }, [filteredPublishers, allReports, endMonth, endYear])
+
+  const [lastActiveMap, setLastActiveMap] = useState<Record<string, string>>({})
+
+  useEffect(() => {
+    const inactivePubs = reminders.filter((r) => r.status === 'Inativo')
+    inactivePubs.forEach((r) => {
+      if (lastActiveMap[r.pub.id] === undefined) {
+        pb.collection('publisher_reports')
+          .getFirstListItem(`publisher_id = '${r.pub.id}' && (participated = true || hours > 0)`, {
+            sort: '-year,-month',
+          })
+          .then((report) => {
+            const m = MONTHS.find((mo) => mo.value === Number(report.month))?.label || report.month
+            setLastActiveMap((prev) => ({
+              ...prev,
+              [r.pub.id]: `${m}/${report.year}`,
+            }))
+          })
+          .catch(() => {
+            setLastActiveMap((prev) => ({ ...prev, [r.pub.id]: 'Desconhecido' }))
+          })
+      }
+    })
+  }, [reminders, lastActiveMap])
+
+  const pioneerNames = useMemo(() => {
+    const names = new Set<string>()
+    filteredReports.forEach((r) => {
+      if (r.type === 'pioneiro_regular') {
+        const pubName = r.expand?.publisher_id?.name || 'Desconhecido'
+        names.add(pubName)
+      }
+    })
+    return Array.from(names).sort()
+  }, [filteredReports])
+
+  const pioneersChartData = useMemo(() => {
+    return monthsInRange.map((p) => {
+      const mStr = p.m.toString().padStart(2, '0')
+      const reps = filteredReports.filter(
+        (r) => r.month === mStr && r.year === p.y && r.type === 'pioneiro_regular',
+      )
+
+      const dataPoint: any = { name: `${mStr}/${p.y.toString().slice(-2)}` }
+      pioneerNames.forEach((name, idx) => {
+        const r = reps.find((rep) => (rep.expand?.publisher_id?.name || 'Desconhecido') === name)
+        dataPoint[`pioneer_${idx}`] = r?.hours || 0
+      })
+      return dataPoint
+    })
+  }, [monthsInRange, filteredReports, pioneerNames])
+
+  const pioneerConfig = useMemo(() => {
+    const CHART_COLORS = [
+      'hsl(var(--chart-1))',
+      'hsl(var(--chart-2))',
+      'hsl(var(--chart-3))',
+      'hsl(var(--chart-4))',
+      'hsl(var(--chart-5))',
+      'hsl(var(--primary))',
+      '#f59e0b',
+      '#10b981',
+      '#3b82f6',
+      '#8b5cf6',
+      '#ec4899',
+    ]
+    const config: any = {}
+    pioneerNames.forEach((name, idx) => {
+      config[`pioneer_${idx}`] = {
+        label: name,
+        color: CHART_COLORS[idx % CHART_COLORS.length],
+      }
+    })
+    return config
+  }, [pioneerNames])
 
   const isValidRange = startYear < endYear || (startYear === endYear && startMonth <= endMonth)
 
@@ -743,11 +828,62 @@ export default function HealthMetrics() {
               </CardContent>
             </Card>
 
+            <Card className="shadow-sm col-span-1 lg:col-span-2">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  Evolução Pioneiros Regulares
+                </CardTitle>
+                <CardDescription>Acompanhamento de horas mensais (Alvo: 50h)</CardDescription>
+              </CardHeader>
+              <CardContent className="h-[350px]">
+                {pioneerNames.length === 0 ? (
+                  <div className="flex items-center justify-center h-full text-muted-foreground">
+                    Nenhum pioneiro regular no período.
+                  </div>
+                ) : (
+                  <ChartContainer config={pioneerConfig} className="h-full w-full">
+                    <LineChart
+                      data={pioneersChartData}
+                      margin={{ top: 20, right: 30, left: -20, bottom: 0 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
+                      <YAxis fontSize={12} tickLine={false} axisLine={false} />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Legend verticalAlign="top" height={36} />
+                      <ReferenceLine
+                        y={50}
+                        stroke="hsl(var(--destructive))"
+                        strokeDasharray="3 3"
+                        label={{
+                          position: 'insideTopLeft',
+                          value: 'Alvo (50h)',
+                          fill: 'hsl(var(--destructive))',
+                          fontSize: 12,
+                        }}
+                      />
+                      {pioneerNames.map((name, idx) => (
+                        <Line
+                          key={name}
+                          type="monotone"
+                          dataKey={`pioneer_${idx}`}
+                          name={name}
+                          stroke={`var(--color-pioneer_${idx})`}
+                          strokeWidth={2}
+                          dot={{ r: 4 }}
+                        />
+                      ))}
+                    </LineChart>
+                  </ChartContainer>
+                )}
+              </CardContent>
+            </Card>
+
             <Card className="shadow-sm border-t-4 border-t-amber-500 col-span-1 lg:col-span-2">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-lg">
                   <AlertCircle className="h-5 w-5 text-amber-600" />
-                  Lembretes de Pendências
+                  Atenção Pastoral
                 </CardTitle>
                 <CardDescription>
                   Publicadores que precisam de atenção baseado no mês selecionado (
@@ -787,7 +923,17 @@ export default function HealthMetrics() {
                                   Não Participou (1-5m)
                                 </Badge>
                               ) : (
-                                <Badge variant="destructive">Inativo (+6m)</Badge>
+                                <div className="flex flex-col items-center gap-1">
+                                  <Badge variant="destructive">Inativo (+6m)</Badge>
+                                  <span className="text-xs text-muted-foreground">
+                                    Último:{' '}
+                                    {lastActiveMap[r.pub.id] ? (
+                                      lastActiveMap[r.pub.id]
+                                    ) : (
+                                      <Loader2 className="w-3 h-3 animate-spin inline" />
+                                    )}
+                                  </span>
+                                </div>
                               )}
                             </TableCell>
                           </TableRow>
