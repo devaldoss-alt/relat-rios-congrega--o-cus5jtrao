@@ -20,9 +20,12 @@ import {
   LabelList,
 } from 'recharts'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
-import { Clock, Users, BookOpen } from 'lucide-react'
+import { Clock, Users, BookOpen, Download, FileText, AlertTriangle } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { useAuth } from '@/hooks/use-auth'
 import pb from '@/lib/pocketbase/client'
+import { getGroups, Group } from '@/services/groups'
+import { getPublishers, Publisher } from '@/services/publishers'
 
 const MONTHS = [
   { value: 1, label: 'Jan' },
@@ -42,16 +45,39 @@ const YEARS = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i)
 
 export default function Index() {
   const { user } = useAuth()
+  const isSecretary = user?.role === 'Secretário'
 
   const [startMonth, setStartMonth] = useState(9)
   const [startYear, setStartYear] = useState(2025)
   const [endMonth, setEndMonth] = useState(new Date().getMonth() + 1)
   const [endYear, setEndYear] = useState(new Date().getFullYear())
 
+  const [selectedGroupId, setSelectedGroupId] = useState<string>('all')
+  const [groups, setGroups] = useState<Group[]>([])
+  const [publishers, setPublishers] = useState<Publisher[]>([])
+
   const [loading, setLoading] = useState(false)
   const [reports, setReports] = useState<any[]>([])
   const [summaries, setSummaries] = useState<any[]>([])
   const [attendance, setAttendance] = useState<any[]>([])
+
+  useEffect(() => {
+    const fetchGroups = async () => {
+      try {
+        const gs = await getGroups()
+        setGroups(gs)
+        if (!isSecretary && user?.group_number) {
+          const myGroup = gs.find((g) => g.number === user.group_number)
+          if (myGroup) {
+            setSelectedGroupId(myGroup.id)
+          }
+        }
+      } catch (e) {
+        console.error(e)
+      }
+    }
+    fetchGroups()
+  }, [user, isSecretary])
 
   const monthsInRange = useMemo(() => {
     const res = []
@@ -92,6 +118,9 @@ export default function Index() {
           filter: `meeting_date >= '${startStr}-01' && meeting_date <= '${endStr}-31'`,
         })
         setAttendance(atts)
+
+        const pubs = await getPublishers()
+        setPublishers(pubs)
       } catch (e) {
         console.error(e)
       } finally {
@@ -105,10 +134,85 @@ export default function Index() {
 
   const isValidRange = startYear < endYear || (startYear === endYear && startMonth <= endMonth)
 
+  const filteredReports = useMemo(() => {
+    if (selectedGroupId === 'all') return reports
+    return reports.filter((r) => r.expand?.publisher_id?.group_id === selectedGroupId)
+  }, [reports, selectedGroupId])
+
+  const filteredPublishers = useMemo(() => {
+    if (selectedGroupId === 'all') return publishers.filter((p) => p.active)
+    return publishers.filter((p) => p.active && p.group_id === selectedGroupId)
+  }, [publishers, selectedGroupId])
+
+  const pastoralAttentionList = useMemo(() => {
+    return filteredPublishers
+      .map((pub) => {
+        let monthsWithoutReport = 0
+        for (let i = 0; i < 6; i++) {
+          let m = endMonth - i
+          let y = endYear
+          if (m <= 0) {
+            m += 12
+            y -= 1
+          }
+          const mStr = m.toString().padStart(2, '0')
+          const rep = reports.find(
+            (r) => r.publisher_id === pub.id && r.month === mStr && r.year === y,
+          )
+          const didParticipate = rep?.participated || (rep?.hours && rep.hours > 0) || false
+          if (didParticipate) {
+            break
+          } else {
+            monthsWithoutReport++
+          }
+        }
+        return { pub, monthsWithoutReport }
+      })
+      .filter((item) => item.monthsWithoutReport >= 4 && item.monthsWithoutReport <= 5)
+      .sort((a, b) => b.monthsWithoutReport - a.monthsWithoutReport)
+  }, [filteredPublishers, reports, endMonth, endYear])
+
+  const exportCSV = () => {
+    const mStr = endMonth.toString().padStart(2, '0')
+    const currentMonthReports = filteredReports.filter(
+      (r) => r.month === mStr && r.year === endYear,
+    )
+
+    const headers = ['Publicador', 'Grupo', 'Tipo', 'Participou', 'Horas', 'Estudos', 'Observacoes']
+    const rows = currentMonthReports.map((r) => {
+      const pub = r.expand?.publisher_id
+      const groupName = groups.find((g) => g.id === pub?.group_id)?.number || '-'
+      return [
+        `"${pub?.name || 'Desconhecido'}"`,
+        `"Grupo ${groupName}"`,
+        `"${r.type || pub?.type || '-'}"`,
+        r.participated || (r.hours && r.hours > 0) ? 'Sim' : 'Nao',
+        r.hours || 0,
+        r.bible_studies || 0,
+        `"${(r.notes || '').replace(/"/g, '""')}"`,
+      ].join(',')
+    })
+
+    const titleRow = `"Relatório da Congregação - Período: ${mStr}/${endYear}"\n\n`
+    const csvContent =
+      'data:text/csv;charset=utf-8,\uFEFF' + titleRow + headers.join(',') + '\n' + rows.join('\n')
+    const encodedUri = encodeURI(csvContent)
+    const link = document.createElement('a')
+    link.setAttribute('href', encodedUri)
+    link.setAttribute('download', `Relatorio_${mStr}_${endYear}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
+  const exportPDF = () => {
+    window.print()
+  }
+
   const chartData = useMemo(() => {
     return monthsInRange.map((p) => {
       const mStr = p.m.toString().padStart(2, '0')
-      const monthReps = reports.filter((r) => r.month === mStr && r.year === p.y)
+      const monthReps = filteredReports.filter((r) => r.month === mStr && r.year === p.y)
 
       const regReps = monthReps.filter((r) => r.type === 'pioneiro_regular')
       const auxReps = monthReps.filter((r) => r.type === 'pioneiro_auxiliar')
@@ -137,7 +241,7 @@ export default function Index() {
   }, [chartData])
 
   const pioneerMonthlyData = useMemo(() => {
-    const monthReps = reports.filter(
+    const monthReps = filteredReports.filter(
       (r) =>
         r.month === endMonth.toString().padStart(2, '0') &&
         r.year === endYear &&
@@ -157,7 +261,7 @@ export default function Index() {
     const syStartYear = endMonth >= 9 ? endYear : endYear - 1
     const syEndYear = syStartYear + 1
 
-    const syReports = reports.filter((r) => {
+    const syReports = filteredReports.filter((r) => {
       if (r.type !== 'pioneiro_regular') return false
       const isAfterStart =
         r.year > syStartYear || (r.year === syStartYear && parseInt(r.month) >= 9)
@@ -191,7 +295,7 @@ export default function Index() {
     return monthsInRange.map((p) => {
       const mStr = p.m.toString().padStart(2, '0')
       const sum = summaries.find((s) => s.month === mStr && s.year === p.y)
-      const monthReps = reports.filter((r) => r.month === mStr && r.year === p.y)
+      const monthReps = filteredReports.filter((r) => r.month === mStr && r.year === p.y)
 
       const activePubs =
         sum?.total_active_publishers ||
@@ -220,8 +324,8 @@ export default function Index() {
   }, [monthsInRange, summaries, reports, attendance])
 
   return (
-    <div className="space-y-8 pb-10 max-w-7xl mx-auto animate-fade-in-up">
-      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+    <div className="space-y-8 pb-10 max-w-7xl mx-auto animate-fade-in-up print:m-0 print:p-0 print:space-y-4">
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 print:hidden">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
           <p className="text-muted-foreground mt-1">
@@ -233,7 +337,51 @@ export default function Index() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2 bg-muted/30 p-2 rounded-lg border shadow-sm flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={exportPDF}>
+              <FileText className="w-4 h-4 mr-2" /> PDF
+            </Button>
+            <Button variant="outline" size="sm" onClick={exportCSV}>
+              <Download className="w-4 h-4 mr-2" /> Excel
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      <div className="hidden print:block mb-4 border-b pb-4">
+        <h1 className="text-2xl font-bold">Relatório da Congregação</h1>
+        <p className="text-muted-foreground">
+          Período: {startMonth.toString().padStart(2, '0')}/{startYear} até{' '}
+          {endMonth.toString().padStart(2, '0')}/{endYear}
+          {selectedGroupId !== 'all' && ` - Grupo Selecionado`}
+        </p>
+      </div>
+
+      <div className="flex flex-col md:flex-row items-center gap-4 bg-muted/30 p-3 rounded-lg border shadow-sm print:hidden">
+        <div className="flex items-center gap-2 w-full md:w-auto">
+          <span className="text-sm font-medium whitespace-nowrap">Filtro de Grupo:</span>
+          <Select
+            value={selectedGroupId}
+            onValueChange={setSelectedGroupId}
+            disabled={!isSecretary}
+          >
+            <SelectTrigger className="w-[180px] bg-background">
+              <SelectValue placeholder="Selecione..." />
+            </SelectTrigger>
+            <SelectContent>
+              {isSecretary && <SelectItem value="all">Todos os Grupos</SelectItem>}
+              {groups.map((g) => (
+                <SelectItem key={g.id} value={g.id}>
+                  Grupo {g.number} {g.leader ? `(Dir. por ${g.leader})` : ''}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="hidden md:block w-px h-6 bg-border mx-2" />
+        <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto">
+          <span className="text-sm font-medium whitespace-nowrap">Período:</span>
           <Select
             value={startMonth.toString()}
             onValueChange={(v) => setStartMonth(Number(v))}
@@ -301,6 +449,35 @@ export default function Index() {
           </Select>
         </div>
       </div>
+
+      {pastoralAttentionList.length > 0 && (
+        <Card className="border-amber-200 bg-amber-50/50 shadow-sm print:break-inside-avoid">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-amber-700 text-lg">
+              <AlertTriangle className="h-5 w-5" />
+              Atenção Pastoral
+            </CardTitle>
+            <CardDescription className="text-amber-600/80">
+              Publicadores ativos que não relataram nos últimos 4 a 5 meses (Risco de inatividade).
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+              {pastoralAttentionList.map((item) => (
+                <div
+                  key={item.pub.id}
+                  className="flex justify-between items-center bg-background/60 border border-amber-100 rounded-md p-2.5 text-sm"
+                >
+                  <span className="font-medium text-foreground">{item.pub.name}</span>
+                  <span className="text-amber-700 font-semibold bg-amber-100 px-2 py-0.5 rounded text-xs">
+                    {item.monthsWithoutReport} meses
+                  </span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {!isValidRange ? (
         <div className="p-8 text-center text-red-500 bg-red-50 rounded-lg border border-red-200">

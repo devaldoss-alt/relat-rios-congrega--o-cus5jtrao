@@ -10,6 +10,9 @@ export interface PublisherReport {
   bible_studies: number
   notes: string
   type?: string
+  expand?: {
+    publisher_id?: any
+  }
 }
 
 export const getPublisherReports = (groupId: string, month: string, year: number) => {

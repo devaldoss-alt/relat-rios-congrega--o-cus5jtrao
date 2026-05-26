@@ -35,7 +35,8 @@ import {
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { getPublishers, Publisher } from '@/services/publishers'
 import { calculateActivityStatus, PublisherReport } from '@/services/publisher_reports'
-import { AlertCircle, Users, Activity, BookOpen, Clock } from 'lucide-react'
+import { AlertCircle, Users, Activity, BookOpen, Clock, Printer, Download } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { useAuth } from '@/hooks/use-auth'
 import pb from '@/lib/pocketbase/client'
 
@@ -98,6 +99,8 @@ export default function HealthMetrics() {
   const [allReports, setAllReports] = useState<PublisherReport[]>([])
   const [activePublishers, setActivePublishers] = useState<Publisher[]>([])
   const [attendance, setAttendance] = useState<any[]>([])
+  const [groups, setGroups] = useState<any[]>([])
+  const [selectedGroup, setSelectedGroup] = useState<string>('all')
 
   const monthsInRange = useMemo(() => {
     const res = []
@@ -115,25 +118,49 @@ export default function HealthMetrics() {
   }, [startMonth, startYear, endMonth, endYear])
 
   useEffect(() => {
+    if (user?.role !== 'Secretário' && user?.group_number && groups.length > 0) {
+      const g = groups.find((gr) => gr.number === user.group_number)
+      if (g) setSelectedGroup(g.id)
+    }
+  }, [user, groups])
+
+  const filteredReports = useMemo(() => {
+    if (selectedGroup === 'all') return allReports
+    return allReports.filter((r) => {
+      const pubGrp =
+        r.expand?.publisher_id?.group_id || r.expand?.publisher_id?.expand?.group_id?.id
+      return pubGrp === selectedGroup
+    })
+  }, [allReports, selectedGroup])
+
+  const filteredPublishers = useMemo(() => {
+    if (selectedGroup === 'all') return activePublishers
+    return activePublishers.filter((p) => p.group_id === selectedGroup)
+  }, [activePublishers, selectedGroup])
+
+  useEffect(() => {
     const fetchData = async () => {
       setLoading(true)
       try {
         const startStr = `${startYear}-${startMonth.toString().padStart(2, '0')}`
         const endStr = `${endYear}-${endMonth.toString().padStart(2, '0')}`
 
-        const [reps, pubs, atts] = await Promise.all([
+        const [reps, pubs, atts, grps] = await Promise.all([
           pb.collection('publisher_reports').getFullList<PublisherReport>({
-            filter: `year >= ${startYear} && year <= ${endYear}`,
+            filter: `year >= ${startYear - 1} && year <= ${endYear}`,
+            expand: 'publisher_id,publisher_id.group_id',
           }),
           getPublishers(),
           pb.collection('meeting_attendance').getFullList({
             filter: `meeting_date >= '${startStr}-01' && meeting_date <= '${endStr}-31'`,
           }),
+          pb.collection('groups').getFullList({ sort: 'number' }),
         ])
 
         setAllReports(reps)
         setActivePublishers(pubs.filter((p) => p.active))
         setAttendance(atts)
+        setGroups(grps)
       } catch (e) {
         console.error(e)
       } finally {
@@ -148,7 +175,7 @@ export default function HealthMetrics() {
   const chartData = useMemo(() => {
     return monthsInRange.map((p) => {
       const mStr = p.m.toString().padStart(2, '0')
-      const reps = allReports.filter((r) => r.month === mStr && r.year === p.y)
+      const reps = filteredReports.filter((r) => r.month === mStr && r.year === p.y)
 
       const participations = reps.filter((r) => r.participated || (r.hours && r.hours > 0)).length
       const hours = reps.reduce((sum, r) => sum + (r.hours || 0), 0)
@@ -192,7 +219,7 @@ export default function HealthMetrics() {
 
       let irregularCount = 0
       const irregularNames: string[] = []
-      activePublishers.forEach((pub) => {
+      filteredPublishers.forEach((pub) => {
         const status = calculateActivityStatus(pub.id, allReports, p.m, p.y)
         if (status === 'Não Participou') {
           irregularCount++
@@ -200,7 +227,7 @@ export default function HealthMetrics() {
         }
       })
 
-      const totalActivePubs = activePublishers.length
+      const totalActivePubs = filteredPublishers.length
       const participationRate =
         totalActivePubs > 0 ? Math.round((participations / totalActivePubs) * 100) : 0
       const studiesPerCapita =
@@ -223,27 +250,27 @@ export default function HealthMetrics() {
         studiesPerCapita,
       }
     })
-  }, [monthsInRange, allReports, attendance, activePublishers])
+  }, [monthsInRange, filteredReports, attendance, filteredPublishers, allReports])
 
   const profileData = useMemo(() => {
     return [
       {
         name: 'Publicadores',
         key: 'pub',
-        value: activePublishers.filter((p) => p.type === 'publicador').length,
+        value: filteredPublishers.filter((p) => p.type === 'publicador').length,
       },
       {
         name: 'P. Auxiliares',
         key: 'aux',
-        value: activePublishers.filter((p) => p.type === 'pioneiro_auxiliar').length,
+        value: filteredPublishers.filter((p) => p.type === 'pioneiro_auxiliar').length,
       },
       {
         name: 'P. Regulares',
         key: 'reg',
-        value: activePublishers.filter((p) => p.type === 'pioneiro_regular').length,
+        value: filteredPublishers.filter((p) => p.type === 'pioneiro_regular').length,
       },
     ].filter((d) => d.value > 0)
-  }, [activePublishers])
+  }, [filteredPublishers])
 
   const endMonthMetrics = useMemo(() => {
     if (chartData.length === 0) return null
@@ -251,93 +278,179 @@ export default function HealthMetrics() {
   }, [chartData])
 
   const reminders = useMemo(() => {
-    return activePublishers
+    return filteredPublishers
       .map((pub) => {
         const status = calculateActivityStatus(pub.id, allReports, endMonth, endYear)
         if (status !== 'Ativo') return { pub, status }
         return null
       })
       .filter(Boolean) as { pub: Publisher; status: string }[]
-  }, [activePublishers, allReports, endMonth, endYear])
+  }, [filteredPublishers, allReports, endMonth, endYear])
 
   const isValidRange = startYear < endYear || (startYear === endYear && startMonth <= endMonth)
 
+  const handleExportPDF = () => {
+    window.print()
+  }
+
+  const handleExportExcel = () => {
+    const rows = [
+      [
+        'Mês/Ano',
+        'Participantes',
+        'Horas',
+        'Estudos',
+        'Pioneiros (h)',
+        'Publicadores (h)',
+        'Irregulares',
+        'Taxa Part. (%)',
+        'Estudos/Capita',
+      ],
+      ...chartData.map((d) =>
+        [
+          d.name,
+          d.participantes,
+          d.horas,
+          d.estudos,
+          d.hoursPioneers,
+          d.hoursPublishers,
+          d.irregularCount,
+          d.participationRate,
+          d.studiesPerCapita,
+        ].join(','),
+      ),
+    ]
+    const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + rows.join('\n')
+    const encodedUri = encodeURI(csvContent)
+    const link = document.createElement('a')
+    link.setAttribute('href', encodedUri)
+    link.setAttribute('download', `Metricas_Saude_${endMonth}_${endYear}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
   return (
     <div className="space-y-8 pb-10 max-w-7xl mx-auto animate-fade-in-up">
+      <div className="hidden print:block text-center mb-8">
+        <h1 className="text-2xl font-bold">Métricas de Saúde da Congregação</h1>
+        <p className="text-muted-foreground">
+          Período: {startMonth.toString().padStart(2, '0')}/{startYear} até{' '}
+          {endMonth.toString().padStart(2, '0')}/{endYear}
+        </p>
+        <p className="text-muted-foreground">
+          Grupo:{' '}
+          {selectedGroup === 'all'
+            ? 'Todos os Grupos'
+            : `Grupo ${groups.find((g) => g.id === selectedGroup)?.number}`}
+        </p>
+      </div>
+
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-        <div>
+        <div className="print:hidden">
           <h2 className="text-3xl font-bold tracking-tight">Métricas de Saúde</h2>
           <p className="text-muted-foreground mt-1">
             Análise de tendências da congregação por período personalizado.
           </p>
         </div>
 
-        <div className="flex items-center gap-2 bg-muted/30 p-2 rounded-lg border shadow-sm flex-wrap">
-          <Select
-            value={startMonth.toString()}
-            onValueChange={(v) => setStartMonth(Number(v))}
-            disabled={loading}
-          >
-            <SelectTrigger className="w-[80px] h-8 bg-background">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {MONTHS.map((m) => (
-                <SelectItem key={m.value} value={m.value.toString()}>
-                  {m.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select
-            value={startYear.toString()}
-            onValueChange={(v) => setStartYear(Number(v))}
-            disabled={loading}
-          >
-            <SelectTrigger className="w-[80px] h-8 bg-background">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {YEARS.map((y) => (
-                <SelectItem key={y} value={y.toString()}>
-                  {y}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <span className="text-sm font-medium px-2">até</span>
-          <Select
-            value={endMonth.toString()}
-            onValueChange={(v) => setEndMonth(Number(v))}
-            disabled={loading}
-          >
-            <SelectTrigger className="w-[80px] h-8 bg-background">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {MONTHS.map((m) => (
-                <SelectItem key={m.value} value={m.value.toString()}>
-                  {m.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select
-            value={endYear.toString()}
-            onValueChange={(v) => setEndYear(Number(v))}
-            disabled={loading}
-          >
-            <SelectTrigger className="w-[80px] h-8 bg-background">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {YEARS.map((y) => (
-                <SelectItem key={y} value={y.toString()}>
-                  {y}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2 bg-muted/30 p-2 rounded-lg border shadow-sm print:hidden">
+            <Select
+              value={selectedGroup}
+              onValueChange={setSelectedGroup}
+              disabled={loading || user?.role !== 'Secretário'}
+            >
+              <SelectTrigger className="w-[140px] h-8 bg-background">
+                <SelectValue placeholder="Todos os Grupos" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os Grupos</SelectItem>
+                {groups.map((g) => (
+                  <SelectItem key={g.id} value={g.id}>
+                    Grupo {g.number}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex items-center gap-2 bg-muted/30 p-2 rounded-lg border shadow-sm flex-wrap print:hidden">
+            <Select
+              value={startMonth.toString()}
+              onValueChange={(v) => setStartMonth(Number(v))}
+              disabled={loading}
+            >
+              <SelectTrigger className="w-[80px] h-8 bg-background">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {MONTHS.map((m) => (
+                  <SelectItem key={m.value} value={m.value.toString()}>
+                    {m.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select
+              value={startYear.toString()}
+              onValueChange={(v) => setStartYear(Number(v))}
+              disabled={loading}
+            >
+              <SelectTrigger className="w-[80px] h-8 bg-background">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {YEARS.map((y) => (
+                  <SelectItem key={y} value={y.toString()}>
+                    {y}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <span className="text-sm font-medium px-2">até</span>
+            <Select
+              value={endMonth.toString()}
+              onValueChange={(v) => setEndMonth(Number(v))}
+              disabled={loading}
+            >
+              <SelectTrigger className="w-[80px] h-8 bg-background">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {MONTHS.map((m) => (
+                  <SelectItem key={m.value} value={m.value.toString()}>
+                    {m.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select
+              value={endYear.toString()}
+              onValueChange={(v) => setEndYear(Number(v))}
+              disabled={loading}
+            >
+              <SelectTrigger className="w-[80px] h-8 bg-background">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {YEARS.map((y) => (
+                  <SelectItem key={y} value={y.toString()}>
+                    {y}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex items-center gap-2 print:hidden">
+            <Button variant="outline" size="sm" onClick={handleExportPDF} className="h-10">
+              <Printer className="w-4 h-4 mr-2" /> PDF
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleExportExcel} className="h-10">
+              <Download className="w-4 h-4 mr-2" /> Excel
+            </Button>
+          </div>
         </div>
       </div>
 
