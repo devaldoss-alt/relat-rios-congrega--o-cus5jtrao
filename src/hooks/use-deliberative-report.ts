@@ -83,7 +83,26 @@ function generateInsights(
   // Spiritual Vitality
   const totalHours = periodReports.reduce((sum, r) => sum + (r.hours || 0), 0)
   const totalStudies = periodReports.reduce((sum, r) => sum + (r.bible_studies || 0), 0)
-  const vitality = `A congregação dedicou um total de ${totalHours} horas no ministério e dirigiu ${totalStudies} estudos bíblicos no período analisado.`
+
+  const periodMonthsCount =
+    (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth()) + 1
+  const prevStart = new Date(start.getFullYear(), start.getMonth() - periodMonthsCount, 1)
+  const prevEnd = new Date(start.getFullYear(), start.getMonth() - 1, 1)
+
+  const prevReports = allReports.filter((r: any) => {
+    const d = new Date(r.year, parseInt(r.month) - 1, 1)
+    return d >= prevStart && d <= prevEnd
+  })
+
+  const prevTotalHours = prevReports.reduce((sum: number, r: any) => sum + (r.hours || 0), 0)
+  const hoursTrend =
+    totalHours > prevTotalHours
+      ? 'aumentou'
+      : totalHours < prevTotalHours
+        ? 'diminuiu'
+        : 'manteve-se estável'
+
+  const vitality = `A congregação dedicou um total de ${totalHours} horas no ministério e dirigiu ${totalStudies} estudos bíblicos no período analisado. Em comparação com o período anterior equivalente, o total de horas ${hoursTrend}.`
 
   // Engagement
   const avgInPerson = attendance.length
@@ -92,7 +111,22 @@ function generateInsights(
   const avgZoom = attendance.length
     ? Math.round(attendance.reduce((s, a) => s + (a.zoom || 0), 0) / attendance.length)
     : 0
-  const eng = `A assistência média no período foi de ${avgInPerson} presenciais e ${avgZoom} via Zoom. ${
+
+  const prevAttendance = attendance.filter((a: any) => {
+    const d = new Date(a.meeting_date)
+    return d >= prevStart && d <= prevEnd
+  })
+  const prevAvgInPerson = prevAttendance.length
+    ? Math.round(prevAttendance.reduce((s, a) => s + (a.in_person || 0), 0) / prevAttendance.length)
+    : 0
+  const attendanceTrend =
+    avgInPerson > prevAvgInPerson
+      ? 'aumentou'
+      : avgInPerson < prevAvgInPerson
+        ? 'diminuiu'
+        : 'manteve-se estável'
+
+  const eng = `A assistência média presencial no período foi de ${avgInPerson} (via Zoom: ${avgZoom}). Em comparação ao período anterior, a assistência presencial ${attendanceTrend}. ${
     avgInPerson > avgZoom * 2
       ? 'Nota-se um forte engajamento presencial.'
       : 'O Zoom ainda representa uma parte significativa da assistência.'
@@ -142,7 +176,15 @@ function generateInsights(
     pioneerPerf += ` Atingiram ou superaram a média de 50h: ${pioneerNamesMeetingGoal.join(', ')}.`
 
   // Group Analysis
-  const groupA = `A análise por grupos mostra as variações de participação e produtividade. Sugestão: Superintendentes de grupo com baixos índices podem programar visitas de pastoreio adicionais com base nos dados apresentados.`
+  const prevTotalStudies = prevReports.reduce(
+    (sum: number, r: any) => sum + (r.bible_studies || 0),
+    0,
+  )
+  const studiesTrend =
+    totalStudies < prevTotalStudies
+      ? ' Considerando que o número de estudos bíblicos caiu, pode ser útil uma parte local sobre como iniciar e dirigir estudos bíblicos.'
+      : ''
+  const groupA = `A análise por grupos mostra as variações de participação e produtividade. Sugestão: Superintendentes de grupo com baixos índices podem programar visitas de pastoreio adicionais com base nos dados apresentados.${studiesTrend}`
 
   return {
     executive_summary: execSummary,

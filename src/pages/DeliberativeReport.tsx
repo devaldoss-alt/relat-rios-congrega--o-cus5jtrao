@@ -19,6 +19,7 @@ import { Navigate } from 'react-router-dom'
 export default function DeliberativeReportPage() {
   const { user } = useAuth()
   const { loading, data, insights, loadData } = useDeliberativeReport()
+  const [savedReports, setSavedReports] = useState<any[]>([])
 
   const now = new Date()
   const defaultEnd = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
@@ -36,11 +37,21 @@ export default function DeliberativeReportPage() {
     group_analysis: '',
   })
 
+  const [isLoadedFromSaved, setIsLoadedFromSaved] = useState(false)
+
   useEffect(() => {
-    if (insights) {
+    if (user?.role === 'Secretário') {
+      import('@/services/deliberative_reports').then(({ getDeliberativeReports }) => {
+        getDeliberativeReports().then(setSavedReports).catch(console.error)
+      })
+    }
+  }, [user])
+
+  useEffect(() => {
+    if (insights && !isLoadedFromSaved) {
       setObservations(insights)
     }
-  }, [insights])
+  }, [insights, isLoadedFromSaved])
 
   if (user?.role !== 'Secretário') {
     return <Navigate to="/dashboard" replace />
@@ -50,7 +61,10 @@ export default function DeliberativeReportPage() {
     setObservations((prev) => ({ ...prev, [key]: value }))
   }
 
-  const handleGenerate = () => loadData(startDate, endDate)
+  const handleGenerate = () => {
+    setIsLoadedFromSaved(false)
+    loadData(startDate, endDate)
+  }
   const handlePrint = () => window.print()
 
   const handleSave = async () => {
@@ -63,6 +77,9 @@ export default function DeliberativeReportPage() {
         created_by: user.id,
       })
       toast.success('Relatório salvo com sucesso!')
+      import('@/services/deliberative_reports').then(({ getDeliberativeReports }) => {
+        getDeliberativeReports().then(setSavedReports).catch(console.error)
+      })
     } catch (err) {
       toast.error('Erro ao salvar relatório.')
     }
@@ -104,6 +121,35 @@ export default function DeliberativeReportPage() {
           <Button onClick={handleGenerate} disabled={loading}>
             Gerar
           </Button>
+
+          {savedReports.length > 0 && (
+            <div className="space-y-1 ml-1 pl-4 border-l">
+              <Label>Carregar Salvo</Label>
+              <select
+                className="flex h-9 w-[200px] items-center justify-between rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                onChange={(e) => {
+                  if (!e.target.value) return
+                  const r = savedReports.find((x) => x.id === e.target.value)
+                  if (r) {
+                    setIsLoadedFromSaved(true)
+                    const sDate = r.start_date.split(' ')[0]
+                    const eDate = r.end_date.split(' ')[0]
+                    setStartDate(sDate)
+                    setEndDate(eDate)
+                    setObservations(r.content || {})
+                    loadData(sDate, eDate)
+                  }
+                }}
+              >
+                <option value="">Selecione...</option>
+                {savedReports.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
       </div>
 
