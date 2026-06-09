@@ -54,17 +54,72 @@ const CustomIrregularTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload
     return (
-      <div className="bg-background border rounded-lg shadow-sm p-3 text-sm min-w-[160px] z-50">
-        <p className="font-semibold mb-2">{label}</p>
-        <p className="text-destructive font-medium mb-2">Irregulares: {data.irregularCount}</p>
+      <div
+        className="bg-background border rounded-lg shadow-xl p-3 text-sm min-w-[160px] max-w-[280px] z-[100] flex flex-col pointer-events-auto"
+        style={{ maxHeight: 'min(80vh, 400px)' }}
+        onMouseMove={(e) => e.stopPropagation()}
+        onMouseEnter={(e) => e.stopPropagation()}
+        onMouseLeave={(e) => e.stopPropagation()}
+        onWheel={(e) => e.stopPropagation()}
+        onTouchMove={(e) => e.stopPropagation()}
+      >
+        <p className="font-semibold mb-2 shrink-0">{label}</p>
+        <p className="text-destructive font-medium mb-2 shrink-0">
+          Irregulares: {data.irregularCount}
+        </p>
         {data.irregularNames?.length > 0 ? (
-          <ul className="text-xs text-muted-foreground list-disc pl-4 space-y-1">
-            {data.irregularNames.map((n: string, i: number) => (
-              <li key={i}>{n}</li>
-            ))}
-          </ul>
+          <div className="flex-1 overflow-hidden flex flex-col">
+            <ul className="text-xs text-muted-foreground list-disc pl-4 space-y-1 overflow-y-auto overscroll-contain pr-2 flex-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-muted-foreground/20 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
+              {data.irregularNames.map((n: string, i: number) => (
+                <li key={i}>{n}</li>
+              ))}
+            </ul>
+          </div>
         ) : (
-          <span className="text-xs text-muted-foreground">Nenhum</span>
+          <span className="text-xs text-muted-foreground shrink-0">Nenhum</span>
+        )}
+      </div>
+    )
+  }
+  return null
+}
+
+const CustomEstudosTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload
+    return (
+      <div
+        className="bg-background border rounded-lg shadow-xl p-3 text-sm min-w-[250px] max-w-[320px] z-[100] flex flex-col pointer-events-auto"
+        style={{ maxHeight: 'min(80vh, 500px)' }}
+        onMouseMove={(e) => e.stopPropagation()}
+        onMouseEnter={(e) => e.stopPropagation()}
+        onMouseLeave={(e) => e.stopPropagation()}
+        onWheel={(e) => e.stopPropagation()}
+        onTouchMove={(e) => e.stopPropagation()}
+      >
+        <p className="font-semibold mb-2 shrink-0">{label}</p>
+        <div className="flex items-center gap-2 mb-2 shrink-0">
+          <div className="w-3 h-3 rounded-[2px]" style={{ backgroundColor: payload[0].color }} />
+          <span className="font-medium text-foreground">Estudos: {data.estudos}</span>
+        </div>
+        {data.instructors?.length > 0 ? (
+          <div className="mt-2 border-t pt-2 flex-1 overflow-hidden flex flex-col">
+            <p className="text-xs font-semibold text-muted-foreground mb-1.5 shrink-0">
+              Por publicador:
+            </p>
+            <ul className="text-xs text-foreground list-none space-y-1.5 overflow-y-auto overscroll-contain pr-2 flex-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-muted-foreground/20 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
+              {data.instructors.map((inst: any, i: number) => (
+                <li key={i} className="flex justify-between gap-4 items-center">
+                  <span className="truncate text-muted-foreground" title={inst.name}>
+                    {inst.name}
+                  </span>
+                  <span className="font-medium shrink-0">{inst.count}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : (
+          <span className="text-xs text-muted-foreground mt-2 block shrink-0">Nenhum estudo</span>
         )}
       </div>
     )
@@ -111,6 +166,7 @@ export default function HealthMetrics() {
   const [attendance, setAttendance] = useState<any[]>([])
   const [groups, setGroups] = useState<any[]>([])
   const [selectedGroup, setSelectedGroup] = useState<string>('all')
+  const [focusedPioneer, setFocusedPioneer] = useState<string | null>(null)
 
   const monthsInRange = useMemo(() => {
     const res = []
@@ -237,6 +293,14 @@ export default function HealthMetrics() {
         }
       })
 
+      const instructors = reps
+        .filter((r) => (r.bible_studies || 0) > 0)
+        .map((r) => ({
+          name: r.expand?.publisher_id?.name || 'Desconhecido',
+          count: r.bible_studies || 0,
+        }))
+        .sort((a, b) => b.count - a.count)
+
       const totalActivePubs = filteredPublishers.length
       const participationRate =
         totalActivePubs > 0 ? Math.round((participations / totalActivePubs) * 100) : 0
@@ -248,6 +312,7 @@ export default function HealthMetrics() {
         participantes: participations,
         horas: hours,
         estudos: studies,
+        instructors,
         avgWeekend,
         avgMidweek,
         avgInPerson,
@@ -653,7 +718,13 @@ export default function HealthMetrics() {
                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
                     <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
                     <YAxis fontSize={12} tickLine={false} axisLine={false} />
-                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Tooltip
+                      content={<CustomEstudosTooltip />}
+                      cursor={{ fill: 'hsl(var(--muted)/0.4)' }}
+                      allowEscapeViewBox={{ x: true, y: true }}
+                      wrapperStyle={{ zIndex: 100, pointerEvents: 'auto' }}
+                      isAnimationActive={false}
+                    />
                     <Bar
                       dataKey="estudos"
                       fill="var(--color-s)"
@@ -772,6 +843,9 @@ export default function HealthMetrics() {
                     <Tooltip
                       content={<CustomIrregularTooltip />}
                       cursor={{ fill: 'hsl(var(--muted)/0.4)' }}
+                      allowEscapeViewBox={{ x: true, y: true }}
+                      wrapperStyle={{ zIndex: 100, pointerEvents: 'auto' }}
+                      isAnimationActive={false}
                     />
                     <Bar
                       dataKey="irregularCount"
@@ -850,7 +924,18 @@ export default function HealthMetrics() {
                       <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
                       <YAxis fontSize={12} tickLine={false} axisLine={false} />
                       <ChartTooltip content={<ChartTooltipContent />} />
-                      <Legend verticalAlign="top" height={36} />
+                      <Legend
+                        verticalAlign="top"
+                        height={36}
+                        onClick={(e: any) => {
+                          if (focusedPioneer === e.dataKey) {
+                            setFocusedPioneer(null)
+                          } else {
+                            setFocusedPioneer(e.dataKey)
+                          }
+                        }}
+                        wrapperStyle={{ cursor: 'pointer' }}
+                      />
                       <ReferenceLine
                         y={50}
                         stroke="hsl(var(--destructive))"
@@ -862,17 +947,25 @@ export default function HealthMetrics() {
                           fontSize: 12,
                         }}
                       />
-                      {pioneerNames.map((name, idx) => (
-                        <Line
-                          key={name}
-                          type="monotone"
-                          dataKey={`pioneer_${idx}`}
-                          name={name}
-                          stroke={`var(--color-pioneer_${idx})`}
-                          strokeWidth={2}
-                          dot={{ r: 4 }}
-                        />
-                      ))}
+                      {pioneerNames.map((name, idx) => {
+                        const dataKey = `pioneer_${idx}`
+                        return (
+                          <Line
+                            key={name}
+                            type="monotone"
+                            dataKey={dataKey}
+                            name={name}
+                            stroke={
+                              focusedPioneer && focusedPioneer !== dataKey
+                                ? 'hsl(var(--muted-foreground))'
+                                : `var(--color-${dataKey})`
+                            }
+                            strokeWidth={focusedPioneer === dataKey ? 3 : 2}
+                            opacity={focusedPioneer && focusedPioneer !== dataKey ? 0.3 : 1}
+                            dot={{ r: 4 }}
+                          />
+                        )
+                      })}
                     </LineChart>
                   </ChartContainer>
                 )}
