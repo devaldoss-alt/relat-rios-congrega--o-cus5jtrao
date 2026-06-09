@@ -26,6 +26,8 @@ import {
   LayoutDashboard,
   UserCog,
   ClipboardList,
+  HelpCircle,
+  Settings as SettingsIcon,
 } from 'lucide-react'
 
 const getNavigation = (role?: string) => {
@@ -35,6 +37,8 @@ const getNavigation = (role?: string) => {
     { name: 'Assistência às Reuniões', href: '/attendance', icon: CalendarCheck },
     { name: 'Compilação de Relatório', href: '/reports', icon: FileText },
     { name: 'Métricas de Saúde', href: '/metrics', icon: Activity },
+    { name: 'Tutorial de Uso', href: '/tutorial', icon: HelpCircle },
+    { name: 'Configurações', href: '/settings', icon: SettingsIcon },
   ]
   if (role === 'Secretário') {
     base.push({ name: 'Gestão de Publicadores', href: '/publishers', icon: Users })

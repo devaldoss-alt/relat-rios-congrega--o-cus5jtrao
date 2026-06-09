@@ -15,6 +15,8 @@ import {
 } from '@/services/publisher_reports'
 import pb from '@/lib/pocketbase/client'
 import { useRealtime } from '@/hooks/use-realtime'
+import { Link } from 'react-router-dom'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -101,6 +103,7 @@ export default function GroupData() {
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [isSavingGoal, setIsSavingGoal] = useState(false)
+  const [missingPrevious, setMissingPrevious] = useState(false)
 
   const [hourGoal, setHourGoal] = useState<string>('')
   const [pioneerHourGoal, setPioneerHourGoal] = useState<string>('')
@@ -138,6 +141,20 @@ export default function GroupData() {
       const monthStr = `${selectedYear}-${selectedMonth}`
       const gReport = await getGroupReport(selectedGroupId, monthStr)
       setGroupReportId(gReport?.id || null)
+
+      let pM = Number(selectedMonth) - 1
+      let pY = Number(selectedYear)
+      if (pM === 0) {
+        pM = 12
+        pY -= 1
+      }
+      const prevMonthStr = `${pY}-${pM.toString().padStart(2, '0')}`
+      try {
+        const prevGReport = await getGroupReport(selectedGroupId, prevMonthStr)
+        setMissingPrevious(!prevGReport)
+      } catch {
+        setMissingPrevious(true)
+      }
 
       const pubs = await getPublishersByGroup(selectedGroupId)
       const allPReports = await pb.collection('publisher_reports').getFullList({
@@ -349,12 +366,39 @@ export default function GroupData() {
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-10">
-      <div>
-        <h2 className="text-3xl font-bold tracking-tight">Entrada de Dados do Grupo</h2>
-        <p className="text-muted-foreground mt-1">
-          Registre a atividade mensal de cada publicador do seu grupo individualmente.
-        </p>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight">Entrada de Dados do Grupo</h2>
+          <p className="text-muted-foreground mt-1">
+            Registre a atividade mensal de cada publicador do seu grupo individualmente.
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          asChild
+          className="shrink-0 bg-primary/5 hover:bg-primary/10 border-primary/20 text-primary"
+        >
+          <Link to="/tutorial" className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4" />
+            Como preencher?
+          </Link>
+        </Button>
       </div>
+
+      {missingPrevious && !isLoading && (
+        <Alert
+          variant="destructive"
+          className="bg-red-50 dark:bg-red-950/20 text-red-900 dark:text-red-200 border-red-200 dark:border-red-800 animate-in fade-in slide-in-from-top-4"
+        >
+          <AlertCircle className="h-4 w-4" color="currentColor" />
+          <AlertDescription className="text-sm">
+            <strong className="block mb-1 text-base">Atenção</strong>O relatório do{' '}
+            <strong>mês anterior</strong> ainda não foi salvo ou está pendente para o grupo
+            selecionado. Recomendamos regularizar os meses passados para garantir a precisão dos
+            registros.
+          </AlertDescription>
+        </Alert>
+      )}
 
       <Card className="border-t-4 border-t-primary shadow-md">
         <CardHeader className="bg-muted/30 pb-6 border-b">
@@ -515,10 +559,25 @@ export default function GroupData() {
                     <TableHeader className="bg-muted/10">
                       <TableRow>
                         <TableHead className="w-[25%]">Nome do Publicador</TableHead>
-                        <TableHead className="w-[15%]">Tipo</TableHead>
+                        <TableHead className="w-[15%]">
+                          Tipo{' '}
+                          <span className="text-red-500" title="Obrigatório">
+                            *
+                          </span>
+                        </TableHead>
                         <TableHead className="w-[10%] text-center">Participou?</TableHead>
-                        <TableHead className="w-[15%]">Horas</TableHead>
-                        <TableHead className="w-[10%]">Estudos</TableHead>
+                        <TableHead className="w-[15%]">
+                          Horas{' '}
+                          <span className="text-red-500" title="Obrigatório">
+                            *
+                          </span>
+                        </TableHead>
+                        <TableHead className="w-[10%]">
+                          Estudos{' '}
+                          <span className="text-red-500" title="Obrigatório">
+                            *
+                          </span>
+                        </TableHead>
                         <TableHead className="w-[25%]">Observações</TableHead>
                       </TableRow>
                     </TableHeader>

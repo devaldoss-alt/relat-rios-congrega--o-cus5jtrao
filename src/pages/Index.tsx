@@ -43,6 +43,36 @@ const MONTHS = [
 ]
 const YEARS = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i)
 
+const CustomPioneerAnnualTooltip = ({ active, payload }: any) => {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload
+    const faltantes = Math.max(0, data.meta - data.horas)
+    return (
+      <div className="bg-background border rounded-lg shadow-sm p-3 text-sm min-w-[200px]">
+        <p className="font-semibold mb-2">{data.fullName}</p>
+        <div className="space-y-1">
+          <div className="flex justify-between gap-4">
+            <span className="text-muted-foreground">Acumulado:</span>
+            <span className="font-medium text-foreground">{data.horas}h</span>
+          </div>
+          <div className="flex justify-between gap-4">
+            <span className="text-muted-foreground">Meta Anual:</span>
+            <span className="font-medium text-foreground">{data.meta}h</span>
+          </div>
+        </div>
+        <div className="mt-3 pt-2 border-t">
+          {faltantes > 0 ? (
+            <p className="text-amber-600 font-medium">Horas faltantes para a meta: {faltantes}</p>
+          ) : (
+            <p className="text-emerald-600 font-bold">Meta Atingida 🎉</p>
+          )}
+        </div>
+      </div>
+    )
+  }
+  return null
+}
+
 export default function Index() {
   const { user } = useAuth()
   const isSecretary = user?.role === 'Secretário'
@@ -620,7 +650,10 @@ export default function Index() {
                       <CartesianGrid strokeDasharray="3 3" vertical={false} />
                       <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
                       <YAxis fontSize={12} tickLine={false} axisLine={false} />
-                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <ChartTooltip
+                        content={<CustomPioneerAnnualTooltip />}
+                        cursor={{ fill: 'transparent' }}
+                      />
                       <Legend verticalAlign="top" height={36} />
                       <Bar
                         dataKey="horas"

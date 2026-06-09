@@ -18,6 +18,8 @@ import PublisherProfile from './pages/PublisherProfile'
 import ReportsHistory from './pages/ReportsHistory'
 import UsersAdmin from './pages/UsersAdmin'
 import DeliberativeReport from './pages/DeliberativeReport'
+import Tutorial from './pages/Tutorial'
+import Settings from './pages/Settings'
 import { Skeleton } from '@/components/ui/skeleton'
 
 // Protected Route Wrapper
@@ -72,6 +74,8 @@ const App = () => (
             <Route path="/reports-history" element={<ReportsHistory />} />
             <Route path="/deliberative-report" element={<DeliberativeReport />} />
             <Route path="/users" element={<UsersAdmin />} />
+            <Route path="/tutorial" element={<Tutorial />} />
+            <Route path="/settings" element={<Settings />} />
           </Route>
 
           <Route path="*" element={<NotFound />} />
