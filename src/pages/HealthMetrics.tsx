@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Input } from '@/components/ui/input'
 import {
   Bar,
   BarChart,
@@ -45,6 +46,8 @@ import {
   Printer,
   Download,
   Loader2,
+  X,
+  Search,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/hooks/use-auth'
@@ -57,11 +60,6 @@ const CustomIrregularTooltip = ({ active, payload, label }: any) => {
       <div
         className="bg-background border rounded-lg shadow-xl p-3 text-sm min-w-[160px] max-w-[280px] z-[100] flex flex-col pointer-events-auto"
         style={{ maxHeight: 'min(80vh, 400px)' }}
-        onMouseMove={(e) => e.stopPropagation()}
-        onMouseEnter={(e) => e.stopPropagation()}
-        onMouseLeave={(e) => e.stopPropagation()}
-        onWheel={(e) => e.stopPropagation()}
-        onTouchMove={(e) => e.stopPropagation()}
       >
         <p className="font-semibold mb-2 shrink-0">{label}</p>
         <p className="text-destructive font-medium mb-2 shrink-0">
@@ -69,7 +67,7 @@ const CustomIrregularTooltip = ({ active, payload, label }: any) => {
         </p>
         {data.irregularNames?.length > 0 ? (
           <div className="flex-1 overflow-hidden flex flex-col">
-            <ul className="text-xs text-muted-foreground list-disc pl-4 space-y-1 overflow-y-auto overscroll-contain pr-2 flex-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-muted-foreground/20 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
+            <ul className="text-xs text-muted-foreground list-disc pl-4 space-y-1 overflow-y-auto pr-2 flex-1">
               {data.irregularNames.map((n: string, i: number) => (
                 <li key={i}>{n}</li>
               ))}
@@ -91,11 +89,6 @@ const CustomEstudosTooltip = ({ active, payload, label }: any) => {
       <div
         className="bg-background border rounded-lg shadow-xl p-3 text-sm min-w-[250px] max-w-[320px] z-[100] flex flex-col pointer-events-auto"
         style={{ maxHeight: 'min(80vh, 500px)' }}
-        onMouseMove={(e) => e.stopPropagation()}
-        onMouseEnter={(e) => e.stopPropagation()}
-        onMouseLeave={(e) => e.stopPropagation()}
-        onWheel={(e) => e.stopPropagation()}
-        onTouchMove={(e) => e.stopPropagation()}
       >
         <p className="font-semibold mb-2 shrink-0">{label}</p>
         <div className="flex items-center gap-2 mb-2 shrink-0">
@@ -107,7 +100,7 @@ const CustomEstudosTooltip = ({ active, payload, label }: any) => {
             <p className="text-xs font-semibold text-muted-foreground mb-1.5 shrink-0">
               Por publicador:
             </p>
-            <ul className="text-xs text-foreground list-none space-y-1.5 overflow-y-auto overscroll-contain pr-2 flex-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-muted-foreground/20 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
+            <ul className="text-xs text-foreground list-none space-y-1.5 overflow-y-auto pr-2 flex-1">
               {data.instructors.map((inst: any, i: number) => (
                 <li key={i} className="flex justify-between gap-4 items-center">
                   <span className="truncate text-muted-foreground" title={inst.name}>
@@ -168,6 +161,12 @@ export default function HealthMetrics() {
   const [selectedGroup, setSelectedGroup] = useState<string>('all')
   const [focusedPioneer, setFocusedPioneer] = useState<string | null>(null)
 
+  const [lockedIrregular, setLockedIrregular] = useState<any>(null)
+  const [irregularSearch, setIrregularSearch] = useState('')
+
+  const [lockedEstudos, setLockedEstudos] = useState<any>(null)
+  const [estudosSearch, setEstudosSearch] = useState('')
+
   const monthsInRange = useMemo(() => {
     const res = []
     let currM = startMonth
@@ -182,6 +181,10 @@ export default function HealthMetrics() {
     }
     return res
   }, [startMonth, startYear, endMonth, endYear])
+
+  // Service Year Logic (Sep-Aug)
+  const syStartYear = endMonth >= 9 ? endYear : endYear - 1
+  const syEndYear = syStartYear + 1
 
   useEffect(() => {
     if (user?.role !== 'Secretário' && user?.group_number && groups.length > 0) {
@@ -211,9 +214,12 @@ export default function HealthMetrics() {
         const startStr = `${startYear}-${startMonth.toString().padStart(2, '0')}`
         const endStr = `${endYear}-${endMonth.toString().padStart(2, '0')}`
 
+        const fetchStartYear = Math.min(startYear - 1, syStartYear)
+        const fetchEndYear = Math.max(endYear, syEndYear)
+
         const [reps, pubs, atts, grps] = await Promise.all([
           pb.collection('publisher_reports').getFullList<PublisherReport>({
-            filter: `year >= ${startYear - 1} && year <= ${endYear}`,
+            filter: `year >= ${fetchStartYear} && year <= ${fetchEndYear}`,
             expand: 'publisher_id,publisher_id.group_id',
           }),
           getPublishers(),
@@ -236,7 +242,7 @@ export default function HealthMetrics() {
     if (monthsInRange.length > 0 && monthsInRange.length <= 24) {
       fetchData()
     }
-  }, [startMonth, startYear, endMonth, endYear, monthsInRange])
+  }, [startMonth, startYear, endMonth, endYear, monthsInRange, syStartYear, syEndYear])
 
   const chartData = useMemo(() => {
     return monthsInRange.map((p) => {
@@ -346,6 +352,32 @@ export default function HealthMetrics() {
       },
     ].filter((d) => d.value > 0)
   }, [filteredPublishers])
+
+  const pioneerAnnualData = useMemo(() => {
+    const serviceYearReports = allReports.filter((r) => {
+      const m = Number(r.month)
+      if (r.year === syStartYear && m >= 9) return true
+      if (r.year === syEndYear && m <= 8) return true
+      return false
+    })
+
+    return filteredPublishers
+      .filter((p) => p.type === 'pioneiro_regular')
+      .map((p) => {
+        const pReports = serviceYearReports.filter(
+          (r) => r.publisher_id === p.id || r.expand?.publisher_id?.id === p.id,
+        )
+        const totalHours = pReports.reduce((sum, r) => sum + (r.hours || 0), 0)
+        const remaining = Math.max(0, 600 - totalHours)
+        return {
+          name: p.name,
+          horas: totalHours,
+          faltam: remaining,
+          meta: 600,
+        }
+      })
+      .sort((a, b) => b.horas - a.horas)
+  }, [filteredPublishers, allReports, syStartYear, syEndYear])
 
   const endMonthMetrics = useMemo(() => {
     if (chartData.length === 0) return null
@@ -707,30 +739,98 @@ export default function HealthMetrics() {
                 <CardTitle className="flex items-center gap-2 text-base">
                   Estudos Bíblicos
                 </CardTitle>
-                <CardDescription>Evolução do número de estudos dirigidos</CardDescription>
+                <CardDescription>
+                  Evolução do número de estudos dirigidos (clique para fixar a lista)
+                </CardDescription>
               </CardHeader>
-              <CardContent className="h-[280px]">
+              <CardContent className="h-[280px] relative">
+                {lockedEstudos && (
+                  <div className="absolute top-2 right-2 bg-background border rounded-lg shadow-xl p-3 text-sm w-[250px] z-[100] flex flex-col max-h-[90%] pointer-events-auto">
+                    <div className="flex justify-between items-center mb-2">
+                      <p className="font-semibold">{lockedEstudos.name}</p>
+                      <button
+                        onClick={() => setLockedEstudos(null)}
+                        className="text-muted-foreground hover:text-foreground"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-3 h-3 rounded-[2px] bg-[hsl(var(--chart-4))]" />
+                      <span className="font-medium text-foreground">
+                        Estudos: {lockedEstudos.estudos}
+                      </span>
+                    </div>
+                    <div className="relative mb-2">
+                      <Search className="w-3 h-3 absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                      <Input
+                        autoFocus
+                        placeholder="Buscar publicador..."
+                        value={estudosSearch}
+                        onChange={(e) => setEstudosSearch(e.target.value)}
+                        className="h-7 text-xs pl-7"
+                      />
+                    </div>
+                    <div className="flex-1 overflow-y-auto min-h-[50px]">
+                      <p className="text-xs font-semibold text-muted-foreground mb-1.5">
+                        Por publicador:
+                      </p>
+                      <ul className="text-xs text-foreground list-none space-y-1.5 pr-1">
+                        {lockedEstudos.instructors
+                          .filter((inst: any) =>
+                            inst.name.toLowerCase().includes(estudosSearch.toLowerCase()),
+                          )
+                          .map((inst: any, i: number) => (
+                            <li key={i} className="flex justify-between gap-4 items-center">
+                              <span className="truncate text-muted-foreground" title={inst.name}>
+                                {inst.name}
+                              </span>
+                              <span className="font-medium shrink-0">{inst.count}</span>
+                            </li>
+                          ))}
+                        {lockedEstudos.instructors.filter((inst: any) =>
+                          inst.name.toLowerCase().includes(estudosSearch.toLowerCase()),
+                        ).length === 0 && (
+                          <li className="text-muted-foreground">Nenhum encontrado.</li>
+                        )}
+                      </ul>
+                    </div>
+                  </div>
+                )}
                 <ChartContainer
                   config={{ s: { label: 'Estudos', color: 'hsl(var(--chart-4))' } }}
                   className="h-full w-full"
                 >
-                  <BarChart data={chartData} margin={{ top: 20, right: 0, left: -20, bottom: 0 }}>
+                  <BarChart
+                    data={chartData}
+                    margin={{ top: 20, right: 0, left: -20, bottom: 0 }}
+                    onClick={(state) => {
+                      if (state && state.activePayload) {
+                        setLockedEstudos(state.activePayload[0].payload)
+                        setEstudosSearch('')
+                      } else {
+                        setLockedEstudos(null)
+                      }
+                    }}
+                  >
                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
                     <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
                     <YAxis fontSize={12} tickLine={false} axisLine={false} />
                     <Tooltip
-                      content={<CustomEstudosTooltip />}
+                      content={lockedEstudos ? <></> : <CustomEstudosTooltip />}
                       cursor={{ fill: 'hsl(var(--muted)/0.4)' }}
-                      allowEscapeViewBox={{ x: true, y: true }}
-                      wrapperStyle={{ zIndex: 100, pointerEvents: 'auto' }}
                       isAnimationActive={false}
                     />
-                    <Bar
-                      dataKey="estudos"
-                      fill="var(--color-s)"
-                      radius={[4, 4, 0, 0]}
-                      maxBarSize={40}
-                    >
+                    <Bar dataKey="estudos" radius={[4, 4, 0, 0]} maxBarSize={40}>
+                      {chartData.map((entry, index) => (
+                        <Cell
+                          key={`cell-${index}`}
+                          fill="var(--color-s)"
+                          opacity={
+                            lockedEstudos ? (lockedEstudos.name === entry.name ? 1 : 0.3) : 1
+                          }
+                        />
+                      ))}
                       <LabelList
                         dataKey="estudos"
                         position="top"
@@ -829,30 +929,85 @@ export default function HealthMetrics() {
                 <CardTitle className="flex items-center gap-2 text-base">
                   Tendência de Irregularidade
                 </CardTitle>
-                <CardDescription>Publicadores sem relatar entre 1 a 5 meses</CardDescription>
+                <CardDescription>
+                  Publicadores sem relatar entre 1 a 5 meses (clique para fixar a lista)
+                </CardDescription>
               </CardHeader>
-              <CardContent className="h-[280px]">
+              <CardContent className="h-[280px] relative">
+                {lockedIrregular && (
+                  <div className="absolute top-2 right-2 bg-background border rounded-lg shadow-xl p-3 text-sm w-[240px] z-[100] flex flex-col max-h-[90%] pointer-events-auto">
+                    <div className="flex justify-between items-center mb-2">
+                      <p className="font-semibold">{lockedIrregular.name}</p>
+                      <button
+                        onClick={() => setLockedIrregular(null)}
+                        className="text-muted-foreground hover:text-foreground"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <p className="text-destructive font-medium mb-3">
+                      Irregulares: {lockedIrregular.irregularCount}
+                    </p>
+                    <div className="relative mb-2">
+                      <Search className="w-3 h-3 absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                      <Input
+                        autoFocus
+                        placeholder="Buscar publicador..."
+                        value={irregularSearch}
+                        onChange={(e) => setIrregularSearch(e.target.value)}
+                        className="h-7 text-xs pl-7"
+                      />
+                    </div>
+                    <div className="flex-1 overflow-y-auto min-h-[50px]">
+                      <ul className="text-xs text-muted-foreground list-disc pl-4 space-y-1 pr-1">
+                        {lockedIrregular.irregularNames
+                          .filter((n: string) =>
+                            n.toLowerCase().includes(irregularSearch.toLowerCase()),
+                          )
+                          .map((n: string, i: number) => (
+                            <li key={i}>{n}</li>
+                          ))}
+                        {lockedIrregular.irregularNames.filter((n: string) =>
+                          n.toLowerCase().includes(irregularSearch.toLowerCase()),
+                        ).length === 0 && <li className="list-none -ml-4">Nenhum encontrado.</li>}
+                      </ul>
+                    </div>
+                  </div>
+                )}
                 <ChartContainer
                   config={{ irr: { label: 'Irregulares', color: 'hsl(var(--destructive))' } }}
                   className="h-full w-full"
                 >
-                  <BarChart data={chartData} margin={{ top: 20, right: 0, left: -20, bottom: 0 }}>
+                  <BarChart
+                    data={chartData}
+                    margin={{ top: 20, right: 0, left: -20, bottom: 0 }}
+                    onClick={(state) => {
+                      if (state && state.activePayload) {
+                        setLockedIrregular(state.activePayload[0].payload)
+                        setIrregularSearch('')
+                      } else {
+                        setLockedIrregular(null)
+                      }
+                    }}
+                  >
                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
                     <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
                     <YAxis fontSize={12} tickLine={false} axisLine={false} />
                     <Tooltip
-                      content={<CustomIrregularTooltip />}
+                      content={lockedIrregular ? <></> : <CustomIrregularTooltip />}
                       cursor={{ fill: 'hsl(var(--muted)/0.4)' }}
-                      allowEscapeViewBox={{ x: true, y: true }}
-                      wrapperStyle={{ zIndex: 100, pointerEvents: 'auto' }}
                       isAnimationActive={false}
                     />
-                    <Bar
-                      dataKey="irregularCount"
-                      fill="var(--color-irr)"
-                      radius={[4, 4, 0, 0]}
-                      maxBarSize={40}
-                    >
+                    <Bar dataKey="irregularCount" radius={[4, 4, 0, 0]} maxBarSize={40}>
+                      {chartData.map((entry, index) => (
+                        <Cell
+                          key={`cell-${index}`}
+                          fill="var(--color-irr)"
+                          opacity={
+                            lockedIrregular ? (lockedIrregular.name === entry.name ? 1 : 0.3) : 1
+                          }
+                        />
+                      ))}
                       <LabelList
                         dataKey="irregularCount"
                         position="top"
@@ -899,6 +1054,92 @@ export default function HealthMetrics() {
                     <Legend verticalAlign="bottom" height={36} />
                   </PieChart>
                 </ChartContainer>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-sm col-span-1 lg:col-span-2">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  Pioneiros Regulares: Anual
+                </CardTitle>
+                <CardDescription>
+                  Ano de Serviço ({syStartYear}/{syEndYear}) vs Meta (600h)
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="h-[350px] relative">
+                {pioneerAnnualData.length === 0 ? (
+                  <div className="flex items-center justify-center h-full text-muted-foreground">
+                    Nenhum pioneiro regular no período.
+                  </div>
+                ) : (
+                  <ChartContainer
+                    config={{
+                      horas: { label: 'Horas', color: 'hsl(var(--primary))' },
+                      meta: { label: 'Meta', color: 'hsl(var(--destructive))' },
+                    }}
+                    className="h-full w-full"
+                  >
+                    <BarChart
+                      data={pioneerAnnualData}
+                      margin={{ top: 20, right: 0, left: -20, bottom: 0 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
+                      <YAxis fontSize={12} tickLine={false} axisLine={false} />
+                      <Tooltip
+                        cursor={{ fill: 'hsl(var(--muted)/0.4)' }}
+                        content={({ active, payload, label }) => {
+                          if (active && payload && payload.length) {
+                            const data = payload[0].payload
+                            return (
+                              <div className="bg-background border rounded-lg shadow-xl p-3 text-sm z-[100]">
+                                <p className="font-semibold mb-2">{label}</p>
+                                <div className="flex items-center gap-2 mb-1">
+                                  <div className="w-3 h-3 rounded-[2px] bg-[hsl(var(--primary))]" />
+                                  <span className="font-medium text-foreground">
+                                    Horas: {data.horas}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2 mb-2">
+                                  <div className="w-3 h-3 rounded-[2px] bg-[hsl(var(--destructive))]" />
+                                  <span className="font-medium text-foreground">
+                                    {data.faltam > 0 ? `Faltam: ${data.faltam}h` : 'Meta Atingida'}
+                                  </span>
+                                </div>
+                              </div>
+                            )
+                          }
+                          return null
+                        }}
+                      />
+                      <ReferenceLine
+                        y={600}
+                        stroke="hsl(var(--destructive))"
+                        strokeDasharray="3 3"
+                        label={{
+                          position: 'insideTopLeft',
+                          value: 'Meta (600h)',
+                          fill: 'hsl(var(--destructive))',
+                          fontSize: 12,
+                        }}
+                      />
+                      <Bar
+                        dataKey="horas"
+                        fill="var(--color-horas)"
+                        radius={[4, 4, 0, 0]}
+                        maxBarSize={50}
+                      >
+                        <LabelList
+                          dataKey="horas"
+                          position="top"
+                          offset={10}
+                          className="fill-foreground"
+                          fontSize={12}
+                        />
+                      </Bar>
+                    </BarChart>
+                  </ChartContainer>
+                )}
               </CardContent>
             </Card>
 

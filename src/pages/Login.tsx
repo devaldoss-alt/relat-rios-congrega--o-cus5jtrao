@@ -32,7 +32,10 @@ export default function Login() {
     setError('')
     setIsSubmitting(true)
 
-    const { error: signInError } = await signIn(email, password)
+    const trimmedEmail = email.trim()
+    const trimmedPassword = password.trim()
+
+    const { error: signInError } = await signIn(trimmedEmail, trimmedPassword)
 
     if (signInError) {
       setError('Email ou senha incorretos. Por favor, verifique suas credenciais.')
