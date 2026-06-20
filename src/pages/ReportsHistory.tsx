@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { Calendar, Loader2, Printer } from 'lucide-react'
+import { SecretarySummaryDialog } from '@/components/reports-history/SecretarySummaryDialog'
 
 const MONTHS: Record<string, string> = {
   '01': 'Janeiro',
@@ -141,12 +142,16 @@ export default function ReportsHistoryPage() {
                 onClick={() => setSelectedSummary(summary)}
               >
                 <CardHeader className="pb-2">
-                  <CardTitle>
-                    {MONTHS[summary.month] || summary.month} {summary.year}
-                  </CardTitle>
-                  <CardDescription>
-                    Criado em {new Date(summary.created).toLocaleDateString()}
-                  </CardDescription>
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <CardTitle>
+                        {MONTHS[summary.month] || summary.month} {summary.year}
+                      </CardTitle>
+                      <CardDescription>
+                        Criado em {new Date(summary.created).toLocaleDateString()}
+                      </CardDescription>
+                    </div>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <div className="text-sm space-y-1">
@@ -207,117 +212,14 @@ export default function ReportsHistoryPage() {
       )}
 
       {/* Secretary Dialog */}
-      <Dialog open={!!selectedSummary} onOpenChange={(open) => !open && setSelectedSummary(null)}>
-        <DialogContent className="max-w-3xl print-area print-max-w-none">
-          {selectedSummary && (
-            <>
-              <DialogHeader className="no-print">
-                <DialogTitle>
-                  Relatório Mensal - {MONTHS[selectedSummary.month]} de {selectedSummary.year}
-                </DialogTitle>
-                <div className="flex justify-end pt-2">
-                  <Button variant="outline" size="sm" onClick={handlePrint}>
-                    <Printer className="mr-2 h-4 w-4" /> Imprimir / PDF
-                  </Button>
-                </div>
-              </DialogHeader>
-
-              <div className="space-y-6 py-4">
-                <div className="hidden print:block text-center mb-8">
-                  <h1 className="text-2xl font-bold">Relatório Mensal da Congregação</h1>
-                  <h2 className="text-lg">
-                    {MONTHS[selectedSummary.month]} de {selectedSummary.year}
-                  </h2>
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                  <div className="border rounded-lg p-4 text-center">
-                    <p className="text-sm text-muted-foreground">Publicadores Ativos</p>
-                    <p className="text-2xl font-bold">{selectedSummary.total_active_publishers}</p>
-                  </div>
-                  <div className="border rounded-lg p-4 text-center">
-                    <p className="text-sm text-muted-foreground">Média Fim de Semana</p>
-                    <p className="text-2xl font-bold">{selectedSummary.avg_attendance_weekend}</p>
-                  </div>
-                  <div className="border rounded-lg p-4 text-center">
-                    <p className="text-sm text-muted-foreground">Média Meio de Semana</p>
-                    <p className="text-2xl font-bold">{selectedSummary.avg_attendance_midweek}</p>
-                  </div>
-                </div>
-
-                <div className="border rounded-lg overflow-hidden">
-                  <Table>
-                    <TableHeader className="bg-muted/50">
-                      <TableRow>
-                        <TableHead>Categoria</TableHead>
-                        <TableHead className="text-right">Relatórios</TableHead>
-                        <TableHead className="text-right">Horas</TableHead>
-                        <TableHead className="text-right">Estudos</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      <TableRow>
-                        <TableCell className="font-medium">Publicadores</TableCell>
-                        <TableCell className="text-right">
-                          {selectedSummary.report_data.publishers?.reports || 0}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {selectedSummary.report_data.publishers?.hours || 0}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {selectedSummary.report_data.publishers?.studies || 0}
-                        </TableCell>
-                      </TableRow>
-                      <TableRow>
-                        <TableCell className="font-medium">Pioneiros Auxiliares</TableCell>
-                        <TableCell className="text-right">
-                          {selectedSummary.report_data.auxiliary?.reports || 0}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {selectedSummary.report_data.auxiliary?.hours || 0}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {selectedSummary.report_data.auxiliary?.studies || 0}
-                        </TableCell>
-                      </TableRow>
-                      <TableRow>
-                        <TableCell className="font-medium">Pioneiros Regulares</TableCell>
-                        <TableCell className="text-right">
-                          {selectedSummary.report_data.regular?.reports || 0}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {selectedSummary.report_data.regular?.hours || 0}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {selectedSummary.report_data.regular?.studies || 0}
-                        </TableCell>
-                      </TableRow>
-                      <TableRow className="font-bold bg-muted/20">
-                        <TableCell>Total</TableCell>
-                        <TableCell className="text-right">
-                          {(selectedSummary.report_data.publishers?.reports || 0) +
-                            (selectedSummary.report_data.auxiliary?.reports || 0) +
-                            (selectedSummary.report_data.regular?.reports || 0)}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {(selectedSummary.report_data.publishers?.hours || 0) +
-                            (selectedSummary.report_data.auxiliary?.hours || 0) +
-                            (selectedSummary.report_data.regular?.hours || 0)}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {(selectedSummary.report_data.publishers?.studies || 0) +
-                            (selectedSummary.report_data.auxiliary?.studies || 0) +
-                            (selectedSummary.report_data.regular?.studies || 0)}
-                        </TableCell>
-                      </TableRow>
-                    </TableBody>
-                  </Table>
-                </div>
-              </div>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
+      <SecretarySummaryDialog
+        summary={selectedSummary}
+        open={!!selectedSummary}
+        onOpenChange={(open) => !open && setSelectedSummary(null)}
+        onSaved={() => {
+          if (isSecretary) loadSecretaryData()
+        }}
+      />
 
       {/* Overseer Dialog */}
       <Dialog
