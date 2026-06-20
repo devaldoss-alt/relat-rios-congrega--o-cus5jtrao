@@ -46,6 +46,7 @@ export function PublisherEditDialog({ publisher, open, onOpenChange, onSaved }: 
         is_ministerial_servant: publisher.is_ministerial_servant,
         is_special_pioneer: publisher.is_special_pioneer,
         is_field_missionary: publisher.is_field_missionary,
+        status: publisher.status || (publisher.active ? 'Ativo' : 'Inativo (Apoio)'),
       })
     }
   }, [publisher, open])
@@ -60,6 +61,7 @@ export function PublisherEditDialog({ publisher, open, onOpenChange, onSaved }: 
     try {
       const dataToSave = {
         ...formData,
+        active: formData.status === 'Ativo' || formData.status === 'Inativo (Apoio)',
         birth_date: formData.birth_date ? `${formData.birth_date} 12:00:00.000Z` : '',
         baptism_date: isUnbaptized
           ? ''
@@ -141,7 +143,24 @@ export function PublisherEditDialog({ publisher, open, onOpenChange, onSaved }: 
                 <span className="text-sm font-medium">Publicador Não Batizado</span>
               </label>
             </div>
-            <div className="space-y-2 md:col-span-2">
+            <div className="space-y-2">
+              <Label>Status na Congregação</Label>
+              <Select
+                value={formData.status || 'Ativo'}
+                onValueChange={(v) => handleChange('status', v)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Ativo">Ativo</SelectItem>
+                  <SelectItem value="Inativo (Apoio)">Inativo (Apoio)</SelectItem>
+                  <SelectItem value="Mudou-se">Mudou-se</SelectItem>
+                  <SelectItem value="Removido">Removido</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
               <Label>Esperança</Label>
               <Select value={formData.hope || ''} onValueChange={(v) => handleChange('hope', v)}>
                 <SelectTrigger>

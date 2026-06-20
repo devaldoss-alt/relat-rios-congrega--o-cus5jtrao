@@ -74,7 +74,9 @@ export function MassEntryDialog({ groups, onSaved }: { groups: any[]; onSaved: (
       const reps = await getPublisherReports(selectedGroup, selectedMonth, parseInt(selectedYear))
 
       const newRows = pubs
-        .filter((p) => p.active)
+        .filter(
+          (p) => p.status === 'Ativo' || p.status === 'Inativo (Apoio)' || (!p.status && p.active),
+        )
         .sort((a, b) => a.name.localeCompare(b.name))
         .map((p) => {
           const rep = reps.find((r) => r.publisher_id === p.id)

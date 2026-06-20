@@ -53,6 +53,7 @@ const reportSchema = z.object({
   name: z.string(),
   type: z.string(),
   active: z.boolean(),
+  status: z.string().optional(),
   activity_status: z.string().optional(),
   participated: z.boolean().default(false),
   hours: numberField,
@@ -165,7 +166,11 @@ export default function GroupData() {
       )
 
       const mergedReports = pubs
-        .filter((pub) => pub.active || pReports.some((r) => r.publisher_id === pub.id))
+        .filter((pub) => {
+          const isArchived = pub.status === 'Mudou-se' || pub.status === 'Removido'
+          const hasReport = pReports.some((r) => r.publisher_id === pub.id)
+          return !isArchived || hasReport
+        })
         .map((pub) => {
           const existing = pReports.find((r) => r.publisher_id === pub.id)
 
@@ -182,6 +187,7 @@ export default function GroupData() {
             name: pub.name,
             type: existing?.type || pub.type || 'publicador',
             active: pub.active,
+            status: pub.status,
             activity_status: status,
             participated: existing?.participated || false,
             hours: existing?.hours || 0,
@@ -598,16 +604,28 @@ export default function GroupData() {
                               <div className="flex flex-col gap-1">
                                 <span>{field.name}</span>
                                 <div className="flex gap-2">
-                                  {!field.active && (
+                                  {!field.active && !field.status && (
                                     <span className="text-[10px] uppercase font-bold text-slate-500 bg-slate-200 px-1.5 py-0.5 rounded-sm w-fit">
                                       Sistema Inativo
                                     </span>
                                   )}
-                                  {field.activity_status === 'Não Participou' && (
+                                  {field.status === 'Inativo (Apoio)' && (
                                     <span className="text-[10px] uppercase font-bold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded-sm w-fit">
-                                      Irregular
+                                      Inativo (Apoio)
                                     </span>
                                   )}
+                                  {(field.status === 'Mudou-se' || field.status === 'Removido') && (
+                                    <span className="text-[10px] uppercase font-bold text-slate-700 bg-slate-200 px-1.5 py-0.5 rounded-sm w-fit">
+                                      {field.status}
+                                    </span>
+                                  )}
+                                  {field.activity_status === 'Não Participou' &&
+                                    field.status !== 'Mudou-se' &&
+                                    field.status !== 'Removido' && (
+                                      <span className="text-[10px] uppercase font-bold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded-sm w-fit">
+                                        Irregular
+                                      </span>
+                                    )}
                                   {field.activity_status === 'Inativo' && (
                                     <span className="text-[10px] uppercase font-bold text-red-700 bg-red-100 px-1.5 py-0.5 rounded-sm w-fit">
                                       Inativo (6 meses)

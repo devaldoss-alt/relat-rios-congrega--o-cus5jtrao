@@ -6,6 +6,7 @@ export interface Publisher {
   group_id: string
   type: 'publicador' | 'pioneiro_auxiliar' | 'pioneiro_regular'
   active: boolean
+  status?: 'Ativo' | 'Inativo (Apoio)' | 'Mudou-se' | 'Removido'
   phone?: string
   address?: string
   notes?: string

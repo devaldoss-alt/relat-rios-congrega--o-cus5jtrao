@@ -102,6 +102,7 @@ export default function PublishersPage() {
   const [search, setSearch] = useState('')
   const [filterGroup, setFilterGroup] = useState('all')
   const [filterType, setFilterType] = useState('all')
+  const [filterView, setFilterView] = useState('ativos')
 
   const [open, setOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -109,6 +110,7 @@ export default function PublishersPage() {
     name: '',
     group_id: '',
     type: 'publicador',
+    status: 'Ativo',
     active: true,
     phone: '',
     address: '',
@@ -165,6 +167,7 @@ export default function PublishersPage() {
         name: pub.name,
         group_id: pub.group_id,
         type: pub.type,
+        status: pub.status || (pub.active ? 'Ativo' : 'Inativo (Apoio)'),
         active: pub.active,
         phone: pub.phone || '',
         address: pub.address || '',
@@ -185,6 +188,7 @@ export default function PublishersPage() {
         name: '',
         group_id: '',
         type: 'publicador',
+        status: 'Ativo',
         active: true,
         phone: '',
         address: '',
@@ -209,6 +213,7 @@ export default function PublishersPage() {
 
     const dataToSave = {
       ...formData,
+      active: formData.status === 'Ativo' || formData.status === 'Inativo (Apoio)',
       birth_date: formData.birth_date ? `${formData.birth_date} 12:00:00.000Z` : '',
       baptism_date: isUnbaptized
         ? ''
@@ -258,9 +263,17 @@ export default function PublishersPage() {
     .filter((p) => p.name.toLowerCase().includes(search.toLowerCase()))
     .filter((p) => filterGroup === 'all' || p.group_id === filterGroup)
     .filter((p) => filterType === 'all' || p.type === filterType)
+    .filter((p) => {
+      const isArchived = p.status === 'Mudou-se' || p.status === 'Removido'
+      if (filterView === 'ativos') return !isArchived
+      if (filterView === 'arquivados') return isArchived
+      return true
+    })
     .sort((a, b) => a.name.localeCompare(b.name))
 
-  const activeFiltered = filtered.filter((p) => p.active)
+  const activeFiltered = filtered.filter(
+    (p) => p.status === 'Ativo' || p.status === 'Inativo (Apoio)' || (p.active && !p.status),
+  )
   const countTotal = activeFiltered.length
   const countAuxiliares = activeFiltered.filter((p) => p.type === 'pioneiro_auxiliar').length
   const countRegulares = activeFiltered.filter((p) => p.type === 'pioneiro_regular').length
@@ -372,12 +385,22 @@ export default function PublishersPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center space-x-2 pt-2">
-                    <Switch
-                      checked={formData.active}
-                      onCheckedChange={(c) => setFormData({ ...formData, active: c })}
-                    />
-                    <Label>Publicador Ativo</Label>
+                  <div className="space-y-2 mt-4">
+                    <Label>Status na Congregação</Label>
+                    <Select
+                      value={formData.status || 'Ativo'}
+                      onValueChange={(v: any) => setFormData({ ...formData, status: v })}
+                    >
+                      <SelectTrigger className="w-[200px]">
+                        <SelectValue placeholder="Status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Ativo">Ativo</SelectItem>
+                        <SelectItem value="Inativo (Apoio)">Inativo (Apoio)</SelectItem>
+                        <SelectItem value="Mudou-se">Mudou-se</SelectItem>
+                        <SelectItem value="Removido">Removido</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </TabsContent>
 
@@ -569,6 +592,17 @@ export default function PublishersPage() {
                   <SelectItem value="pioneiro_regular">Pioneiro Regular</SelectItem>
                 </SelectContent>
               </Select>
+
+              <Select value={filterView} onValueChange={setFilterView}>
+                <SelectTrigger className="w-full sm:w-[160px]">
+                  <SelectValue placeholder="Visualização" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ativos">Ativos / Apoio</SelectItem>
+                  <SelectItem value="arquivados">Arquivados</SelectItem>
+                  <SelectItem value="todos">Todos</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </CardHeader>
@@ -606,12 +640,19 @@ export default function PublishersPage() {
                         <TableCell className="capitalize">{pub.type.replace('_', ' ')}</TableCell>
                         <TableCell>
                           {(() => {
-                            if (!pub.active)
+                            if (pub.status === 'Mudou-se')
                               return (
                                 <Badge variant="secondary" className="text-slate-500">
-                                  Desativado
+                                  Mudou-se
                                 </Badge>
                               )
+                            if (pub.status === 'Removido')
+                              return (
+                                <Badge variant="destructive" className="bg-red-800">
+                                  Removido
+                                </Badge>
+                              )
+
                             const status = calculateActivityStatus(
                               pub,
                               reports6m,
@@ -632,6 +673,17 @@ export default function PublishersPage() {
                                   Pendente (Mês atual)
                                 </Badge>
                               )
+
+                            if (pub.status === 'Inativo (Apoio)')
+                              return (
+                                <Badge
+                                  variant="outline"
+                                  className="text-amber-600 border-amber-600"
+                                >
+                                  Inativo (Apoio)
+                                </Badge>
+                              )
+
                             return <Badge variant="destructive">Inativo (6m)</Badge>
                           })()}
                         </TableCell>

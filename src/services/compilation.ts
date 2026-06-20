@@ -42,8 +42,11 @@ export const getCompilationData = async (year: number, month: number) => {
       (r) => r.publisher_id === pub.id && r.month === monthPaddedStr && r.year === year,
     )
 
-    // Skip if they are system inactive and didn't report this month
-    if (!pub.active && !currentMonthReport) {
+    const isArchived = pub.status === 'Mudou-se' || pub.status === 'Removido'
+    const isLegacyInactive = !pub.active && !pub.status
+
+    // Skip if they are archived or legacy inactive and didn't report this month
+    if ((isArchived || isLegacyInactive) && !currentMonthReport) {
       continue
     }
 

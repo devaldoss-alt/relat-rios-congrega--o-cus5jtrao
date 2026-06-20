@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-20T17:51:29.023Z",
+  "generatedAt": "2026-06-20T18:28:51.642Z",
   "collections": [
     {
       "name": "users",
@@ -418,6 +418,13 @@
           "type": "bool",
           "required": false,
           "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["Ativo", "Inativo (Apoio)", "Mudou-se", "Removido"]
         }
       ],
       "indexes": []

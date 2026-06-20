@@ -129,7 +129,7 @@ export default function Reports() {
     }
 
     filteredPublishers.forEach((pub) => {
-      const status = calculateActivityStatus(pub.id, reports6m, month, year)
+      const isArchived = pub.status === 'Mudou-se' || pub.status === 'Removido'
 
       const currentMonthStr = month.toString().padStart(2, '0')
       const currentRep = reports6m.find(
@@ -139,13 +139,19 @@ export default function Reports() {
           r.year === year,
       )
 
+      if (isArchived && !currentRep) return
+
+      const status = calculateActivityStatus(pub.id, reports6m, month, year)
+
       const type = currentRep?.type || pub.type || 'publicador'
 
       let cat = data.publicadores
       if (type === 'pioneiro_auxiliar') cat = data.auxiliares
       else if (type === 'pioneiro_regular') cat = data.regulares
 
-      if (status !== 'Inativo') {
+      if (status !== 'Inativo' && !isArchived) {
+        cat.ativos++
+      } else if (isArchived && currentRep) {
         cat.ativos++
       }
 

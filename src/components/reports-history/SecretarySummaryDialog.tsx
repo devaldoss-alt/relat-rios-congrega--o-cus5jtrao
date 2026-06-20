@@ -112,8 +112,24 @@ export function SecretarySummaryDialog({ summary, open, onOpenChange, onSaved }:
 
       let ativos = 0
       pubs.forEach((pub) => {
+        const isArchived = pub.status === 'Mudou-se' || pub.status === 'Removido'
+        const currentMonthStr = monthNum.toString().padStart(2, '0')
+        const currentRep = reps.find(
+          (r) =>
+            (r.publisher_id === pub.id || r.expand?.publisher_id?.id === pub.id) &&
+            r.month === currentMonthStr &&
+            r.year === yearNum,
+        )
+
+        if (isArchived && !currentRep) return
+
         const status = calculateActivityStatus(pub.id, reps, monthNum, yearNum)
-        if (status !== 'Inativo') ativos++
+
+        if (status !== 'Inativo' && !isArchived) {
+          ativos++
+        } else if (isArchived && currentRep) {
+          ativos++
+        }
       })
       setRealTimeAtivos(ativos)
     } catch (e) {
