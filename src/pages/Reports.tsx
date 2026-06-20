@@ -10,7 +10,19 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 import { Progress } from '@/components/ui/progress'
 import { Textarea } from '@/components/ui/textarea'
-import { FileText } from 'lucide-react'
+import {
+  FileText,
+  Activity,
+  Archive,
+  AlertTriangle,
+  CheckCircle2,
+  RefreshCw,
+  Loader2,
+} from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { cn } from '@/lib/utils'
+import { useToast } from '@/hooks/use-toast'
 import {
   getPublisherReportsFor6Months,
   calculateActivityStatus,
@@ -19,7 +31,12 @@ import {
 import { getGroups, Group } from '@/services/groups'
 import { getPublishers, Publisher } from '@/services/publishers'
 import { useAuth } from '@/hooks/use-auth'
-import { findMonthlySummary, MonthlySummary } from '@/services/monthly_summaries'
+import {
+  findMonthlySummary,
+  MonthlySummary,
+  updateMonthlySummary,
+} from '@/services/monthly_summaries'
+import { useRealtime } from '@/hooks/use-realtime'
 
 const MONTHS = [
   { value: 1, label: 'Janeiro' },
@@ -40,6 +57,7 @@ const YEARS = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i)
 export default function Reports() {
   const { user } = useAuth()
   const isSecretario = user?.role === 'Secretário'
+  const { toast } = useToast()
 
   const [month, setMonth] = useState(new Date().getMonth() + 1)
   const [year, setYear] = useState(new Date().getFullYear())
@@ -54,30 +72,47 @@ export default function Reports() {
   const [summary, setSummary] = useState<MonthlySummary | null>(null)
   const [fetchError, setFetchError] = useState(false)
 
-  useEffect(() => {
-    const loadData = async () => {
-      setLoading(true)
-      setFetchError(false)
-      try {
-        const [reps, grps, pubs, sum] = await Promise.all([
-          getPublisherReportsFor6Months(month, year),
-          getGroups(),
-          getPublishers(),
-          findMonthlySummary(year, month.toString().padStart(2, '0')),
-        ])
-        setReports6m(reps)
-        setGroups(grps)
-        setAllPublishers(pubs)
-        setSummary(sum)
-      } catch (e) {
-        console.error(e)
-        setFetchError(true)
-      } finally {
-        setLoading(false)
-      }
+  const loadData = async () => {
+    setLoading(true)
+    setFetchError(false)
+    try {
+      const [reps, grps, pubs, sum] = await Promise.all([
+        getPublisherReportsFor6Months(month, year),
+        getGroups(),
+        getPublishers(),
+        findMonthlySummary(year, month.toString().padStart(2, '0')),
+      ])
+      setReports6m(reps)
+      setGroups(grps)
+      setAllPublishers(pubs)
+      setSummary(sum)
+      window.dispatchEvent(new CustomEvent('reports-summary-loaded', { detail: { summary: sum } }))
+    } catch (e) {
+      console.error(e)
+      setFetchError(true)
+    } finally {
+      setLoading(false)
     }
+  }
+
+  useEffect(() => {
+    window.dispatchEvent(
+      new CustomEvent('reports-date-change', { detail: { month, year, reload: loadData } }),
+    )
     loadData()
   }, [month, year])
+
+  useRealtime('monthly_summaries', (e) => {
+    const mStr = month.toString().padStart(2, '0')
+    if (e.action !== 'delete' && e.record.month === mStr && e.record.year === year) {
+      findMonthlySummary(year, mStr).then((sum) => {
+        setSummary(sum)
+        window.dispatchEvent(
+          new CustomEvent('reports-summary-loaded', { detail: { summary: sum } }),
+        )
+      })
+    }
+  })
 
   const filteredPublishers = useMemo(() => {
     if (selectedGroup === 'all') return allPublishers
@@ -86,7 +121,7 @@ export default function Reports() {
     )
   }, [allPublishers, selectedGroup, groups])
 
-  const s1Data = useMemo(() => {
+  const realTimeData = useMemo(() => {
     const data = {
       publicadores: { ativos: 0, relatorios: 0, hours: 0, studies: 0 },
       auxiliares: { ativos: 0, relatorios: 0, hours: 0, studies: 0 },
@@ -123,6 +158,11 @@ export default function Reports() {
       }
     })
 
+    return data
+  }, [filteredPublishers, reports6m, month, year])
+
+  const s1Data = useMemo(() => {
+    const data = JSON.parse(JSON.stringify(realTimeData))
     if (summary && selectedGroup === 'all' && summary.report_data) {
       const rd = summary.report_data
       if (rd.publishers) {
@@ -143,7 +183,7 @@ export default function Reports() {
     }
 
     return data
-  }, [filteredPublishers, reports6m, month, year, summary, selectedGroup])
+  }, [realTimeData, summary, selectedGroup])
 
   const total = useMemo(() => {
     let ativos = s1Data.publicadores.ativos + s1Data.auxiliares.ativos + s1Data.regulares.ativos
@@ -158,6 +198,31 @@ export default function Reports() {
       studies: s1Data.publicadores.studies + s1Data.auxiliares.studies + s1Data.regulares.studies,
     }
   }, [s1Data, summary, selectedGroup])
+
+  const [syncing, setSyncing] = useState(false)
+  const ativosTempoReal =
+    realTimeData.publicadores.ativos +
+    realTimeData.auxiliares.ativos +
+    realTimeData.regulares.ativos
+  const ativosConsolidado = summary?.total_active_publishers ?? 0
+  const hasDivergence = summary && selectedGroup === 'all' && ativosTempoReal !== ativosConsolidado
+
+  const handleSyncSummary = async () => {
+    if (!summary) return
+    setSyncing(true)
+    try {
+      const updated = await updateMonthlySummary(summary.id, {
+        total_active_publishers: ativosTempoReal,
+      })
+      setSummary(updated)
+      toast({ title: 'Sincronizado', description: 'Histórico S-1 atualizado com sucesso.' })
+    } catch (err) {
+      console.error(err)
+      toast({ title: 'Erro', description: 'Falha ao sincronizar dados.', variant: 'destructive' })
+    } finally {
+      setSyncing(false)
+    }
+  }
 
   const totalGoal = useMemo(() => {
     if (selectedGroup === 'all') {
@@ -252,13 +317,92 @@ export default function Reports() {
               ? new Date(summary.updated).toLocaleDateString('pt-BR')
               : new Date().toLocaleDateString('pt-BR')}
           </p>
-          {summary && selectedGroup === 'all' && (
-            <p className="text-xs text-emerald-600 font-medium bg-emerald-50 px-2 py-0.5 rounded-md inline-block">
-              ✓ Dados do histórico oficial
-            </p>
-          )}
         </div>
       </div>
+
+      {!loading && !fetchError && summary && selectedGroup === 'all' && (
+        <div className="mb-6 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Card className="border-border shadow-sm">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm text-muted-foreground font-medium flex items-center gap-2">
+                  <Activity className="h-4 w-4" /> Ativos por Atividade (Tempo Real)
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-3xl font-bold">{ativosTempoReal}</span>
+                  <span className="text-sm text-muted-foreground">publicadores</span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Calculado a partir de relatórios recentes.
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card
+              className={cn(
+                'border-border shadow-sm',
+                hasDivergence ? 'border-yellow-400 bg-yellow-50/50' : '',
+              )}
+            >
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm text-muted-foreground font-medium flex items-center gap-2">
+                  <Archive className="h-4 w-4" /> Ativos Consolidados (Histórico S-1)
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex justify-between items-start">
+                  <div>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-3xl font-bold">{ativosConsolidado}</span>
+                      <span className="text-sm text-muted-foreground">publicadores</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Valor salvo no histórico S-1.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {hasDivergence ? (
+            <Alert variant="default" className="bg-yellow-50 text-yellow-900 border-yellow-300">
+              <AlertTriangle className="h-4 w-4 text-yellow-600" />
+              <AlertTitle className="text-yellow-800 font-bold">Divergência Encontrada</AlertTitle>
+              <AlertDescription className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mt-2">
+                <span>
+                  A soma atual de <strong>{ativosTempoReal}</strong> difere do consolidado no
+                  Histórico S-1 que é de <strong>{ativosConsolidado}</strong>. Deseja sincronizar os
+                  dados?
+                </span>
+                <Button
+                  size="sm"
+                  className="bg-yellow-600 hover:bg-yellow-700 text-white shrink-0"
+                  onClick={handleSyncSummary}
+                  disabled={syncing}
+                >
+                  {syncing ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                  )}
+                  Sincronizar
+                </Button>
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <Alert className="bg-emerald-50 text-emerald-900 border-emerald-200">
+              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+              <AlertTitle className="text-emerald-800">Dados Sincronizados</AlertTitle>
+              <AlertDescription>
+                Os totais em tempo real coincidem com o histórico S-1. ✓ Dados do histórico oficial
+              </AlertDescription>
+            </Alert>
+          )}
+        </div>
+      )}
 
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

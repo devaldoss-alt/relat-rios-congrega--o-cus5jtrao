@@ -24,7 +24,12 @@ export const computeFallbackData = async (month: string, year: number) => {
     filter: `meeting_date >= '${year}-${mStr}-01 00:00:00' && meeting_date <= '${year}-${mStr}-31 23:59:59'`,
   })
 
-  let totalActive = 0
+  const activePublishers = await pb.collection('publishers').getFullList({
+    filter: 'active = true',
+  })
+
+  let totalActive = activePublishers.length
+
   const report_data = {
     publishers: { reports: 0, hours: 0, studies: 0 },
     auxiliary: { reports: 0, hours: 0, studies: 0 },
@@ -36,7 +41,6 @@ export const computeFallbackData = async (month: string, year: number) => {
     const didParticipate = r.participated || (r.hours && r.hours > 0)
 
     if (didParticipate) {
-      totalActive++
       if (type === 'pioneiro_regular') {
         report_data.regular.reports++
         report_data.regular.hours += r.hours || 0
@@ -136,4 +140,16 @@ export const findMonthlySummary = async (year: number, month: string | number) =
     }
   }
   return summary
+}
+
+export const forceSyncMonthlySummary = async (month: string | number, year: number) => {
+  const mStr = month.toString().padStart(2, '0')
+  const fallback = await computeFallbackData(mStr, year)
+
+  const existing = await findMonthlySummary(year, mStr)
+  if (existing && existing.id) {
+    return await updateMonthlySummary(existing.id, fallback)
+  } else {
+    return await createMonthlySummary({ month: mStr, year, ...fallback })
+  }
 }

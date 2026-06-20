@@ -10,9 +10,27 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Printer, Pencil, Loader2, Save, X } from 'lucide-react'
+import {
+  Printer,
+  Pencil,
+  Loader2,
+  Save,
+  X,
+  Activity,
+  Archive,
+  AlertTriangle,
+  CheckCircle2,
+  RefreshCw,
+} from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { updateMonthlySummary, type MonthlySummary } from '@/services/monthly_summaries'
+import {
+  getPublisherReportsFor6Months,
+  calculateActivityStatus,
+} from '@/services/publisher_reports'
+import { getPublishers } from '@/services/publishers'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { cn } from '@/lib/utils'
 
 const MONTHS: Record<string, string> = {
   '01': 'Janeiro',
@@ -51,6 +69,9 @@ export function SecretarySummaryDialog({ summary, open, onOpenChange, onSaved }:
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState<any>(null)
 
+  const [realTimeAtivos, setRealTimeAtivos] = useState<number | null>(null)
+  const [loadingRealTime, setLoadingRealTime] = useState(false)
+
   const initFormData = () => {
     if (!summary) return
     setFormData({
@@ -74,10 +95,55 @@ export function SecretarySummaryDialog({ summary, open, onOpenChange, onSaved }:
     if (summary && open) {
       initFormData()
       setIsEditing(false)
+      loadRealTimeData()
     }
   }, [summary, open])
 
+  const loadRealTimeData = async () => {
+    if (!summary) return
+    setLoadingRealTime(true)
+    try {
+      const monthNum = parseInt(summary.month)
+      const yearNum = summary.year
+      const [reps, pubs] = await Promise.all([
+        getPublisherReportsFor6Months(monthNum, yearNum),
+        getPublishers(),
+      ])
+
+      let ativos = 0
+      pubs.forEach((pub) => {
+        const status = calculateActivityStatus(pub.id, reps, monthNum, yearNum)
+        if (status !== 'Inativo') ativos++
+      })
+      setRealTimeAtivos(ativos)
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setLoadingRealTime(false)
+    }
+  }
+
   if (!summary || !formData) return null
+
+  const hasDivergence =
+    realTimeAtivos !== null && realTimeAtivos !== formData.total_active_publishers
+
+  const handleSyncRealTime = async () => {
+    if (realTimeAtivos === null) return
+    setLoading(true)
+    try {
+      await updateMonthlySummary(summary.id, {
+        total_active_publishers: realTimeAtivos,
+      })
+      setFormData((p: any) => ({ ...p, total_active_publishers: realTimeAtivos }))
+      toast({ title: 'Sincronizado', description: 'Ativos atualizados com sucesso.' })
+      onSaved()
+    } catch {
+      toast({ title: 'Erro', description: 'Falha ao sincronizar dados.', variant: 'destructive' })
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -194,9 +260,76 @@ export function SecretarySummaryDialog({ summary, open, onOpenChange, onSaved }:
             </h2>
           </div>
 
+          {!loadingRealTime && realTimeAtivos !== null && (
+            <div className="no-print">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                <div className="border rounded-lg p-4 flex flex-col justify-center bg-card">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+                    <Activity className="h-4 w-4" /> Ativos por Atividade (Tempo Real)
+                  </div>
+                  <p className="text-2xl font-bold">{realTimeAtivos}</p>
+                </div>
+                <div
+                  className={cn(
+                    'border rounded-lg p-4 flex flex-col justify-center bg-card',
+                    hasDivergence && 'border-yellow-300 bg-yellow-50/50',
+                  )}
+                >
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+                    <Archive className="h-4 w-4" /> Ativos Consolidados (Histórico S-1)
+                  </div>
+                  <p className="text-2xl font-bold">{formData.total_active_publishers}</p>
+                </div>
+              </div>
+
+              {hasDivergence ? (
+                <Alert
+                  variant="default"
+                  className="bg-yellow-50 text-yellow-900 border-yellow-300 mb-6"
+                >
+                  <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                  <AlertTitle className="text-yellow-800 font-bold">
+                    Divergência Encontrada
+                  </AlertTitle>
+                  <AlertDescription className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mt-2">
+                    <span>
+                      A soma atual de <strong>{realTimeAtivos}</strong> difere do consolidado no
+                      Histórico S-1 que é de <strong>{formData.total_active_publishers}</strong>.
+                      Deseja sincronizar os dados?
+                    </span>
+                    {!isEditing && (
+                      <Button
+                        size="sm"
+                        className="bg-yellow-600 hover:bg-yellow-700 text-white shrink-0"
+                        onClick={handleSyncRealTime}
+                        disabled={loading}
+                      >
+                        {loading ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <RefreshCw className="mr-2 h-4 w-4" />
+                        )}
+                        Sincronizar
+                      </Button>
+                    )}
+                  </AlertDescription>
+                </Alert>
+              ) : (
+                <Alert className="bg-emerald-50 text-emerald-900 border-emerald-200 mb-6">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                  <AlertTitle className="text-emerald-800">Dados Sincronizados</AlertTitle>
+                  <AlertDescription>
+                    Os totais em tempo real coincidem com o histórico S-1. ✓ Dados do histórico
+                    oficial
+                  </AlertDescription>
+                </Alert>
+              )}
+            </div>
+          )}
+
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <StatCard
-              label="Publicadores Ativos"
+              label="Publicadores Ativos (Editável)"
               name="total_active_publishers"
               val={formData.total_active_publishers}
               isEditing={isEditing}

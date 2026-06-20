@@ -11,6 +11,7 @@ import Login from './pages/Login'
 import GroupData from './pages/GroupData'
 import Attendance from './pages/Attendance'
 import Reports from './pages/Reports'
+import { ReportsSyncWrapper } from './components/reports/ReportsSyncWrapper'
 import HealthMetrics from './pages/HealthMetrics'
 import Compilation from './pages/Compilation'
 import Publishers from './pages/Publishers'
@@ -66,7 +67,14 @@ const App = () => (
             <Route path="/dashboard" element={<Index />} />
             <Route path="/group-data" element={<GroupData />} />
             <Route path="/attendance" element={<Attendance />} />
-            <Route path="/reports" element={<Reports />} />
+            <Route
+              path="/reports"
+              element={
+                <ReportsSyncWrapper>
+                  <Reports />
+                </ReportsSyncWrapper>
+              }
+            />
             <Route path="/metrics" element={<HealthMetrics />} />
             <Route path="/compilation" element={<Compilation />} />
             <Route path="/publishers" element={<Publishers />} />
