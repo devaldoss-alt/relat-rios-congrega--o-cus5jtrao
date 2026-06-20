@@ -1,4 +1,5 @@
 import pb from '@/lib/pocketbase/client'
+import { getPublisherReportsFor6Months, calculateActivityStatus } from './publisher_reports'
 
 export interface MonthlySummary {
   id: string
@@ -13,22 +14,19 @@ export interface MonthlySummary {
   updated: string
 }
 
-export const computeFallbackData = async (month: string, year: number) => {
+export const computeFallbackData = async (month: string | number, year: number) => {
   const mStr = month.toString().padStart(2, '0')
+  const mNum = parseInt(month.toString(), 10)
 
-  const pubReports = await pb.collection('publisher_reports').getFullList({
-    filter: `month = '${mStr}' && year = ${year}`,
-  })
+  const pubReports6m = await getPublisherReportsFor6Months(mNum, year)
 
   const attendance = await pb.collection('meeting_attendance').getFullList({
     filter: `meeting_date >= '${year}-${mStr}-01 00:00:00' && meeting_date <= '${year}-${mStr}-31 23:59:59'`,
   })
 
-  const activePublishers = await pb.collection('publishers').getFullList({
-    filter: 'active = true',
-  })
+  const publishers = await pb.collection('publishers').getFullList()
 
-  let totalActive = activePublishers.length
+  let totalActive = 0
 
   const report_data = {
     publishers: { reports: 0, hours: 0, studies: 0 },
@@ -36,23 +34,36 @@ export const computeFallbackData = async (month: string, year: number) => {
     regular: { reports: 0, hours: 0, studies: 0 },
   }
 
-  for (const r of pubReports) {
-    const type = r.type || 'publicador'
-    const didParticipate = r.participated || (r.hours && r.hours > 0)
+  for (const pub of publishers) {
+    const isArchived = pub.status === 'Mudou-se' || pub.status === 'Removido'
+    if (isArchived) continue
 
-    if (didParticipate) {
+    const status = calculateActivityStatus(pub.id, pubReports6m as any, mNum, year)
+    if (status !== 'Inativo') {
+      totalActive++
+    }
+
+    const currentReport = pubReports6m.find(
+      (r) =>
+        (r.publisher_id === pub.id || r.expand?.publisher_id?.id === pub.id) &&
+        r.month === mStr &&
+        r.year === year,
+    )
+
+    if (currentReport && (currentReport.hours || currentReport.participated)) {
+      const type = currentReport.type || pub.type || 'publicador'
       if (type === 'pioneiro_regular') {
         report_data.regular.reports++
-        report_data.regular.hours += r.hours || 0
-        report_data.regular.studies += r.bible_studies || 0
+        report_data.regular.hours += currentReport.hours || 0
+        report_data.regular.studies += currentReport.bible_studies || 0
       } else if (type === 'pioneiro_auxiliar') {
         report_data.auxiliary.reports++
-        report_data.auxiliary.hours += r.hours || 0
-        report_data.auxiliary.studies += r.bible_studies || 0
+        report_data.auxiliary.hours += currentReport.hours || 0
+        report_data.auxiliary.studies += currentReport.bible_studies || 0
       } else {
         report_data.publishers.reports++
-        report_data.publishers.hours += r.hours || 0
-        report_data.publishers.studies += r.bible_studies || 0
+        report_data.publishers.hours += currentReport.hours || 0
+        report_data.publishers.studies += currentReport.bible_studies || 0
       }
     }
   }

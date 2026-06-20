@@ -134,6 +134,9 @@ export default function Reports() {
     filteredPublishers.forEach((pub) => {
       const isArchived = pub.status === 'Mudou-se' || pub.status === 'Removido'
 
+      // "Mudou-se" or "Removido" are excluded from all monthly calculations.
+      if (isArchived) return
+
       const currentMonthStr = month.toString().padStart(2, '0')
       const currentRep = reports6m.find(
         (r) =>
@@ -141,8 +144,6 @@ export default function Reports() {
           r.month === currentMonthStr &&
           r.year === year,
       )
-
-      if (isArchived && !currentRep) return
 
       const status = calculateActivityStatus(pub.id, reports6m, month, year)
 
@@ -152,18 +153,16 @@ export default function Reports() {
       if (type === 'pioneiro_auxiliar') cat = data.auxiliares
       else if (type === 'pioneiro_regular') cat = data.regulares
 
-      if (status !== 'Inativo' && !isArchived) {
-        cat.ativos++
-      } else if (isArchived && currentRep) {
+      // Includes: "Ativo" and "Inativo (Apoio)" (those who reported in the last 6 months)
+      if (status !== 'Inativo') {
         cat.ativos++
       }
 
-      if (status === 'Ativo') {
+      // Count reports submitted this month
+      if (currentRep && (currentRep.hours || currentRep.participated)) {
         cat.relatorios++
-        if (currentRep) {
-          cat.hours += currentRep.hours || 0
-          cat.studies += currentRep.bible_studies || 0
-        }
+        cat.hours += currentRep.hours || 0
+        cat.studies += currentRep.bible_studies || 0
       }
     })
 
@@ -218,6 +217,8 @@ export default function Reports() {
 
   const copyBethelData = () => {
     const text = `Relatório da Congregação - ${month.toString().padStart(2, '0')}/${year}
+
+Todos os publicadores ativos: ${total.ativos}
 
 Publicadores:
 - Relatórios: ${s1Data.publicadores.relatorios}
@@ -396,7 +397,7 @@ Assistência Média:
                 <Card className="border-border shadow-sm">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm text-muted-foreground font-medium flex items-center gap-2">
-                      <Activity className="h-4 w-4" /> Ativos por Atividade (Tempo Real)
+                      <Activity className="h-4 w-4" /> Todos os publicadores ativos (Tempo Real)
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -418,7 +419,7 @@ Assistência Média:
                 >
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm text-muted-foreground font-medium flex items-center gap-2">
-                      <Archive className="h-4 w-4" /> Ativos Consolidados (Histórico S-1)
+                      <Archive className="h-4 w-4" /> Todos os publicadores ativos (Histórico S-1)
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -637,7 +638,10 @@ Assistência Média:
             </p>
           </div>
 
-          <div className="mb-6 flex justify-end no-print">
+          <div className="mb-6 flex items-center justify-between no-print">
+            <div className="text-sm font-medium">
+              Todos os publicadores ativos: <span className="font-bold">{total.ativos}</span>
+            </div>
             <Button
               variant="outline"
               size="sm"
@@ -647,6 +651,10 @@ Assistência Média:
               <Copy className="w-4 h-4 mr-2" />
               Copiar Dados de Envio
             </Button>
+          </div>
+
+          <div className="mb-4 hidden print:block text-sm font-medium">
+            Todos os publicadores ativos: <span className="font-bold">{total.ativos}</span>
           </div>
 
           <table className="w-full border-collapse border border-gray-300 mb-8">

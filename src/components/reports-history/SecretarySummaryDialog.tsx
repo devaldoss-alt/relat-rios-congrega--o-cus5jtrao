@@ -114,21 +114,12 @@ export function SecretarySummaryDialog({ summary, open, onOpenChange, onSaved }:
       let ativos = 0
       pubs.forEach((pub) => {
         const isArchived = pub.status === 'Mudou-se' || pub.status === 'Removido'
-        const currentMonthStr = monthNum.toString().padStart(2, '0')
-        const currentRep = reps.find(
-          (r) =>
-            (r.publisher_id === pub.id || r.expand?.publisher_id?.id === pub.id) &&
-            r.month === currentMonthStr &&
-            r.year === yearNum,
-        )
 
-        if (isArchived && !currentRep) return
+        if (isArchived) return
 
         const status = calculateActivityStatus(pub.id, reps, monthNum, yearNum)
 
-        if (status !== 'Inativo' && !isArchived) {
-          ativos++
-        } else if (isArchived && currentRep) {
+        if (status !== 'Inativo') {
           ativos++
         }
       })
@@ -224,6 +215,8 @@ export function SecretarySummaryDialog({ summary, open, onOpenChange, onSaved }:
   const copyBethelData = () => {
     const text = `Relatório da Congregação - ${MONTHS[summary.month.padStart(2, '0')] || summary.month}/${summary.year}
 
+Todos os publicadores ativos: ${formData.total_active_publishers}
+
 Publicadores:
 - Relatórios: ${formData.publishers_reports}
 - Horas: ${formData.publishers_hours}
@@ -316,7 +309,7 @@ Assistência Média:
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                 <div className="border rounded-lg p-4 flex flex-col justify-center bg-card">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-                    <Activity className="h-4 w-4" /> Ativos por Atividade (Tempo Real)
+                    <Activity className="h-4 w-4" /> Todos os publicadores ativos (Tempo Real)
                   </div>
                   <p className="text-2xl font-bold">{realTimeAtivos}</p>
                 </div>
@@ -327,7 +320,7 @@ Assistência Média:
                   )}
                 >
                   <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-                    <Archive className="h-4 w-4" /> Ativos Consolidados (Histórico S-1)
+                    <Archive className="h-4 w-4" /> Todos os publicadores ativos (Histórico S-1)
                   </div>
                   <p className="text-2xl font-bold">{formData.total_active_publishers}</p>
                 </div>
@@ -380,7 +373,7 @@ Assistência Média:
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <StatCard
-              label="Publicadores Ativos (Editável)"
+              label="Todos os publicadores ativos"
               name="total_active_publishers"
               val={formData.total_active_publishers}
               isEditing={isEditing}

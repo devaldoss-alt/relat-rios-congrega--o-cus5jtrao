@@ -334,7 +334,7 @@ export default function CompilationPage() {
         <div className="space-y-6">
           <div className="grid gap-4 md:grid-cols-3">
             <SummaryCard
-              title="Publicadores Ativos"
+              title="Todos os publicadores ativos"
               icon={Users}
               iconColor="text-primary"
               value={metrics.activePublishers}

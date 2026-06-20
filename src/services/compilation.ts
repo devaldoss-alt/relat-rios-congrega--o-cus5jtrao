@@ -38,17 +38,16 @@ export const getCompilationData = async (year: number, month: number) => {
 
   // 5. Aggregate data using 6-month rule
   for (const pub of publishers) {
-    const currentMonthReport = reports.find(
-      (r) => r.publisher_id === pub.id && r.month === monthPaddedStr && r.year === year,
-    )
-
     const isArchived = pub.status === 'Mudou-se' || pub.status === 'Removido'
     const isLegacyInactive = !pub.active && !pub.status
 
-    // Skip if they are archived or legacy inactive and didn't report this month
-    if ((isArchived || isLegacyInactive) && !currentMonthReport) {
+    if (isArchived || isLegacyInactive) {
       continue
     }
+
+    const currentMonthReport = reports.find(
+      (r) => r.publisher_id === pub.id && r.month === monthPaddedStr && r.year === year,
+    )
 
     const gid = pub.group_id
     if (!groupReportsMap.has(gid)) continue
@@ -60,23 +59,23 @@ export const getCompilationData = async (year: number, month: number) => {
     const type = currentMonthReport?.type || pub.type
 
     // Included if Ativo or Não Participou (Irregular but active in 6 months)
-    const isCounted = status === 'Ativo' || status === 'Não Participou'
+    const isCounted = status !== 'Inativo'
 
     if (type === 'pioneiro_regular') {
       if (isCounted) gRep.regular_pioneers_count++
-      if (currentMonthReport) {
+      if (currentMonthReport && (currentMonthReport.hours || currentMonthReport.participated)) {
         gRep.regular_pioneer_hours += currentMonthReport.hours || 0
         gRep.regular_pioneer_bible_studies += currentMonthReport.bible_studies || 0
       }
     } else if (type === 'pioneiro_auxiliar') {
       if (isCounted) gRep.auxiliary_pioneers_count++
-      if (currentMonthReport) {
+      if (currentMonthReport && (currentMonthReport.hours || currentMonthReport.participated)) {
         gRep.auxiliary_pioneer_hours += currentMonthReport.hours || 0
         gRep.auxiliary_pioneer_bible_studies += currentMonthReport.bible_studies || 0
       }
     } else {
       if (isCounted) gRep.publishers_count++
-      if (currentMonthReport) {
+      if (currentMonthReport && (currentMonthReport.hours || currentMonthReport.participated)) {
         gRep.publisher_hours += currentMonthReport.hours || 0
         gRep.publisher_bible_studies += currentMonthReport.bible_studies || 0
       }
