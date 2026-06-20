@@ -1,184 +1,112 @@
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
-import { BookOpen, AlertCircle, Laptop, CheckCircle2 } from 'lucide-react'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { BookOpen } from 'lucide-react'
 
 export default function Tutorial() {
   return (
-    <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in zoom-in-95 duration-500 pb-10">
+    <div className="space-y-6 pb-10 max-w-4xl mx-auto animate-fade-in-up">
       <div>
-        <h2 className="text-3xl font-bold tracking-tight">Tutorial de Acesso e Uso</h2>
-        <p className="text-muted-foreground mt-1">Guia passo a passo para Responsáveis de Grupo.</p>
+        <h2 className="text-3xl font-bold tracking-tight">Tutorial de Uso</h2>
+        <p className="text-muted-foreground mt-1">
+          Aprenda como utilizar as funcionalidades do sistema focadas no registro de relatórios do
+          seu grupo.
+        </p>
       </div>
 
-      <Card className="border-primary/20 shadow-sm">
-        <CardHeader className="bg-primary/5 border-b border-primary/10">
-          <CardTitle className="flex items-center gap-2 text-primary">
-            <Laptop className="w-5 h-5" />
-            1. Como Acessar o Sistema
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4 text-sm leading-relaxed pt-6">
-          <p className="text-base">
-            Acesse o sistema diretamente pelo link oficial:{' '}
-            <a
-              href="https://relatoriosmacaubas.goskip.app"
-              target="_blank"
-              rel="noreferrer"
-              className="text-primary hover:underline font-semibold bg-primary/10 px-2 py-0.5 rounded-sm"
-            >
-              https://relatoriosmacaubas.goskip.app
-            </a>
-          </p>
-
-          <div className="bg-slate-50 dark:bg-slate-900 border rounded-lg p-5 mt-4">
-            <h4 className="text-base font-semibold mb-3 flex items-center gap-2 text-slate-800 dark:text-slate-200">
-              <AlertCircle className="w-5 h-5 text-amber-500" />
-              Contas Autorizadas (Responsáveis)
-            </h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-5">
-              <div className="flex items-center gap-2 p-2 bg-background rounded border shadow-sm">
-                <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-                <span className="font-medium">Ricardo Valença:</span>
-                <span className="text-muted-foreground">rvalenca@jwpub.org</span>
-              </div>
-              <div className="flex items-center gap-2 p-2 bg-background rounded border shadow-sm">
-                <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-                <span className="font-medium">Emanuel Carvalho:</span>
-                <span className="text-muted-foreground">emanuelcarvalho45@jwpub.org</span>
-              </div>
-              <div className="flex items-center gap-2 p-2 bg-background rounded border shadow-sm">
-                <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-                <span className="font-medium">Jailton Conceição:</span>
-                <span className="text-muted-foreground">jailtonc9@jwpub.org</span>
-              </div>
-              <div className="flex items-center gap-2 p-2 bg-background rounded border shadow-sm">
-                <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-                <span className="font-medium">Gilmar Batista:</span>
-                <span className="text-muted-foreground">gilmard3@jwpub.org</span>
-              </div>
-              <div className="flex items-center gap-2 p-2 bg-background rounded border shadow-sm">
-                <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-                <span className="font-medium">Willemberg Weber:</span>
-                <span className="text-muted-foreground">willembergdasilva3@jwpub.org</span>
-              </div>
-              <div className="flex items-center gap-2 p-2 bg-background rounded border shadow-sm">
-                <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-                <span className="font-medium">Gleidson Gomes:</span>
-                <span className="text-muted-foreground">ggleidson@jwpub.org</span>
-              </div>
-            </div>
-
-            <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-4 rounded-md">
-              <p className="text-base">
-                <strong className="text-amber-800 dark:text-amber-400">Senha Padrão:</strong>{' '}
-                <code className="bg-background px-2 py-1 rounded text-lg font-bold border">
-                  123@Senha
-                </code>
-              </p>
-              <p className="text-xs text-amber-700 dark:text-amber-500 mt-2 flex items-start gap-1">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                Atenção: A letra "S" deve ser maiúscula. Caso tenha dificuldades, verifique se não
-                há espaços em branco ao copiar e colar.
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="shadow-sm">
-        <CardHeader className="border-b">
+      <Card>
+        <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <BookOpen className="w-5 h-5 text-primary" />
-            2. Como Lançar os Relatórios (Entrada de Dados do Grupo)
+            <BookOpen className="h-5 w-5" />
+            Como Lançar os Relatórios (Entrada de Dados do Grupo)
           </CardTitle>
+          <CardDescription>
+            Passo a passo detalhado para registrar os relatórios do seu grupo de serviço de campo,
+            garantindo que os dados sejam preenchidos de forma correta e eficiente.
+          </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4 text-sm leading-relaxed pt-6">
+        <CardContent className="space-y-6">
           <div className="space-y-4">
             <div className="flex gap-4">
-              <div className="flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold">
-                1
+              <div className="flex-shrink-0 mt-1">
+                <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold">
+                  1
+                </div>
               </div>
               <div>
-                <h5 className="text-base font-semibold">Faça o Login</h5>
-                <p className="text-muted-foreground mt-1">
-                  Utilize seu email autorizado e a senha padrão informada acima.
+                <h3 className="font-semibold text-lg">Acesse a Entrada de Dados</h3>
+                <p className="text-muted-foreground">
+                  No menu lateral principal, procure pela opção <strong>"Entradas de dados"</strong>{' '}
+                  e em seguida selecione <strong>"Entrada de Dados do Grupo"</strong>. É nesta seção
+                  que todos os lançamentos devem ser realizados.
                 </p>
               </div>
             </div>
 
             <div className="flex gap-4">
-              <div className="flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold">
-                2
+              <div className="flex-shrink-0 mt-1">
+                <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold">
+                  2
+                </div>
               </div>
               <div>
-                <h5 className="text-base font-semibold">Navegue até a Entrada de Dados</h5>
-                <p className="text-muted-foreground mt-1">
-                  No menu lateral esquerdo, clique na opção <strong>"Entrada de Dados"</strong>.
+                <h3 className="font-semibold text-lg">Preenchimento dos Campos e Validações</h3>
+                <p className="text-muted-foreground mb-2">
+                  A página listará todos os publicadores do seu grupo. Ao informar os dados, observe
+                  as validações aplicadas em tempo real:
                 </p>
-              </div>
-            </div>
-
-            <div className="flex gap-4">
-              <div className="flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold">
-                3
-              </div>
-              <div>
-                <h5 className="text-base font-semibold">Selecione o Período</h5>
-                <p className="text-muted-foreground mt-1">
-                  No topo da tela, escolha o <strong>Mês</strong> e o <strong>Ano</strong>{' '}
-                  correspondentes ao relatório que deseja preencher.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex gap-4">
-              <div className="flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold">
-                4
-              </div>
-              <div>
-                <h5 className="text-base font-semibold">Preencha os Dados dos Publicadores</h5>
-                <p className="text-muted-foreground mt-1 mb-2">
-                  O sistema carregará automaticamente a lista de todos os publicadores do seu grupo.
-                </p>
-                <ul className="list-disc pl-5 space-y-2 text-muted-foreground">
+                <ul className="list-disc list-inside space-y-1 ml-4 text-muted-foreground">
                   <li>
-                    Marque a caixa verde <strong>"Participou no Ministério"</strong> caso o
-                    publicador tenha saído no campo.
+                    <strong>Participou do Ministério:</strong> Se o publicador pregou, mas não
+                    possui exigência de horas, basta marcar esta opção.
                   </li>
                   <li>
-                    Se o publicador dirigiu estudos bíblicos, informe a quantidade no campo numérico{' '}
-                    <strong>"Estudos"</strong>.
+                    <strong>Horas:</strong> O lançamento de horas é restrito ou exigido dependendo
+                    do tipo do publicador (por exemplo, é obrigatório para Pioneiros Regulares ou
+                    Auxiliares).
                   </li>
                   <li>
-                    Se o publicador for pioneiro (regular ou auxiliar) ou tiver aprovação para
-                    relatar horas, preencha o campo numérico <strong>"Horas"</strong>.
+                    <strong>Estudos Bíblicos:</strong> Informe a quantidade de estudos dirigidos no
+                    mês, se houver.
+                  </li>
+                  <li>
+                    <strong>Observações:</strong> Campo opcional para adicionar notas relevantes
+                    sobre a atividade do mês.
                   </li>
                 </ul>
               </div>
             </div>
 
             <div className="flex gap-4">
-              <div className="flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground font-bold">
-                5
+              <div className="flex-shrink-0 mt-1">
+                <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold">
+                  3
+                </div>
               </div>
               <div>
-                <h5 className="text-base font-semibold">Salve as Informações</h5>
-                <p className="text-muted-foreground mt-1">
-                  Após preencher e conferir os dados de todos do grupo, role até o final da página e
-                  clique no botão azul <strong>"Salvar Relatórios"</strong>.
+                <h3 className="font-semibold text-lg">Atenção aos Alertas Visuais</h3>
+                <p className="text-muted-foreground">
+                  O sistema ajudará você a identificar rapidamente o que está faltando. Fique de
+                  olho em indicativos de aviso, como{' '}
+                  <strong>destaques em vermelho ou mensagens na tela</strong>, que alertam sobre
+                  pendências e publicadores que ainda não tiveram seus relatórios submetidos.
                 </p>
               </div>
             </div>
-          </div>
 
-          <div className="mt-6 flex items-start gap-3 bg-blue-50 dark:bg-blue-950/30 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
-            <CheckCircle2 className="w-5 h-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
-            <div>
-              <h5 className="font-semibold text-blue-800 dark:text-blue-300">Dica Prática</h5>
-              <p className="text-blue-700 dark:text-blue-400/90 mt-1">
-                Ao lançar os dados, você pode clicar na linha ou no nome de qualquer publicador para
-                visualizar um breve histórico dos últimos meses. Isso ajuda a lembrar se ele estava
-                regular ou inativo recentemente.
-              </p>
+            <div className="flex gap-4">
+              <div className="flex-shrink-0 mt-1">
+                <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold">
+                  4
+                </div>
+              </div>
+              <div>
+                <h3 className="font-semibold text-lg">Confira o Histórico</h3>
+                <p className="text-muted-foreground">
+                  Precisa consultar um relatório já enviado? Acesse a seção{' '}
+                  <strong>"Histórico de Relatórios"</strong> através do menu. Lá você encontrará
+                  todas as submissões anteriores do grupo, permitindo um acompanhamento claro do
+                  trabalho realizado.
+                </p>
+              </div>
             </div>
           </div>
         </CardContent>
