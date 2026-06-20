@@ -21,6 +21,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   RefreshCw,
+  Copy,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { updateMonthlySummary, type MonthlySummary } from '@/services/monthly_summaries'
@@ -220,6 +221,37 @@ export function SecretarySummaryDialog({ summary, open, onOpenChange, onSaved }:
     studies: formData.publishers_studies + formData.auxiliary_studies + formData.regular_studies,
   }
 
+  const copyBethelData = () => {
+    const text = `Relatório da Congregação - ${MONTHS[summary.month.padStart(2, '0')] || summary.month}/${summary.year}
+
+Publicadores:
+- Relatórios: ${formData.publishers_reports}
+- Horas: ${formData.publishers_hours}
+- Estudos: ${formData.publishers_studies}
+
+Pioneiros Auxiliares:
+- Relatórios: ${formData.auxiliary_reports}
+- Horas: ${formData.auxiliary_hours}
+- Estudos: ${formData.auxiliary_studies}
+
+Pioneiros Regulares:
+- Relatórios: ${formData.regular_reports}
+- Horas: ${formData.regular_hours}
+- Estudos: ${formData.regular_studies}
+
+Totais:
+- Relatórios: ${totals.reports}
+- Horas: ${totals.hours}
+- Estudos: ${totals.studies}
+
+Assistência Média:
+- Fim de Semana: ${formData.avg_attendance_weekend || 0}
+- Meio da Semana: ${formData.avg_attendance_midweek || 0}
+`
+    navigator.clipboard.writeText(text)
+    toast({ title: 'Copiado!', description: 'Dados copiados para a área de transferência.' })
+  }
+
   const categories = [
     { key: 'publishers', label: 'Publicadores' },
     { key: 'auxiliary', label: 'Pioneiros Auxiliares' },
@@ -243,6 +275,9 @@ export function SecretarySummaryDialog({ summary, open, onOpenChange, onSaved }:
           <div className="flex justify-end pt-2 gap-2">
             {!isEditing ? (
               <>
+                <Button variant="outline" size="sm" onClick={copyBethelData}>
+                  <Copy className="mr-2 h-4 w-4" /> Copiar Dados
+                </Button>
                 <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
                   <Pencil className="mr-2 h-4 w-4" /> Editar
                 </Button>

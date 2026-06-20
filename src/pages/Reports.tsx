@@ -18,7 +18,9 @@ import {
   CheckCircle2,
   RefreshCw,
   Loader2,
+  Copy,
 } from 'lucide-react'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { cn } from '@/lib/utils'
@@ -59,6 +61,7 @@ export default function Reports() {
   const isSecretario = user?.role === 'Secretário'
   const { toast } = useToast()
 
+  const [viewMode, setViewMode] = useState<'secretario' | 'betel'>('secretario')
   const [month, setMonth] = useState(new Date().getMonth() + 1)
   const [year, setYear] = useState(new Date().getFullYear())
   const [selectedGroup, setSelectedGroup] = useState<string>(
@@ -213,6 +216,37 @@ export default function Reports() {
   const ativosConsolidado = summary?.total_active_publishers ?? 0
   const hasDivergence = summary && selectedGroup === 'all' && ativosTempoReal !== ativosConsolidado
 
+  const copyBethelData = () => {
+    const text = `Relatório da Congregação - ${month.toString().padStart(2, '0')}/${year}
+
+Publicadores:
+- Relatórios: ${s1Data.publicadores.relatorios}
+- Horas: ${s1Data.publicadores.hours}
+- Estudos: ${s1Data.publicadores.studies}
+
+Pioneiros Auxiliares:
+- Relatórios: ${s1Data.auxiliares.relatorios}
+- Horas: ${s1Data.auxiliares.hours}
+- Estudos: ${s1Data.auxiliares.studies}
+
+Pioneiros Regulares:
+- Relatórios: ${s1Data.regulares.relatorios}
+- Horas: ${s1Data.regulares.hours}
+- Estudos: ${s1Data.regulares.studies}
+
+Totais:
+- Relatórios: ${total.relatorios}
+- Horas: ${total.hours}
+- Estudos: ${total.studies}
+
+Assistência Média:
+- Fim de Semana: ${summary?.avg_attendance_weekend || 0}
+- Meio da Semana: ${summary?.avg_attendance_midweek || 0}
+`
+    navigator.clipboard.writeText(text)
+    toast({ title: 'Copiado!', description: 'Dados copiados para a área de transferência.' })
+  }
+
   const handleSyncSummary = async () => {
     if (!summary) return
     setSyncing(true)
@@ -240,15 +274,29 @@ export default function Reports() {
 
   const progress = totalGoal > 0 ? Math.min((total.hours / totalGoal) * 100, 100) : 0
 
+  const isDataEmpty =
+    !summary &&
+    !reports6m.some((r) => r.month === month.toString().padStart(2, '0') && r.year === year)
+
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-10 animate-fade-in-up">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-2">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Relatório Consolidado</h2>
           <p className="text-muted-foreground mt-1">Visualização no formato oficial S-1.</p>
         </div>
         <div className="flex gap-2 flex-wrap sm:flex-nowrap">
-          {isSecretario && (
+          <Tabs
+            value={viewMode}
+            onValueChange={(v) => setViewMode(v as 'secretario' | 'betel')}
+            className="h-10"
+          >
+            <TabsList className="h-10">
+              <TabsTrigger value="secretario">Gestão</TabsTrigger>
+              <TabsTrigger value="betel">Ficha S-1</TabsTrigger>
+            </TabsList>
+          </Tabs>
+          {isSecretario && viewMode === 'secretario' && (
             <Select value={selectedGroup} onValueChange={setSelectedGroup} disabled={loading}>
               <SelectTrigger className="w-[140px] bg-background">
                 <SelectValue placeholder="Grupo" />
@@ -298,131 +346,12 @@ export default function Reports() {
         </div>
       </div>
 
-      <div className="flex flex-col md:flex-row justify-between bg-card p-6 rounded-lg border shadow-sm mb-6">
-        <div className="flex gap-4 items-center">
-          <div className="bg-primary/10 p-4 rounded-full">
-            <FileText className="h-8 w-8 text-primary" />
-          </div>
-          <div>
-            <h3 className="text-2xl font-bold">Relatório de Congregação (S-1)</h3>
-            <p className="text-muted-foreground">
-              {selectedGroup === 'all' ? 'Congregação Inteira' : `Grupo ${selectedGroup}`}
-            </p>
-          </div>
-        </div>
-        <div className="text-left md:text-right mt-4 md:mt-0 space-y-1">
-          <p className="text-sm">
-            <strong>Secretário:</strong> {user?.name || 'Não informado'}
-          </p>
-          <p className="text-sm">
-            <strong>Período:</strong> {month.toString().padStart(2, '0')}/{year}
-          </p>
-          <p className="text-sm">
-            <strong>Atualizado em:</strong>{' '}
-            {summary
-              ? new Date(summary.updated).toLocaleDateString('pt-BR')
-              : new Date().toLocaleDateString('pt-BR')}
-          </p>
-        </div>
-      </div>
-
-      {!loading && !fetchError && summary && selectedGroup === 'all' && (
-        <div className="mb-6 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Card className="border-border shadow-sm">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm text-muted-foreground font-medium flex items-center gap-2">
-                  <Activity className="h-4 w-4" /> Ativos por Atividade (Tempo Real)
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-bold">{ativosTempoReal}</span>
-                  <span className="text-sm text-muted-foreground">publicadores</span>
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Calculado a partir de relatórios recentes.
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card
-              className={cn(
-                'border-border shadow-sm',
-                hasDivergence ? 'border-yellow-400 bg-yellow-50/50' : '',
-              )}
-            >
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm text-muted-foreground font-medium flex items-center gap-2">
-                  <Archive className="h-4 w-4" /> Ativos Consolidados (Histórico S-1)
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex justify-between items-start">
-                  <div>
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-3xl font-bold">{ativosConsolidado}</span>
-                      <span className="text-sm text-muted-foreground">publicadores</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Valor salvo no histórico S-1.
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {hasDivergence ? (
-            <Alert variant="default" className="bg-yellow-50 text-yellow-900 border-yellow-300">
-              <AlertTriangle className="h-4 w-4 text-yellow-600" />
-              <AlertTitle className="text-yellow-800 font-bold">Divergência Encontrada</AlertTitle>
-              <AlertDescription className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mt-2">
-                <span>
-                  A soma atual de <strong>{ativosTempoReal}</strong> difere do consolidado no
-                  Histórico S-1 que é de <strong>{ativosConsolidado}</strong>. Deseja sincronizar os
-                  dados?
-                </span>
-                <Button
-                  size="sm"
-                  className="bg-yellow-600 hover:bg-yellow-700 text-white shrink-0"
-                  onClick={handleSyncSummary}
-                  disabled={syncing}
-                >
-                  {syncing ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <RefreshCw className="mr-2 h-4 w-4" />
-                  )}
-                  Sincronizar
-                </Button>
-              </AlertDescription>
-            </Alert>
-          ) : (
-            <Alert className="bg-emerald-50 text-emerald-900 border-emerald-200">
-              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-              <AlertTitle className="text-emerald-800">Dados Sincronizados</AlertTitle>
-              <AlertDescription>
-                Os totais em tempo real coincidem com o histórico S-1. ✓ Dados do histórico oficial
-              </AlertDescription>
-            </Alert>
-          )}
-        </div>
-      )}
-
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Skeleton className="h-32 w-full" />
-          <Skeleton className="h-32 w-full" />
-          <Skeleton className="h-32 w-full" />
-          <Skeleton className="h-32 w-full" />
+        <div className="flex justify-center items-center py-20">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
-      ) : fetchError ||
-        (!summary &&
-          !reports6m.some(
-            (r) => r.month === month.toString().padStart(2, '0') && r.year === year,
-          )) ? (
-        <Card className="border-dashed shadow-none bg-muted/30 mb-6">
+      ) : fetchError || isDataEmpty ? (
+        <Card className="border-dashed shadow-none bg-muted/30 mb-6 mt-4">
           <CardContent className="flex flex-col items-center justify-center h-48 text-muted-foreground">
             <FileText className="h-12 w-12 mb-4 opacity-20" />
             <p className="text-center font-medium">Nenhum dado encontrado</p>
@@ -431,139 +360,255 @@ export default function Reports() {
             </p>
           </CardContent>
         </Card>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card>
-            <CardHeader className="bg-muted/30 pb-2">
-              <CardTitle className="text-sm font-medium">Publicadores</CardTitle>
-            </CardHeader>
-            <CardContent className="pt-4 grid grid-cols-3 gap-1 text-center">
-              <div>
-                <p className="text-2xl font-bold text-primary">{s1Data.publicadores.ativos}</p>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Ativos</p>
+      ) : viewMode === 'secretario' ? (
+        <>
+          <div className="flex flex-col md:flex-row justify-between bg-card p-6 rounded-lg border shadow-sm mb-6 mt-4">
+            <div className="flex gap-4 items-center">
+              <div className="bg-primary/10 p-4 rounded-full">
+                <FileText className="h-8 w-8 text-primary" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-primary">{s1Data.publicadores.relatorios}</p>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
-                  Relatórios
+                <h3 className="text-2xl font-bold">Relatório de Congregação (S-1)</h3>
+                <p className="text-muted-foreground">
+                  {selectedGroup === 'all' ? 'Congregação Inteira' : `Grupo ${selectedGroup}`}
                 </p>
               </div>
-              <div>
-                <p className="text-2xl font-bold text-primary">{s1Data.publicadores.studies}</p>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Estudos</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="bg-muted/30 pb-2">
-              <CardTitle className="text-sm font-medium">Pioneiros Auxiliares</CardTitle>
-            </CardHeader>
-            <CardContent className="pt-4 grid grid-cols-4 gap-1 text-center">
-              <div>
-                <p className="text-xl font-bold text-primary">{s1Data.auxiliares.ativos}</p>
-                <p className="text-[9px] text-muted-foreground uppercase tracking-wide">Ativos</p>
-              </div>
-              <div>
-                <p className="text-xl font-bold text-primary">{s1Data.auxiliares.relatorios}</p>
-                <p className="text-[9px] text-muted-foreground uppercase tracking-wide">Relats</p>
-              </div>
-              <div>
-                <p className="text-xl font-bold text-primary">{s1Data.auxiliares.hours}</p>
-                <p className="text-[9px] text-muted-foreground uppercase tracking-wide">Horas</p>
-              </div>
-              <div>
-                <p className="text-xl font-bold text-primary">{s1Data.auxiliares.studies}</p>
-                <p className="text-[9px] text-muted-foreground uppercase tracking-wide">Estudos</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="bg-muted/30 pb-2">
-              <CardTitle className="text-sm font-medium">Pioneiros Regulares</CardTitle>
-            </CardHeader>
-            <CardContent className="pt-4 grid grid-cols-4 gap-1 text-center">
-              <div>
-                <p className="text-xl font-bold text-primary">{s1Data.regulares.ativos}</p>
-                <p className="text-[9px] text-muted-foreground uppercase tracking-wide">Ativos</p>
-              </div>
-              <div>
-                <p className="text-xl font-bold text-primary">{s1Data.regulares.relatorios}</p>
-                <p className="text-[9px] text-muted-foreground uppercase tracking-wide">Relats</p>
-              </div>
-              <div>
-                <p className="text-xl font-bold text-primary">{s1Data.regulares.hours}</p>
-                <p className="text-[9px] text-muted-foreground uppercase tracking-wide">Horas</p>
-              </div>
-              <div>
-                <p className="text-xl font-bold text-primary">{s1Data.regulares.studies}</p>
-                <p className="text-[9px] text-muted-foreground uppercase tracking-wide">Estudos</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-primary/5 border-primary/20">
-            <CardHeader className="bg-primary/10 pb-2">
-              <CardTitle className="text-sm font-bold text-primary">Totais</CardTitle>
-            </CardHeader>
-            <CardContent className="pt-4 grid grid-cols-4 gap-1 text-center">
-              <div>
-                <p className="text-xl font-bold text-primary">{total.ativos}</p>
-                <p className="text-[9px] text-muted-foreground uppercase tracking-wide">Ativos</p>
-              </div>
-              <div>
-                <p className="text-xl font-bold text-primary">{total.relatorios}</p>
-                <p className="text-[9px] text-muted-foreground uppercase tracking-wide">Relats</p>
-              </div>
-              <div>
-                <p className="text-xl font-bold text-primary">{total.hours}</p>
-                <p className="text-[9px] text-muted-foreground uppercase tracking-wide">Horas</p>
-              </div>
-              <div>
-                <p className="text-xl font-bold text-primary">{total.studies}</p>
-                <p className="text-[9px] text-muted-foreground uppercase tracking-wide">Estudos</p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {!loading &&
-        totalGoal > 0 &&
-        !fetchError &&
-        (summary ||
-          reports6m.some(
-            (r) => r.month === month.toString().padStart(2, '0') && r.year === year,
-          )) && (
-          <Card className="border-t-4 border-t-blue-500 shadow-md">
-            <CardHeader className="pb-4">
-              <CardTitle>Progresso da Meta de Horas</CardTitle>
-              <CardDescription>
-                Acompanhamento do objetivo de horas da congregação/grupo.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex justify-between items-center mb-2">
-                <span className="font-medium text-lg">{total.hours}h Realizadas</span>
-                <span className="text-muted-foreground font-medium text-sm">
-                  Meta: {totalGoal}h
-                </span>
-              </div>
-              <Progress value={progress} className="h-4" />
-              <p className="text-right text-xs text-muted-foreground mt-2">
-                {Math.round(progress)}% Concluído
+            </div>
+            <div className="text-left md:text-right mt-4 md:mt-0 space-y-1">
+              <p className="text-sm">
+                <strong>Secretário:</strong> {user?.name || 'Não informado'}
               </p>
-            </CardContent>
-          </Card>
-        )}
+              <p className="text-sm">
+                <strong>Período:</strong> {month.toString().padStart(2, '0')}/{year}
+              </p>
+              <p className="text-sm">
+                <strong>Atualizado em:</strong>{' '}
+                {summary
+                  ? new Date(summary.updated).toLocaleDateString('pt-BR')
+                  : new Date().toLocaleDateString('pt-BR')}
+              </p>
+            </div>
+          </div>
 
-      {!fetchError &&
-        (summary ||
-          reports6m.some(
-            (r) => r.month === month.toString().padStart(2, '0') && r.year === year,
-          )) && (
-          <Card className="shadow-md">
+          {summary && selectedGroup === 'all' && (
+            <div className="mb-6 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Card className="border-border shadow-sm">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm text-muted-foreground font-medium flex items-center gap-2">
+                      <Activity className="h-4 w-4" /> Ativos por Atividade (Tempo Real)
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-3xl font-bold">{ativosTempoReal}</span>
+                      <span className="text-sm text-muted-foreground">publicadores</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Calculado a partir de relatórios recentes.
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card
+                  className={cn(
+                    'border-border shadow-sm',
+                    hasDivergence ? 'border-yellow-400 bg-yellow-50/50' : '',
+                  )}
+                >
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm text-muted-foreground font-medium flex items-center gap-2">
+                      <Archive className="h-4 w-4" /> Ativos Consolidados (Histórico S-1)
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-3xl font-bold">{ativosConsolidado}</span>
+                          <span className="text-sm text-muted-foreground">publicadores</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Valor salvo no histórico S-1.
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {hasDivergence ? (
+                <Alert variant="default" className="bg-yellow-50 text-yellow-900 border-yellow-300">
+                  <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                  <AlertTitle className="text-yellow-800 font-bold">
+                    Divergência Encontrada
+                  </AlertTitle>
+                  <AlertDescription className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mt-2">
+                    <span>
+                      A soma atual de <strong>{ativosTempoReal}</strong> difere do consolidado no
+                      Histórico S-1 que é de <strong>{ativosConsolidado}</strong>. Deseja
+                      sincronizar os dados?
+                    </span>
+                    <Button
+                      size="sm"
+                      className="bg-yellow-600 hover:bg-yellow-700 text-white shrink-0"
+                      onClick={handleSyncSummary}
+                      disabled={syncing}
+                    >
+                      {syncing ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                      )}
+                      Sincronizar
+                    </Button>
+                  </AlertDescription>
+                </Alert>
+              ) : (
+                <Alert className="bg-emerald-50 text-emerald-900 border-emerald-200">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                  <AlertTitle className="text-emerald-800">Dados Sincronizados</AlertTitle>
+                  <AlertDescription>
+                    Os totais em tempo real coincidem com o histórico S-1. ✓ Dados do histórico
+                    oficial
+                  </AlertDescription>
+                </Alert>
+              )}
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card>
+              <CardHeader className="bg-muted/30 pb-2">
+                <CardTitle className="text-sm font-medium">Publicadores</CardTitle>
+              </CardHeader>
+              <CardContent className="pt-4 grid grid-cols-3 gap-1 text-center">
+                <div>
+                  <p className="text-2xl font-bold text-primary">{s1Data.publicadores.ativos}</p>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
+                    Ativos
+                  </p>
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-primary">
+                    {s1Data.publicadores.relatorios}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
+                    Relatórios
+                  </p>
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-primary">{s1Data.publicadores.studies}</p>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide">
+                    Estudos
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="bg-muted/30 pb-2">
+                <CardTitle className="text-sm font-medium">Pioneiros Auxiliares</CardTitle>
+              </CardHeader>
+              <CardContent className="pt-4 grid grid-cols-4 gap-1 text-center">
+                <div>
+                  <p className="text-xl font-bold text-primary">{s1Data.auxiliares.ativos}</p>
+                  <p className="text-[9px] text-muted-foreground uppercase tracking-wide">Ativos</p>
+                </div>
+                <div>
+                  <p className="text-xl font-bold text-primary">{s1Data.auxiliares.relatorios}</p>
+                  <p className="text-[9px] text-muted-foreground uppercase tracking-wide">Relats</p>
+                </div>
+                <div>
+                  <p className="text-xl font-bold text-primary">{s1Data.auxiliares.hours}</p>
+                  <p className="text-[9px] text-muted-foreground uppercase tracking-wide">Horas</p>
+                </div>
+                <div>
+                  <p className="text-xl font-bold text-primary">{s1Data.auxiliares.studies}</p>
+                  <p className="text-[9px] text-muted-foreground uppercase tracking-wide">
+                    Estudos
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="bg-muted/30 pb-2">
+                <CardTitle className="text-sm font-medium">Pioneiros Regulares</CardTitle>
+              </CardHeader>
+              <CardContent className="pt-4 grid grid-cols-4 gap-1 text-center">
+                <div>
+                  <p className="text-xl font-bold text-primary">{s1Data.regulares.ativos}</p>
+                  <p className="text-[9px] text-muted-foreground uppercase tracking-wide">Ativos</p>
+                </div>
+                <div>
+                  <p className="text-xl font-bold text-primary">{s1Data.regulares.relatorios}</p>
+                  <p className="text-[9px] text-muted-foreground uppercase tracking-wide">Relats</p>
+                </div>
+                <div>
+                  <p className="text-xl font-bold text-primary">{s1Data.regulares.hours}</p>
+                  <p className="text-[9px] text-muted-foreground uppercase tracking-wide">Horas</p>
+                </div>
+                <div>
+                  <p className="text-xl font-bold text-primary">{s1Data.regulares.studies}</p>
+                  <p className="text-[9px] text-muted-foreground uppercase tracking-wide">
+                    Estudos
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-primary/5 border-primary/20">
+              <CardHeader className="bg-primary/10 pb-2">
+                <CardTitle className="text-sm font-bold text-primary">Totais</CardTitle>
+              </CardHeader>
+              <CardContent className="pt-4 grid grid-cols-4 gap-1 text-center">
+                <div>
+                  <p className="text-xl font-bold text-primary">{total.ativos}</p>
+                  <p className="text-[9px] text-muted-foreground uppercase tracking-wide">Ativos</p>
+                </div>
+                <div>
+                  <p className="text-xl font-bold text-primary">{total.relatorios}</p>
+                  <p className="text-[9px] text-muted-foreground uppercase tracking-wide">Relats</p>
+                </div>
+                <div>
+                  <p className="text-xl font-bold text-primary">{total.hours}</p>
+                  <p className="text-[9px] text-muted-foreground uppercase tracking-wide">Horas</p>
+                </div>
+                <div>
+                  <p className="text-xl font-bold text-primary">{total.studies}</p>
+                  <p className="text-[9px] text-muted-foreground uppercase tracking-wide">
+                    Estudos
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {totalGoal > 0 && (
+            <Card className="border-t-4 border-t-blue-500 shadow-md mt-6">
+              <CardHeader className="pb-4">
+                <CardTitle>Progresso da Meta de Horas</CardTitle>
+                <CardDescription>
+                  Acompanhamento do objetivo de horas da congregação/grupo.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="font-medium text-lg">{total.hours}h Realizadas</span>
+                  <span className="text-muted-foreground font-medium text-sm">
+                    Meta: {totalGoal}h
+                  </span>
+                </div>
+                <Progress value={progress} className="h-4" />
+                <p className="text-right text-xs text-muted-foreground mt-2">
+                  {Math.round(progress)}% Concluído
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
+          <Card className="shadow-md mt-6">
             <CardHeader className="bg-muted/30 pb-4 border-b">
               <CardTitle>Observações</CardTitle>
               <CardDescription>
@@ -579,7 +624,111 @@ export default function Reports() {
               />
             </CardContent>
           </Card>
-        )}
+        </>
+      ) : (
+        <div className="max-w-3xl mx-auto bg-white text-black p-8 rounded-lg shadow-sm border print-area print-max-w-none mt-4 animate-fade-in">
+          <div className="text-center mb-8 border-b border-gray-200 pb-4">
+            <h1 className="text-2xl font-bold uppercase tracking-wider">
+              Relatório da Congregação
+            </h1>
+            <h2 className="text-lg font-medium text-gray-600">S-1</h2>
+            <p className="mt-2 text-sm">
+              Mês: {month.toString().padStart(2, '0')} &nbsp;&nbsp;&nbsp; Ano: {year}
+            </p>
+          </div>
+
+          <div className="mb-6 flex justify-end no-print">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={copyBethelData}
+              className="bg-white text-black border-gray-300 hover:bg-gray-100"
+            >
+              <Copy className="w-4 h-4 mr-2" />
+              Copiar Dados de Envio
+            </Button>
+          </div>
+
+          <table className="w-full border-collapse border border-gray-300 mb-8">
+            <thead>
+              <tr className="bg-gray-100">
+                <th className="border border-gray-300 p-2 text-left">Categoria</th>
+                <th className="border border-gray-300 p-2 text-center w-24">Relatórios</th>
+                <th className="border border-gray-300 p-2 text-center w-24">Horas</th>
+                <th className="border border-gray-300 p-2 text-center w-24">Estudos Bíblicos</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td className="border border-gray-300 p-2 font-medium">Publicadores</td>
+                <td className="border border-gray-300 p-2 text-center">
+                  {s1Data.publicadores.relatorios}
+                </td>
+                <td className="border border-gray-300 p-2 text-center">
+                  {s1Data.publicadores.hours}
+                </td>
+                <td className="border border-gray-300 p-2 text-center">
+                  {s1Data.publicadores.studies}
+                </td>
+              </tr>
+              <tr>
+                <td className="border border-gray-300 p-2 font-medium">Pioneiros Auxiliares</td>
+                <td className="border border-gray-300 p-2 text-center">
+                  {s1Data.auxiliares.relatorios}
+                </td>
+                <td className="border border-gray-300 p-2 text-center">
+                  {s1Data.auxiliares.hours}
+                </td>
+                <td className="border border-gray-300 p-2 text-center">
+                  {s1Data.auxiliares.studies}
+                </td>
+              </tr>
+              <tr>
+                <td className="border border-gray-300 p-2 font-medium">Pioneiros Regulares</td>
+                <td className="border border-gray-300 p-2 text-center">
+                  {s1Data.regulares.relatorios}
+                </td>
+                <td className="border border-gray-300 p-2 text-center">{s1Data.regulares.hours}</td>
+                <td className="border border-gray-300 p-2 text-center">
+                  {s1Data.regulares.studies}
+                </td>
+              </tr>
+              <tr className="bg-gray-50 font-bold">
+                <td className="border border-gray-300 p-2">TOTAL</td>
+                <td className="border border-gray-300 p-2 text-center">{total.relatorios}</td>
+                <td className="border border-gray-300 p-2 text-center">{total.hours}</td>
+                <td className="border border-gray-300 p-2 text-center">{total.studies}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div className="w-full sm:w-1/2">
+            <table className="w-full border-collapse border border-gray-300">
+              <thead>
+                <tr className="bg-gray-100">
+                  <th colSpan={2} className="border border-gray-300 p-2 text-left">
+                    Assistência Média às Reuniões
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td className="border border-gray-300 p-2">Fim de semana</td>
+                  <td className="border border-gray-300 p-2 text-center w-24">
+                    {summary?.avg_attendance_weekend || 0}
+                  </td>
+                </tr>
+                <tr>
+                  <td className="border border-gray-300 p-2">Meio da semana</td>
+                  <td className="border border-gray-300 p-2 text-center w-24">
+                    {summary?.avg_attendance_midweek || 0}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
