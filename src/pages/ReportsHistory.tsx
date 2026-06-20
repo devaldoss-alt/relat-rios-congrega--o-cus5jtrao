@@ -110,9 +110,9 @@ export default function ReportsHistoryPage() {
     // "2024-05"
     if (monthStr.includes('-')) {
       const [y, m] = monthStr.split('-')
-      return { month: m, year: y }
+      return { month: m.padStart(2, '0'), year: y }
     }
-    return { month: monthStr, year: '' }
+    return { month: monthStr.padStart(2, '0'), year: '' }
   }
 
   return (
@@ -145,7 +145,10 @@ export default function ReportsHistoryPage() {
                   <div className="flex items-start justify-between">
                     <div>
                       <CardTitle>
-                        {MONTHS[summary.month] || summary.month} {summary.year}
+                        {MONTHS[summary.month.padStart(2, '0')] ||
+                          MONTHS[summary.month] ||
+                          summary.month}{' '}
+                        {summary.year}
                       </CardTitle>
                       <CardDescription>
                         Criado em {new Date(summary.created).toLocaleDateString()}
@@ -183,7 +186,7 @@ export default function ReportsHistoryPage() {
               >
                 <CardHeader className="pb-2">
                   <CardTitle>
-                    {MONTHS[month] || month} {year}
+                    {MONTHS[month.padStart(2, '0')] || MONTHS[month] || month} {year}
                   </CardTitle>
                   <CardDescription>
                     Atualizado em {new Date(report.updated).toLocaleDateString()}
@@ -234,7 +237,8 @@ export default function ReportsHistoryPage() {
                 <>
                   <DialogHeader className="no-print">
                     <DialogTitle>
-                      Relatório do Grupo {user?.group_number} - {MONTHS[month] || month} / {year}
+                      Relatório do Grupo {user?.group_number} -{' '}
+                      {MONTHS[month.padStart(2, '0')] || MONTHS[month] || month} / {year}
                     </DialogTitle>
                     <div className="flex justify-end pt-2">
                       <Button variant="outline" size="sm" onClick={handlePrint}>
@@ -249,7 +253,7 @@ export default function ReportsHistoryPage() {
                         Relatório do Grupo {user?.group_number}
                       </h1>
                       <h2 className="text-lg">
-                        {MONTHS[month] || month} de {year}
+                        {MONTHS[month.padStart(2, '0')] || MONTHS[month] || month} de {year}
                       </h2>
                     </div>
 

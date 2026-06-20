@@ -155,7 +155,8 @@ export function SecretarySummaryDialog({ summary, open, onOpenChange, onSaved }:
       <DialogContent className="max-w-3xl print-area print-max-w-none">
         <DialogHeader className="no-print">
           <DialogTitle>
-            Relatório Mensal - {MONTHS[summary.month]} de {summary.year}
+            Relatório Mensal - {MONTHS[summary.month.padStart(2, '0')] || summary.month} de{' '}
+            {summary.year}
           </DialogTitle>
           <div className="flex justify-end pt-2 gap-2">
             {!isEditing ? (
@@ -189,7 +190,7 @@ export function SecretarySummaryDialog({ summary, open, onOpenChange, onSaved }:
           <div className="hidden print:block text-center mb-8">
             <h1 className="text-2xl font-bold">Relatório Mensal da Congregação</h1>
             <h2 className="text-lg">
-              {MONTHS[summary.month]} de {summary.year}
+              {MONTHS[summary.month.padStart(2, '0')] || summary.month} de {summary.year}
             </h2>
           </div>
 

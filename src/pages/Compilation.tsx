@@ -202,17 +202,21 @@ export default function CompilationPage() {
       // 1. Save Group Reports
       for (const gRep of data.groupReports) {
         try {
+          const m = gRep.month.toString().padStart(2, '0')
+          const rawM = gRep.month.toString()
           const existing = await pb
             .collection('group_reports')
-            .getFirstListItem(`group_id="${gRep.group_id}" && month="${gRep.month}"`)
-          await pb.collection('group_reports').update(existing.id, gRep)
+            .getFirstListItem(`group_id="${gRep.group_id}" && (month="${m}" || month="${rawM}")`)
+          await pb.collection('group_reports').update(existing.id, { ...gRep, month: m })
         } catch {
-          await pb.collection('group_reports').create(gRep)
+          await pb
+            .collection('group_reports')
+            .create({ ...gRep, month: gRep.month.toString().padStart(2, '0') })
         }
       }
 
       // 2. Save Monthly Summary
-      const monthStr = month.toString()
+      const monthStr = month.toString().padStart(2, '0')
       const existingSum = await findMonthlySummary(year, monthStr)
       const payload = {
         month: monthStr,
@@ -246,7 +250,7 @@ export default function CompilationPage() {
       <div className="hidden print:block text-center mb-8">
         <h1 className="text-2xl font-bold">Relatório Mensal da Congregação</h1>
         <h2 className="text-lg">
-          Mês {month} de {year}
+          Mês {month.toString().padStart(2, '0')} de {year}
         </h2>
       </div>
 

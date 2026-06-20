@@ -17,13 +17,13 @@ export interface PublisherReport {
 
 export const getPublisherReports = (groupId: string, month: string, year: number) => {
   return pb.collection('publisher_reports').getFullList<PublisherReport>({
-    filter: `publisher_id.group_id = '${groupId}' && month = '${month}' && year = ${year}`,
+    filter: `publisher_id.group_id = '${groupId}' && month = '${month.padStart(2, '0')}' && year = ${year}`,
   })
 }
 
 export const getAllPublisherReportsForMonth = (month: string, year: number) => {
   return pb.collection('publisher_reports').getFullList<PublisherReport>({
-    filter: `month = '${month}' && year = ${year}`,
+    filter: `month = '${month.padStart(2, '0')}' && year = ${year}`,
     expand: 'publisher_id,publisher_id.group_id',
   })
 }

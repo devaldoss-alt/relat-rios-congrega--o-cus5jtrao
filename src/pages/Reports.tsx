@@ -19,6 +19,7 @@ import {
 import { getGroups, Group } from '@/services/groups'
 import { getPublishers, Publisher } from '@/services/publishers'
 import { useAuth } from '@/hooks/use-auth'
+import { findMonthlySummary, MonthlySummary } from '@/services/monthly_summaries'
 
 const MONTHS = [
   { value: 1, label: 'Janeiro' },
@@ -50,21 +51,27 @@ export default function Reports() {
   const [reports6m, setReports6m] = useState<PublisherReport[]>([])
   const [groups, setGroups] = useState<Group[]>([])
   const [allPublishers, setAllPublishers] = useState<Publisher[]>([])
+  const [summary, setSummary] = useState<MonthlySummary | null>(null)
+  const [fetchError, setFetchError] = useState(false)
 
   useEffect(() => {
     const loadData = async () => {
       setLoading(true)
+      setFetchError(false)
       try {
-        const [reps, grps, pubs] = await Promise.all([
+        const [reps, grps, pubs, sum] = await Promise.all([
           getPublisherReportsFor6Months(month, year),
           getGroups(),
           getPublishers(),
+          findMonthlySummary(year, month.toString().padStart(2, '0')),
         ])
         setReports6m(reps)
         setGroups(grps)
         setAllPublishers(pubs)
+        setSummary(sum)
       } catch (e) {
         console.error(e)
+        setFetchError(true)
       } finally {
         setLoading(false)
       }
@@ -115,16 +122,42 @@ export default function Reports() {
         }
       }
     })
-    return data
-  }, [filteredPublishers, reports6m, month, year])
 
-  const total = {
-    ativos: s1Data.publicadores.ativos + s1Data.auxiliares.ativos + s1Data.regulares.ativos,
-    relatorios:
-      s1Data.publicadores.relatorios + s1Data.auxiliares.relatorios + s1Data.regulares.relatorios,
-    hours: s1Data.publicadores.hours + s1Data.auxiliares.hours + s1Data.regulares.hours,
-    studies: s1Data.publicadores.studies + s1Data.auxiliares.studies + s1Data.regulares.studies,
-  }
+    if (summary && selectedGroup === 'all' && summary.report_data) {
+      const rd = summary.report_data
+      if (rd.publishers) {
+        data.publicadores.relatorios = rd.publishers.reports || 0
+        data.publicadores.studies = rd.publishers.studies || 0
+        data.publicadores.hours = rd.publishers.hours || 0
+      }
+      if (rd.auxiliary) {
+        data.auxiliares.relatorios = rd.auxiliary.reports || 0
+        data.auxiliares.hours = rd.auxiliary.hours || 0
+        data.auxiliares.studies = rd.auxiliary.studies || 0
+      }
+      if (rd.regular) {
+        data.regulares.relatorios = rd.regular.reports || 0
+        data.regulares.hours = rd.regular.hours || 0
+        data.regulares.studies = rd.regular.studies || 0
+      }
+    }
+
+    return data
+  }, [filteredPublishers, reports6m, month, year, summary, selectedGroup])
+
+  const total = useMemo(() => {
+    let ativos = s1Data.publicadores.ativos + s1Data.auxiliares.ativos + s1Data.regulares.ativos
+    if (summary && selectedGroup === 'all' && summary.total_active_publishers !== undefined) {
+      ativos = summary.total_active_publishers
+    }
+    return {
+      ativos,
+      relatorios:
+        s1Data.publicadores.relatorios + s1Data.auxiliares.relatorios + s1Data.regulares.relatorios,
+      hours: s1Data.publicadores.hours + s1Data.auxiliares.hours + s1Data.regulares.hours,
+      studies: s1Data.publicadores.studies + s1Data.auxiliares.studies + s1Data.regulares.studies,
+    }
+  }, [s1Data, summary, selectedGroup])
 
   const totalGoal = useMemo(() => {
     if (selectedGroup === 'all') {
@@ -214,8 +247,16 @@ export default function Reports() {
             <strong>Período:</strong> {month.toString().padStart(2, '0')}/{year}
           </p>
           <p className="text-sm">
-            <strong>Atualizado em:</strong> {new Date().toLocaleDateString('pt-BR')}
+            <strong>Atualizado em:</strong>{' '}
+            {summary
+              ? new Date(summary.updated).toLocaleDateString('pt-BR')
+              : new Date().toLocaleDateString('pt-BR')}
           </p>
+          {summary && selectedGroup === 'all' && (
+            <p className="text-xs text-emerald-600 font-medium bg-emerald-50 px-2 py-0.5 rounded-md inline-block">
+              ✓ Dados do histórico oficial
+            </p>
+          )}
         </div>
       </div>
 
@@ -226,6 +267,20 @@ export default function Reports() {
           <Skeleton className="h-32 w-full" />
           <Skeleton className="h-32 w-full" />
         </div>
+      ) : fetchError ||
+        (!summary &&
+          !reports6m.some(
+            (r) => r.month === month.toString().padStart(2, '0') && r.year === year,
+          )) ? (
+        <Card className="border-dashed shadow-none bg-muted/30 mb-6">
+          <CardContent className="flex flex-col items-center justify-center h-48 text-muted-foreground">
+            <FileText className="h-12 w-12 mb-4 opacity-20" />
+            <p className="text-center font-medium">Nenhum dado encontrado</p>
+            <p className="text-sm text-center mt-1">
+              Não foi possível carregar os dados para este mês ou não existem registros.
+            </p>
+          </CardContent>
+        </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <Card>
@@ -324,42 +379,57 @@ export default function Reports() {
         </div>
       )}
 
-      {!loading && totalGoal > 0 && (
-        <Card className="border-t-4 border-t-blue-500 shadow-md">
-          <CardHeader className="pb-4">
-            <CardTitle>Progresso da Meta de Horas</CardTitle>
-            <CardDescription>
-              Acompanhamento do objetivo de horas da congregação/grupo.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex justify-between items-center mb-2">
-              <span className="font-medium text-lg">{total.hours}h Realizadas</span>
-              <span className="text-muted-foreground font-medium text-sm">Meta: {totalGoal}h</span>
-            </div>
-            <Progress value={progress} className="h-4" />
-            <p className="text-right text-xs text-muted-foreground mt-2">
-              {Math.round(progress)}% Concluído
-            </p>
-          </CardContent>
-        </Card>
-      )}
+      {!loading &&
+        totalGoal > 0 &&
+        !fetchError &&
+        (summary ||
+          reports6m.some(
+            (r) => r.month === month.toString().padStart(2, '0') && r.year === year,
+          )) && (
+          <Card className="border-t-4 border-t-blue-500 shadow-md">
+            <CardHeader className="pb-4">
+              <CardTitle>Progresso da Meta de Horas</CardTitle>
+              <CardDescription>
+                Acompanhamento do objetivo de horas da congregação/grupo.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex justify-between items-center mb-2">
+                <span className="font-medium text-lg">{total.hours}h Realizadas</span>
+                <span className="text-muted-foreground font-medium text-sm">
+                  Meta: {totalGoal}h
+                </span>
+              </div>
+              <Progress value={progress} className="h-4" />
+              <p className="text-right text-xs text-muted-foreground mt-2">
+                {Math.round(progress)}% Concluído
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
-      <Card className="shadow-md">
-        <CardHeader className="bg-muted/30 pb-4 border-b">
-          <CardTitle>Observações</CardTitle>
-          <CardDescription>
-            Anotações relevantes sobre a atividade do mês (para envio à filial ou arquivo local).
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="pt-4">
-          <Textarea
-            placeholder="Ex: Tivemos forte chuva no segundo final de semana..."
-            rows={4}
-            className="resize-none"
-          />
-        </CardContent>
-      </Card>
+      {!fetchError &&
+        (summary ||
+          reports6m.some(
+            (r) => r.month === month.toString().padStart(2, '0') && r.year === year,
+          )) && (
+          <Card className="shadow-md">
+            <CardHeader className="bg-muted/30 pb-4 border-b">
+              <CardTitle>Observações</CardTitle>
+              <CardDescription>
+                Anotações relevantes sobre a atividade do mês (para envio à filial ou arquivo
+                local).
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-4">
+              <Textarea
+                placeholder="Ex: Tivemos forte chuva no segundo final de semana..."
+                rows={4}
+                className="resize-none"
+              />
+            </CardContent>
+          </Card>
+        )}
     </div>
   )
 }
