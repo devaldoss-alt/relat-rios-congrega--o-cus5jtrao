@@ -26,6 +26,7 @@ import { useAuth } from '@/hooks/use-auth'
 import pb from '@/lib/pocketbase/client'
 import { getGroups, Group } from '@/services/groups'
 import { getPublishers, Publisher } from '@/services/publishers'
+import { calculateActivityStatus } from '@/services/publisher_reports'
 
 const MONTHS = [
   { value: 1, label: 'Jan' },
@@ -128,8 +129,9 @@ export default function Index() {
     const fetchData = async () => {
       setLoading(true)
       try {
+        const sixMonthsAgoYear = new Date(startYear, startMonth - 1 - 5, 1).getFullYear()
         const syStartYear = endMonth >= 9 ? endYear : endYear - 1
-        const minYear = Math.min(startYear, syStartYear)
+        const minYear = Math.min(startYear, syStartYear, sixMonthsAgoYear)
 
         const reps = await pb.collection('publisher_reports').getFullList({
           filter: `year >= ${minYear} && year <= ${endYear}`,
@@ -165,13 +167,23 @@ export default function Index() {
   const isValidRange = startYear < endYear || (startYear === endYear && startMonth <= endMonth)
 
   const filteredReports = useMemo(() => {
-    if (selectedGroupId === 'all') return reports
-    return reports.filter((r) => r.expand?.publisher_id?.group_id === selectedGroupId)
+    return reports.filter((r) => {
+      const pub = r.expand?.publisher_id
+      if (!pub) return false
+      const isArchived = pub.status === 'Mudou-se' || pub.status === 'Removido'
+      if (isArchived) return false
+      if (selectedGroupId === 'all') return true
+      return pub.group_id === selectedGroupId
+    })
   }, [reports, selectedGroupId])
 
   const filteredPublishers = useMemo(() => {
-    if (selectedGroupId === 'all') return publishers.filter((p) => p.active)
-    return publishers.filter((p) => p.active && p.group_id === selectedGroupId)
+    return publishers.filter((p) => {
+      const isArchived = p.status === 'Mudou-se' || p.status === 'Removido'
+      if (isArchived) return false
+      if (selectedGroupId === 'all') return true
+      return p.group_id === selectedGroupId
+    })
   }, [publishers, selectedGroupId])
 
   const pastoralAttentionList = useMemo(() => {
@@ -242,31 +254,53 @@ export default function Index() {
   const chartData = useMemo(() => {
     return monthsInRange.map((p) => {
       const mStr = p.m.toString().padStart(2, '0')
+      const sum = summaries.find((s) => s.month === mStr && s.year === p.y)
       const monthReps = filteredReports.filter((r) => r.month === mStr && r.year === p.y)
 
       const regReps = monthReps.filter((r) => r.type === 'pioneiro_regular')
       const auxReps = monthReps.filter((r) => r.type === 'pioneiro_auxiliar')
 
-      const regHours = regReps.reduce((sum, r) => sum + (r.hours || 0), 0)
-      const auxHours = auxReps.reduce((sum, r) => sum + (r.hours || 0), 0)
+      const regHours = regReps.reduce((s, r) => s + (r.hours || 0), 0)
+      const auxHours = auxReps.reduce((s, r) => s + (r.hours || 0), 0)
+
+      let activePubs = sum?.total_active_publishers
+      if (activePubs === undefined) {
+        let count = 0
+        filteredPublishers.forEach((pub) => {
+          const status = calculateActivityStatus(pub.id, reports, p.m, p.y)
+          if (status !== 'Inativo') count++
+        })
+        activePubs = count
+      }
+
+      const monthAtt = attendance.filter((a) => a.meeting_date.startsWith(`${p.y}-${mStr}`))
+      const avgAtt =
+        monthAtt.length > 0
+          ? Math.round(
+              monthAtt.reduce((s, a) => s + (a.in_person || 0) + (a.zoom || 0), 0) /
+                monthAtt.length,
+            )
+          : sum
+            ? Math.round(
+                ((sum.avg_attendance_midweek || 0) + (sum.avg_attendance_weekend || 0)) / 2,
+              )
+            : 0
 
       return {
         name: `${mStr}/${p.y.toString().slice(-2)}`,
-        horas: monthReps.reduce((sum, r) => sum + (r.hours || 0), 0),
+        horas: monthReps.reduce((s, r) => s + (r.hours || 0), 0),
         horasPioneiroRegular: regHours,
         horasPioneiroAuxiliar: auxHours,
         horasPioneirosTotal: regHours + auxHours,
-        estudos: monthReps.reduce((sum, r) => sum + (r.bible_studies || 0), 0),
-        publicadores: monthReps.filter(
-          (r) =>
-            r.participated || (r.hours && r.hours > 0) || (r.bible_studies && r.bible_studies > 0),
-        ).length,
+        estudos: monthReps.reduce((s, r) => s + (r.bible_studies || 0), 0),
+        publicadoresAtivos: activePubs,
+        assistenciaMedia: avgAtt,
       }
     })
-  }, [monthsInRange, reports])
+  }, [monthsInRange, reports, filteredReports, filteredPublishers, summaries, attendance])
 
   const endMonthData = useMemo(() => {
-    if (chartData.length === 0) return { horas: 0, estudos: 0, publicadores: 0 }
+    if (chartData.length === 0) return { horas: 0, estudos: 0, publicadoresAtivos: 0 }
     return chartData[chartData.length - 1]
   }, [chartData])
 
@@ -320,38 +354,6 @@ export default function Index() {
 
     return Object.values(grouped).sort((a, b) => b.horas - a.horas)
   }, [reports, endMonth, endYear])
-
-  const comparativeChartData = useMemo(() => {
-    return monthsInRange.map((p) => {
-      const mStr = p.m.toString().padStart(2, '0')
-      const sum = summaries.find((s) => s.month === mStr && s.year === p.y)
-      const monthReps = filteredReports.filter((r) => r.month === mStr && r.year === p.y)
-
-      const activePubs =
-        sum?.total_active_publishers ||
-        monthReps.filter(
-          (r) =>
-            r.participated || (r.hours && r.hours > 0) || (r.bible_studies && r.bible_studies > 0),
-        ).length
-
-      const monthAtt = attendance.filter((a) => a.meeting_date.startsWith(`${p.y}-${mStr}`))
-      const avgAtt =
-        monthAtt.length > 0
-          ? Math.round(
-              monthAtt.reduce((s, a) => s + (a.in_person || 0) + (a.zoom || 0), 0) /
-                monthAtt.length,
-            )
-          : sum
-            ? Math.round((sum.avg_attendance_midweek + sum.avg_attendance_weekend) / 2)
-            : 0
-
-      return {
-        name: `${mStr}/${p.y.toString().slice(-2)}`,
-        publicadoresAtivos: activePubs,
-        assistenciaMedia: avgAtt,
-      }
-    })
-  }, [monthsInRange, summaries, reports, attendance])
 
   return (
     <div className="space-y-8 pb-10 max-w-7xl mx-auto animate-fade-in-up print:m-0 print:p-0 print:space-y-4">
@@ -528,11 +530,11 @@ export default function Index() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Publicadores que Relataram</CardTitle>
+                <CardTitle className="text-sm font-medium">Todos os publicadores ativos</CardTitle>
                 <Users className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{endMonthData.publicadores}</div>
+                <div className="text-2xl font-bold">{endMonthData.publicadoresAtivos}</div>
                 <p className="text-xs text-muted-foreground">
                   No mês de {endMonth.toString().padStart(2, '0')}/{endYear}
                 </p>
@@ -567,7 +569,7 @@ export default function Index() {
           <Card className="shadow-sm md:col-span-3 border-t-4 border-t-primary">
             <CardHeader className="bg-muted/30 pb-4 border-b">
               <CardTitle className="flex items-center gap-2 text-base">
-                Comparativo: Publicadores Ativos vs. Assistência Média
+                Comparativo: Todos os publicadores ativos vs. Assistência Média
               </CardTitle>
               <CardDescription>
                 Relação entre a quantidade de publicadores ativos e a assistência média nas reuniões
@@ -577,7 +579,7 @@ export default function Index() {
               <ChartContainer
                 config={{
                   publicadoresAtivos: {
-                    label: 'Publicadores Ativos',
+                    label: 'Todos os publicadores ativos',
                     color: 'hsl(var(--primary))',
                   },
                   assistenciaMedia: { label: 'Assistência Média', color: 'hsl(var(--chart-2))' },
@@ -585,7 +587,7 @@ export default function Index() {
                 className="h-full w-full"
               >
                 <ComposedChart
-                  data={comparativeChartData}
+                  data={chartData}
                   margin={{ top: 20, right: 0, left: -20, bottom: 0 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
