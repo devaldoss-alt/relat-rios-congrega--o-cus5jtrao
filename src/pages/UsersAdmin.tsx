@@ -6,7 +6,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { Navigate } from 'react-router-dom'
 import { useToast } from '@/components/ui/use-toast'
 import { getUsers, createUser, updateUser, deleteUser } from '@/services/users'
-import { getErrorMessage } from '@/lib/pocketbase/errors'
+import { extractFieldErrors, getErrorMessage, type FieldErrors } from '@/lib/pocketbase/errors'
 
 import { Card, CardContent } from '@/components/ui/card'
 import {
@@ -40,17 +40,27 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Pencil, Trash2, Plus, Loader2, UserCog } from 'lucide-react'
 import { RecordModel } from 'pocketbase'
 
+const GROUP_NAMES = ['Grupo 1', 'Grupo 2', 'Grupo 3', 'Grupo 4'] as const
+const ROLES = ['Secretário', 'Responsável'] as const
+
 const userSchema = z.object({
   name: z.string().min(2, 'Nome é obrigatório'),
   email: z.string().email('Email inválido'),
   password: z
     .string()
-    .min(10, 'A senha deve ter pelo menos 10 caracteres.')
     .optional()
-    .or(z.literal('')),
-  role: z.string(),
-  group_number: z.coerce.number().min(1).max(4),
+    .refine((val) => !val || val.length >= 10, {
+      message: 'A senha deve ter pelo menos 10 caracteres.',
+    }),
+  role: z.enum(ROLES, {
+    error: 'Função é obrigatória',
+  }),
+  group_name: z.enum(GROUP_NAMES, {
+    error: 'Grupo é obrigatório',
+  }),
 })
+
+type UserFormValues = z.infer<typeof userSchema>
 
 export default function UsersAdmin() {
   const { user } = useAuth()
@@ -62,15 +72,16 @@ export default function UsersAdmin() {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<RecordModel | null>(null)
   const [saving, setSaving] = useState(false)
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
 
-  const form = useForm<z.infer<typeof userSchema>>({
+  const form = useForm<UserFormValues>({
     resolver: zodResolver(userSchema),
     defaultValues: {
       name: '',
       email: '',
       password: '',
       role: 'Responsável',
-      group_number: 1,
+      group_name: 'Grupo 1',
     },
   })
 
@@ -93,15 +104,22 @@ export default function UsersAdmin() {
     return <Navigate to="/dashboard" replace />
   }
 
+  const resolveEnumValue = <T extends string>(
+    value: unknown,
+    allowed: readonly T[],
+    fallback: T,
+  ): T => (allowed.includes(value as T) ? (value as T) : fallback)
+
   const handleOpenDialog = (u?: RecordModel) => {
+    setFieldErrors({})
     if (u) {
       setEditingUser(u)
       form.reset({
         name: u.name || '',
         email: u.email || '',
         password: '',
-        role: u.role || 'Responsável',
-        group_number: u.group_number || 1,
+        role: resolveEnumValue(u.role, ROLES, 'Responsável'),
+        group_name: resolveEnumValue(u.group_name, GROUP_NAMES, 'Grupo 1'),
       })
     } else {
       setEditingUser(null)
@@ -110,22 +128,29 @@ export default function UsersAdmin() {
         email: '',
         password: '',
         role: 'Responsável',
-        group_number: 1,
+        group_name: 'Grupo 1',
       })
     }
     setIsDialogOpen(true)
   }
 
-  const onSubmit = async (values: z.infer<typeof userSchema>) => {
+  const handleCloseDialog = (open: boolean) => {
+    setIsDialogOpen(open)
+    if (!open) setFieldErrors({})
+  }
+
+  const onSubmit = async (values: UserFormValues) => {
     setSaving(true)
+    setFieldErrors({})
     try {
+      const groupNumber = parseInt(values.group_name.replace('Grupo ', ''), 10)
       if (editingUser) {
-        const payload: any = {
+        const payload: Record<string, unknown> = {
           name: values.name,
           email: values.email,
           role: values.role,
-          group_number: values.group_number,
-          group_name: `Grupo ${values.group_number}`,
+          group_name: values.group_name,
+          group_number: groupNumber,
           emailVisibility: true,
         }
         if (values.password) {
@@ -141,15 +166,19 @@ export default function UsersAdmin() {
           return
         }
         await createUser({
-          ...values,
-          group_name: `Grupo ${values.group_number}`,
-          emailVisibility: true,
+          name: values.name,
+          email: values.email,
+          password: values.password,
+          role: values.role,
+          group_name: values.group_name,
+          group_number: groupNumber,
         })
         toast({ title: 'Usuário criado com sucesso' })
       }
       setIsDialogOpen(false)
       fetchUsers()
     } catch (err: unknown) {
+      setFieldErrors(extractFieldErrors(err))
       toast({
         title: 'Erro ao salvar usuário',
         description: getErrorMessage(err),
@@ -167,9 +196,18 @@ export default function UsersAdmin() {
       toast({ title: 'Usuário excluído com sucesso' })
       fetchUsers()
     } catch (err) {
-      toast({ title: 'Erro ao excluir usuário', variant: 'destructive' })
+      toast({
+        title: 'Erro ao excluir usuário',
+        description: getErrorMessage(err),
+        variant: 'destructive',
+      })
     }
   }
+
+  const renderFieldError = (fieldName: string) =>
+    fieldErrors[fieldName] ? (
+      <p className="text-sm text-destructive">{fieldErrors[fieldName]}</p>
+    ) : null
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-10">
@@ -227,10 +265,12 @@ export default function UsersAdmin() {
                       </TableCell>
                       <TableCell>
                         <Badge variant={u.role === 'Secretário' ? 'default' : 'outline'}>
-                          {u.role}
+                          {u.role || '—'}
                         </Badge>
                       </TableCell>
-                      <TableCell>Grupo {u.group_number}</TableCell>
+                      <TableCell>
+                        {u.group_name || (u.group_number ? `Grupo ${u.group_number}` : '—')}
+                      </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
                           <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(u)}>
@@ -256,7 +296,7 @@ export default function UsersAdmin() {
         </CardContent>
       </Card>
 
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+      <Dialog open={isDialogOpen} onOpenChange={handleCloseDialog}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>{editingUser ? 'Editar Usuário' : 'Novo Usuário'}</DialogTitle>
@@ -273,6 +313,7 @@ export default function UsersAdmin() {
                       <Input placeholder="Nome completo" {...field} />
                     </FormControl>
                     <FormMessage />
+                    {renderFieldError('name')}
                   </FormItem>
                 )}
               />
@@ -287,6 +328,7 @@ export default function UsersAdmin() {
                       <Input type="email" placeholder="usuario@email.com" {...field} />
                     </FormControl>
                     <FormMessage />
+                    {renderFieldError('email')}
                   </FormItem>
                 )}
               />
@@ -301,6 +343,7 @@ export default function UsersAdmin() {
                       <Input type="password" placeholder="******" {...field} />
                     </FormControl>
                     <FormMessage />
+                    {renderFieldError('password')}
                   </FormItem>
                 )}
               />
@@ -324,41 +367,40 @@ export default function UsersAdmin() {
                         </SelectContent>
                       </Select>
                       <FormMessage />
+                      {renderFieldError('role')}
                     </FormItem>
                   )}
                 />
 
                 <FormField
                   control={form.control}
-                  name="group_number"
+                  name="group_name"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Grupo Designado</FormLabel>
-                      <Select
-                        onValueChange={(v) => field.onChange(Number(v))}
-                        defaultValue={field.value.toString()}
-                      >
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {[1, 2, 3, 4].map((n) => (
-                            <SelectItem key={n} value={n.toString()}>
-                              Grupo {n}
+                          {GROUP_NAMES.map((g) => (
+                            <SelectItem key={g} value={g}>
+                              {g}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                       <FormMessage />
+                      {renderFieldError('group_name')}
                     </FormItem>
                   )}
                 />
               </div>
 
               <div className="flex justify-end gap-3 pt-4">
-                <Button variant="outline" type="button" onClick={() => setIsDialogOpen(false)}>
+                <Button variant="outline" type="button" onClick={() => handleCloseDialog(false)}>
                   Cancelar
                 </Button>
                 <Button type="submit" disabled={saving}>
