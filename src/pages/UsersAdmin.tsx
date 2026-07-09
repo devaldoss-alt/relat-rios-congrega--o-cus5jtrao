@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react'
 import { useAuth } from '@/hooks/use-auth'
 import { Navigate } from 'react-router-dom'
 import { useToast } from '@/components/ui/use-toast'
-import { getUsers, createUser, updateUser, deleteUser } from '@/services/users'
+import { getUsers, createUser, adminUpdateUser, deleteUser } from '@/services/users'
 import { extractFieldErrors, getErrorMessage, type FieldErrors } from '@/lib/pocketbase/errors'
 
 import { Card, CardContent } from '@/components/ui/card'
@@ -155,9 +155,8 @@ export default function UsersAdmin() {
         }
         if (values.password) {
           payload.password = values.password
-          payload.passwordConfirm = values.password
         }
-        await updateUser(editingUser.id, payload)
+        await adminUpdateUser(editingUser.id, payload)
         toast({ title: 'Usuário atualizado com sucesso' })
       } else {
         if (!values.password) {
