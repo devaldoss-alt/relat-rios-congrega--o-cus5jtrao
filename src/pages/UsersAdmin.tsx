@@ -6,6 +6,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { Navigate } from 'react-router-dom'
 import { useToast } from '@/components/ui/use-toast'
 import { getUsers, createUser, updateUser, deleteUser } from '@/services/users'
+import { getErrorMessage } from '@/lib/pocketbase/errors'
 
 import { Card, CardContent } from '@/components/ui/card'
 import {
@@ -42,7 +43,11 @@ import { RecordModel } from 'pocketbase'
 const userSchema = z.object({
   name: z.string().min(2, 'Nome é obrigatório'),
   email: z.string().email('Email inválido'),
-  password: z.string().min(8, 'Mínimo 8 caracteres').optional().or(z.literal('')),
+  password: z
+    .string()
+    .min(10, 'A senha deve ter pelo menos 10 caracteres.')
+    .optional()
+    .or(z.literal('')),
   role: z.string(),
   group_number: z.coerce.number().min(1).max(4),
 })
@@ -144,10 +149,10 @@ export default function UsersAdmin() {
       }
       setIsDialogOpen(false)
       fetchUsers()
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: 'Erro ao salvar usuário',
-        description: err?.response?.message || 'Ocorreu um erro ao processar sua solicitação',
+        description: getErrorMessage(err),
         variant: 'destructive',
       })
     } finally {
