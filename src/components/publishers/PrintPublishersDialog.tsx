@@ -102,7 +102,10 @@ export function PrintPublishersDialog({ groups, publishers }: PrintPublishersDia
                   <SelectItem value="all">Todos os Grupos</SelectItem>
                   {sortedGroups.map((g) => (
                     <SelectItem key={g.id} value={g.id}>
-                      Grupo {g.number} {g.leader ? `(${g.leader})` : ''}
+                      Grupo {g.number}{' '}
+                      {g.expand?.leader?.name || g.leader
+                        ? `(${g.expand?.leader?.name || g.leader})`
+                        : ''}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -186,7 +189,7 @@ export function PrintPublishersDialog({ groups, publishers }: PrintPublishersDia
 
       {/* PRINTABLE A4 CONTAINER (Hidden on screen, visible during window.print()) */}
       <div
-        className="hidden print:block fixed inset-0 z-[9999] bg-white text-black p-0 m-0 overflow-visible"
+        className="hidden print:block bg-white text-black p-0 m-0"
         style={{
           WebkitPrintColorAdjust: 'exact',
           printColorAdjust: 'exact',
@@ -239,9 +242,9 @@ export function PrintPublishersDialog({ groups, publishers }: PrintPublishersDia
                 {/* Group Banner Header */}
                 <div className="bg-[#e2e8f0] border border-black px-3 py-1.5 flex justify-between items-center font-bold text-sm mb-2">
                   <span>GRUPO {grp.number}</span>
-                  {grp.leader && (
+                  {(grp.expand?.leader?.name || grp.leader) && (
                     <span className="text-xs font-normal">
-                      Dirigente: <strong>{grp.leader}</strong>
+                      Dirigente: <strong>{grp.expand?.leader?.name || grp.leader}</strong>
                     </span>
                   )}
                   <span className="text-xs font-semibold bg-white border border-black/40 px-2 py-0.5 rounded">
