@@ -77,12 +77,12 @@ export function PrintPublishersDialog({ groups, publishers }: PrintPublishersDia
     <>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogTrigger asChild>
-          <Button variant="outline" className="gap-2">
+          <Button variant="outline" className="gap-2 print:hidden">
             <Printer className="h-4 w-4" />
             Imprimir Lista
           </Button>
         </DialogTrigger>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md print:hidden">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Printer className="h-5 w-5 text-primary" />
@@ -186,13 +186,13 @@ export function PrintPublishersDialog({ groups, publishers }: PrintPublishersDia
 
       {/* PRINTABLE A4 CONTAINER (Hidden on screen, visible during window.print()) */}
       <div
-        className="hidden print:block fixed inset-0 z-[9999] bg-white text-black p-0 m-0"
+        className="hidden print:block fixed inset-0 z-[9999] bg-white text-black p-0 m-0 overflow-visible"
         style={{
           WebkitPrintColorAdjust: 'exact',
           printColorAdjust: 'exact',
         }}
       >
-        <div className="w-full max-w-[210mm] mx-auto p-[10mm] text-black font-sans box-border text-[12px] leading-normal bg-white">
+        <div className="w-full max-w-[210mm] mx-auto p-[10mm] text-black font-sans box-border text-[12px] leading-normal bg-white min-h-screen">
           {/* Header */}
           <div className="border-b-2 border-black pb-3 mb-4 text-center">
             <h1 className="text-xl font-bold uppercase tracking-wider text-black">

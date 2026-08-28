@@ -61,8 +61,8 @@ export default function Layout() {
   }
 
   return (
-    <SidebarProvider>
-      <Sidebar variant="inset">
+    <SidebarProvider className="print:block">
+      <Sidebar variant="inset" className="print:hidden">
         <SidebarHeader className="h-16 flex items-center justify-center px-4 border-b">
           <div className="flex items-center gap-2 font-bold text-lg text-primary w-full">
             <BookOpen className="h-6 w-6" />
@@ -97,8 +97,8 @@ export default function Layout() {
         </SidebarFooter>
       </Sidebar>
 
-      <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center justify-between border-b px-4 lg:px-6 bg-background">
+      <SidebarInset className="print:p-0 print:m-0 print:bg-transparent print:border-none">
+        <header className="flex h-16 shrink-0 items-center justify-between border-b px-4 lg:px-6 bg-background print:hidden">
           <div className="flex items-center gap-2">
             <SidebarTrigger className="-ml-2 lg:hidden" />
             <h1 className="text-sm font-medium lg:hidden">Dashboard</h1>
@@ -126,7 +126,7 @@ export default function Layout() {
             </Button>
           </div>
         </header>
-        <main className="flex-1 overflow-auto bg-muted/20 p-4 lg:p-6 animate-in fade-in duration-500">
+        <main className="flex-1 overflow-auto bg-muted/20 p-4 lg:p-6 animate-in fade-in duration-500 print:p-0 print:m-0 print:overflow-visible print:bg-transparent">
           <Outlet />
         </main>
       </SidebarInset>
