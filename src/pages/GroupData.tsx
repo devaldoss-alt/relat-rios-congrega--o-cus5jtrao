@@ -1,6 +1,4 @@
-import { z } from 'zod'
 import { useForm, useFieldArray } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
 import { useEffect, useState, useCallback } from 'react'
 import { useAuth } from '@/hooks/use-auth'
 import { Navigate } from 'react-router-dom'
@@ -42,28 +40,21 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Save, AlertCircle, Loader2, Target } from 'lucide-react'
 import { Progress } from '@/components/ui/progress'
 
-const numberField = z
-  .union([z.string(), z.number()])
-  .transform((v) => (v === '' ? 0 : Number(v)))
-  .pipe(z.number().min(0, 'Mínimo 0'))
-
-const reportSchema = z.object({
-  id: z.string().optional(),
-  publisher_id: z.string(),
-  name: z.string(),
-  type: z.string(),
-  active: z.boolean(),
-  status: z.string().optional(),
-  activity_status: z.string().optional(),
-  participated: z.boolean().default(false),
-  hours: numberField,
-  bible_studies: numberField,
-  notes: z.string().optional(),
-})
-
-const formSchema = z.object({
-  reports: z.array(reportSchema),
-})
+type ReportFormValues = {
+  reports: Array<{
+    id?: string
+    publisher_id: string
+    name: string
+    type: string
+    active: boolean
+    status?: string
+    activity_status?: string
+    participated: boolean
+    hours: number
+    bible_studies: number
+    notes?: string
+  }>
+}
 
 const months = [
   { value: '01', label: 'Janeiro' },
@@ -109,8 +100,7 @@ export default function GroupData() {
   const [hourGoal, setHourGoal] = useState<string>('')
   const [pioneerHourGoal, setPioneerHourGoal] = useState<string>('')
 
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
+  const form = useForm<ReportFormValues>({
     defaultValues: {
       reports: [],
     },
@@ -246,7 +236,7 @@ export default function GroupData() {
     }
   }
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: ReportFormValues) {
     if (!selectedGroupId) {
       toast({
         title: 'Erro de Grupo',

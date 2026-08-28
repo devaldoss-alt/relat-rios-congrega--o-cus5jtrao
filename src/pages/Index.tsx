@@ -335,22 +335,21 @@ export default function Index() {
       return isAfterStart && isBeforeOrAtEnd && isWithinSYLimit
     })
 
-    const grouped = syReports.reduce(
-      (acc, r) => {
-        const pubId = r.publisher_id
-        if (!acc[pubId]) {
-          acc[pubId] = {
-            name: r.expand?.publisher_id?.name?.split(' ')[0] || 'Desconhecido',
-            fullName: r.expand?.publisher_id?.name || 'Desconhecido',
-            horas: 0,
-            meta: 600,
-          }
+    const grouped = syReports.reduce<
+      Record<string, { name: string; fullName: string; horas: number; meta: number }>
+    >((acc, r) => {
+      const pubId = r.publisher_id
+      if (!acc[pubId]) {
+        acc[pubId] = {
+          name: r.expand?.publisher_id?.name?.split(' ')[0] || 'Desconhecido',
+          fullName: r.expand?.publisher_id?.name || 'Desconhecido',
+          horas: 0,
+          meta: 600,
         }
-        acc[pubId].horas += r.hours || 0
-        return acc
-      },
-      {} as Record<string, { name: string; fullName: string; horas: number; meta: number }>,
-    )
+      }
+      acc[pubId].horas += r.hours || 0
+      return acc
+    }, {})
 
     return Object.values(grouped).sort((a, b) => b.horas - a.horas)
   }, [reports, endMonth, endYear])

@@ -41,6 +41,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
 import { Plus, Search, Loader2, Pencil, Trash2, Eye, Users, BookOpen } from 'lucide-react'
 import { MassEntryDialog } from '@/components/publishers/MassEntryDialog'
+import { PrintPublishersDialog } from '@/components/publishers/PrintPublishersDialog'
 import { Link } from 'react-router-dom'
 import { useRealtime } from '@/hooks/use-realtime'
 import pb from '@/lib/pocketbase/client'
@@ -279,13 +280,14 @@ export default function PublishersPage() {
   const countRegulares = activeFiltered.filter((p) => p.type === 'pioneiro_regular').length
 
   return (
-    <div className="space-y-6 animate-fade-in-up">
+    <div className="space-y-6 animate-fade-in-up print:hidden">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Gestão de Publicadores</h1>
           <p className="text-muted-foreground mt-1">Gerencie os membros da congregação</p>
         </div>
         <div className="flex items-center gap-2">
+          <PrintPublishersDialog groups={groups} publishers={publishers} />
           <MassEntryDialog groups={groups} onSaved={loadData} />
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
