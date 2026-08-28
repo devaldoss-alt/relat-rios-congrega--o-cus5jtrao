@@ -280,14 +280,17 @@ export default function PublishersPage() {
   const countRegulares = activeFiltered.filter((p) => p.type === 'pioneiro_regular').length
 
   return (
-    <div className="space-y-6 animate-fade-in-up print:hidden">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="space-y-6 animate-fade-in-up">
+      {/* Componente de Impressão (fora de qualquer container com print:hidden) */}
+      <PrintPublishersDialog groups={groups} publishers={publishers} />
+
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 print:hidden">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Gestão de Publicadores</h1>
           <p className="text-muted-foreground mt-1">Gerencie os membros da congregação</p>
         </div>
         <div className="flex items-center gap-2">
-          <PrintPublishersDialog groups={groups} publishers={publishers} />
+          {/* Trigger para o PrintPublishersDialog (comunica via botão no PrintPublishersDialog ou trigger próprio) */}
           <MassEntryDialog groups={groups} onSaved={loadData} />
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
@@ -518,7 +521,7 @@ export default function PublishersPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 print:hidden">
         <Card>
           <CardContent className="p-6 flex items-center justify-between">
             <div>
@@ -554,7 +557,7 @@ export default function PublishersPage() {
         </Card>
       </div>
 
-      <Card>
+      <Card className="print:hidden">
         <CardHeader className="py-4">
           <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
             <div className="relative w-full sm:w-72">
