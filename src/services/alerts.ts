@@ -10,6 +10,8 @@ export type AlertType =
   | 'acao_ata_vencendo'
   | 'acao_ata_atrasada'
   | 'pastoreio'
+  | 'visita_agendada'
+  | 'visita_atrasada'
   | 'geral'
 export type AlertStatus = 'pendente' | 'resolvido'
 

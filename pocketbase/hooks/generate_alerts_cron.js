@@ -351,6 +351,236 @@ cronAdd('generate_daily_alerts', '0 2 * * *', () => {
         }
       }
     }
+
+    // 5. Alertas de Visitas de Pastoreio (Atrasadas e Agendadas para os próximos dias)
+    try {
+      const scheduledVisits = $app.findRecordsByFilter(
+        'pastoral_visits',
+        "status = 'agendada'",
+        'scheduled_date',
+        200,
+        0,
+      )
+
+      for (let v = 0; v < scheduledVisits.length; v++) {
+        const visit = scheduledVisits[v]
+        const vDateStr = visit.getString('scheduled_date')
+        if (!vDateStr) continue
+
+        const vDate = new Date(vDateStr)
+        const targetPubId = visit.getString('target_publisher')
+        let targetPubName = visit.getString('target_family_name') || 'Irmão/Família'
+        let targetPubPhone = ''
+        let targetGroupNumber = 0
+        let targetGroupId = ''
+
+        if (targetPubId) {
+          try {
+            const pRec = $app.findRecordById('publishers', targetPubId)
+            if (pRec) {
+              targetPubName = pRec.getString('name')
+              targetPubPhone = pRec.getString('phone')
+              targetGroupId = pRec.getString('group_id')
+              if (targetGroupId) {
+                try {
+                  const gRec = $app.findRecordById('groups', targetGroupId)
+                  if (gRec) targetGroupNumber = gRec.getInt('number')
+                } catch (_) {}
+              }
+            }
+          } catch (_) {}
+        }
+
+        const primaryElderId = visit.getString('primary_elder')
+        let elderName = 'Corpo de Anciãos'
+        let elderPhone = ''
+        let elderEmail = ''
+        if (primaryElderId) {
+          try {
+            const uRec = $app.findRecordById('_pb_users_auth_', primaryElderId)
+            if (uRec) {
+              elderName = uRec.getString('name') || elderName
+              elderPhone = uRec.getString('phone')
+              elderEmail = uRec.getString('email')
+            }
+          } catch (_) {}
+        }
+
+        const diffMs = vDate.getTime() - now.getTime()
+        const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24))
+        const topicStr = visit.getString('topic') || 'Encorajamento espiritual'
+
+        if (diffDays < 0) {
+          // Visita com data passada e ainda com status 'agendada' (sem registro de conclusão) -> ATRASADA
+          let existing = null
+          try {
+            existing = $app.findFirstRecordByFilter(
+              'alerts',
+              "type = 'visita_atrasada' && metadata ~ {:vId} && status = 'pendente'",
+              { vId: visit.id },
+            )
+          } catch (_) {}
+
+          const overdueDays = Math.abs(diffDays)
+          const alertTitle =
+            'Visita de Pastoreio Atrasada: ' + targetPubName + ' (' + overdueDays + 'd)'
+          const alertDesc =
+            'A visita de pastoreio com ' +
+            targetPubName +
+            ' estava agendada para ' +
+            vDateStr.substring(0, 10) +
+            ' e ainda não foi registrada como realizada. Responsável: ' +
+            elderName +
+            '. Pauta: ' +
+            topicStr +
+            '.'
+
+          // Gerar wa_link direto para contato
+          const waPhone = elderPhone || targetPubPhone
+          let waLink = ''
+          const waMsg =
+            'Olá, irmão ' +
+            elderName +
+            '! Lembramos sobre a visita de pastoreio com ' +
+            targetPubName +
+            ' agendada para ' +
+            vDateStr.substring(0, 10) +
+            '. A visita já foi realizada para registrarmos o resumo no sistema?'
+          if (waPhone) {
+            let cleanPhone = waPhone.replace(/\\D/g, '')
+            if (cleanPhone.length === 10 || cleanPhone.length === 11) {
+              cleanPhone = '55' + cleanPhone
+            }
+            waLink = 'https://wa.me/' + cleanPhone + '?text=' + encodeURIComponent(waMsg)
+          } else {
+            waLink = 'https://wa.me/?text=' + encodeURIComponent(waMsg)
+          }
+
+          if (!existing) {
+            const vAlert = new Record(alertsCol)
+            vAlert.set('title', alertTitle)
+            vAlert.set('description', alertDesc)
+            vAlert.set('type', 'visita_atrasada')
+            vAlert.set('severity', overdueDays > 7 ? 'critica' : 'alta')
+            vAlert.set('status', 'pendente')
+            if (primaryElderId) vAlert.set('responsible_user', primaryElderId)
+            if (targetPubId) vAlert.set('target_publisher', targetPubId)
+            if (targetGroupId) vAlert.set('group_id', targetGroupId)
+            if (targetGroupNumber) vAlert.set('group_number', targetGroupNumber)
+            vAlert.set('due_date', vDateStr)
+            vAlert.set('wa_link', waLink)
+            vAlert.set(
+              'metadata',
+              JSON.stringify({
+                visit_id: visit.id,
+                target_name: targetPubName,
+                primary_elder: primaryElderId,
+                scheduled_date: vDateStr,
+              }),
+            )
+            $app.save(vAlert)
+
+            // Disparo opcional de e-mail ao ancião responsável se e-mail disponível
+            if (elderEmail) {
+              try {
+                const message = new MailerMessage({
+                  from: {
+                    address: $app.settings().meta.senderAddress || 'relatorios@congregacao.local',
+                    name: $app.settings().meta.senderName || 'Relatórios Congregação',
+                  },
+                  to: [{ address: elderEmail }],
+                  subject: '[Aviso] ' + alertTitle,
+                  html:
+                    '<h3>' +
+                    alertTitle +
+                    '</h3><p>' +
+                    alertDesc +
+                    '</p><p>Favor atualizar a situação no Painel dos Anciãos ou registrar as observações pós-visita.</p>',
+                })
+                $app.newMailClient().send(message)
+              } catch (_) {}
+            }
+          } else {
+            existing.set('severity', overdueDays > 7 ? 'critica' : 'alta')
+            existing.set('description', alertDesc)
+            existing.set('wa_link', waLink)
+            $app.save(existing)
+          }
+        } else if (diffDays <= 4) {
+          // Lembrete de Visita Agendada para os próximos 4 dias
+          let existing = null
+          try {
+            existing = $app.findFirstRecordByFilter(
+              'alerts',
+              "type = 'visita_agendada' && metadata ~ {:vId} && status = 'pendente'",
+              { vId: visit.id },
+            )
+          } catch (_) {}
+
+          const alertTitle =
+            diffDays === 0
+              ? 'Visita de Pastoreio Hoje: ' + targetPubName
+              : 'Visita de Pastoreio em ' + diffDays + ' dia(s): ' + targetPubName
+          const alertDesc =
+            'Visita agendada para ' +
+            vDateStr.substring(0, 10) +
+            '. Responsável: ' +
+            elderName +
+            '. Pauta: ' +
+            topicStr +
+            '.'
+
+          const waPhone = elderPhone || targetPubPhone
+          let waLink = ''
+          const waMsg =
+            'Olá, irmão ' +
+            elderName +
+            '! Lembrete da visita de pastoreio com ' +
+            targetPubName +
+            ' agendada para ' +
+            vDateStr.substring(0, 10) +
+            '. Pauta: ' +
+            topicStr +
+            '.'
+          if (waPhone) {
+            let cleanPhone = waPhone.replace(/\\D/g, '')
+            if (cleanPhone.length === 10 || cleanPhone.length === 11) {
+              cleanPhone = '55' + cleanPhone
+            }
+            waLink = 'https://wa.me/' + cleanPhone + '?text=' + encodeURIComponent(waMsg)
+          } else {
+            waLink = 'https://wa.me/?text=' + encodeURIComponent(waMsg)
+          }
+
+          if (!existing) {
+            const vAlert = new Record(alertsCol)
+            vAlert.set('title', alertTitle)
+            vAlert.set('description', alertDesc)
+            vAlert.set('type', 'visita_agendada')
+            vAlert.set('severity', diffDays <= 1 ? 'alta' : 'media')
+            vAlert.set('status', 'pendente')
+            if (primaryElderId) vAlert.set('responsible_user', primaryElderId)
+            if (targetPubId) vAlert.set('target_publisher', targetPubId)
+            if (targetGroupId) vAlert.set('group_id', targetGroupId)
+            if (targetGroupNumber) vAlert.set('group_number', targetGroupNumber)
+            vAlert.set('due_date', vDateStr)
+            vAlert.set('wa_link', waLink)
+            vAlert.set(
+              'metadata',
+              JSON.stringify({
+                visit_id: visit.id,
+                target_name: targetPubName,
+                primary_elder: primaryElderId,
+                scheduled_date: vDateStr,
+              }),
+            )
+            $app.save(vAlert)
+          }
+        }
+      }
+    } catch (visitErr) {
+      console.error('pastoral_visits alerts check error:', visitErr)
+    }
   } catch (err) {
     console.error('generate_daily_alerts error:', err)
   }

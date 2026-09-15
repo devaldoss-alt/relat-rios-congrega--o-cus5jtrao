@@ -38,12 +38,14 @@ import { calculateActivityStatus, PublisherReport } from '@/services/publisher_r
 import { findMonthlySummary, MonthlySummary } from '@/services/monthly_summaries'
 import { getAlerts, SystemAlert, buildWhatsAppLink } from '@/services/alerts'
 import { getMinutesActions, MinuteAction } from '@/services/minutes_actions'
-import { Link } from 'react-router-dom'
+import { getPastoralVisits, PastoralVisit, getDerivedVisitStatus } from '@/services/pastoral_visits'
+import { Link, useNavigate } from 'react-router-dom'
 import { useToast } from '@/hooks/use-toast'
 
 export default function EldersPanel() {
   const { user } = useAuth()
   const { toast } = useToast()
+  const navigate = useNavigate()
 
   const [loading, setLoading] = useState(true)
   const [groups, setGroups] = useState<Group[]>([])
@@ -52,6 +54,7 @@ export default function EldersPanel() {
   const [groupReports, setGroupReports] = useState<any[]>([])
   const [alerts, setAlerts] = useState<SystemAlert[]>([])
   const [actions, setActions] = useState<MinuteAction[]>([])
+  const [pastoralVisits, setPastoralVisits] = useState<PastoralVisit[]>([])
   const [summary, setSummary] = useState<MonthlySummary | null>(null)
   const [prevSummary, setPrevSummary] = useState<MonthlySummary | null>(null)
   const [usersList, setUsersList] = useState<any[]>([])
@@ -83,23 +86,34 @@ export default function EldersPanel() {
   const loadAllData = async () => {
     setLoading(true)
     try {
-      const [grps, pubs, allReports, gReps, allAlerts, allActions, currSum, pSum, allUsers] =
-        await Promise.all([
-          getGroups(),
-          getPublishers(),
-          pb.collection('publisher_reports').getFullList({
-            filter: `year >= ${currentYear - 1}`,
-            sort: '-year,-month',
-          }),
-          pb.collection('group_reports').getFullList({
-            sort: '-month',
-          }),
-          getAlerts("status = 'pendente'"),
-          getMinutesActions(),
-          findMonthlySummary(refYear, refMonthStr),
-          findMonthlySummary(prevRefYear, prevRefMonthStr),
-          pb.collection('users').getFullList(),
-        ])
+      const [
+        grps,
+        pubs,
+        allReports,
+        gReps,
+        allAlerts,
+        allActions,
+        allVisits,
+        currSum,
+        pSum,
+        allUsers,
+      ] = await Promise.all([
+        getGroups(),
+        getPublishers(),
+        pb.collection('publisher_reports').getFullList({
+          filter: `year >= ${currentYear - 1}`,
+          sort: '-year,-month',
+        }),
+        pb.collection('group_reports').getFullList({
+          sort: '-month',
+        }),
+        getAlerts("status = 'pendente'"),
+        getMinutesActions(),
+        getPastoralVisits('', 'scheduled_date'),
+        findMonthlySummary(refYear, refMonthStr),
+        findMonthlySummary(prevRefYear, prevRefMonthStr),
+        pb.collection('users').getFullList(),
+      ])
 
       setGroups(grps)
       setPublishers(pubs)
@@ -107,6 +121,7 @@ export default function EldersPanel() {
       setGroupReports(gReps)
       setAlerts(allAlerts)
       setActions(allActions)
+      setPastoralVisits(allVisits)
       setSummary(currSum)
       setPrevSummary(pSum)
       setUsersList(allUsers)
@@ -402,6 +417,11 @@ export default function EldersPanel() {
 
         <div className="flex items-center gap-2 flex-wrap">
           <Button variant="outline" size="sm" asChild>
+            <Link to="/visits" className="flex items-center gap-1.5">
+              <HeartHandshake className="h-4 w-4 text-rose-500" /> Visitas de Pastoreio
+            </Link>
+          </Button>
+          <Button variant="outline" size="sm" asChild>
             <Link to="/reports" className="flex items-center gap-1.5">
               <Activity className="h-4 w-4" /> Relatório S-1
             </Link>
@@ -455,8 +475,11 @@ export default function EldersPanel() {
                     {careSheepList.length}
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="text-xs text-muted-foreground">
-                  Sem relatar há 2+ meses (precisam de visita)
+                <CardContent className="text-xs text-muted-foreground flex justify-between items-center">
+                  <span>Sem relatar há 2+ meses</span>
+                  <Link to="/visits" className="text-amber-700 font-medium hover:underline">
+                    Ver visitas &rarr;
+                  </Link>
                 </CardContent>
               </Card>
 
@@ -490,6 +513,157 @@ export default function EldersPanel() {
                 </CardContent>
               </Card>
             </div>
+
+            {/* Seção Integrada: Visitas de Pastoreio */}
+            <Card className="border shadow-sm">
+              <CardHeader className="pb-3">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                  <div className="flex items-center gap-2">
+                    <HeartHandshake className="h-5 w-5 text-rose-500" />
+                    <div>
+                      <CardTitle className="text-lg">Visitas de Pastoreio</CardTitle>
+                      <CardDescription>
+                        Acompanhamento de visitas agendadas, atrasadas e irmãos que precisam de
+                        cuidado
+                      </CardDescription>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" asChild className="h-8 text-xs gap-1">
+                      <Link to="/visits">
+                        Abrir Módulo Completo <ChevronRight className="h-3.5 w-3.5" />
+                      </Link>
+                    </Button>
+                    <Button size="sm" asChild className="h-8 text-xs gap-1">
+                      <Link to="/visits">
+                        <Calendar className="h-3.5 w-3.5" /> Agendar Nova Visita
+                      </Link>
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                  <div className="p-3 rounded-lg border bg-amber-50/50 border-amber-200">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-amber-800 uppercase tracking-wide">
+                        Visitas Agendadas
+                      </span>
+                      <Clock className="h-4 w-4 text-amber-600" />
+                    </div>
+                    <p className="text-2xl font-bold text-amber-900 mt-1">
+                      {pastoralVisits.filter((v) => getDerivedVisitStatus(v) === 'agendada').length}
+                    </p>
+                    <p className="text-[11px] text-amber-700 mt-0.5">Programadas no calendário</p>
+                  </div>
+
+                  <div className="p-3 rounded-lg border bg-rose-50/50 border-rose-200">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-rose-800 uppercase tracking-wide">
+                        Visitas Atrasadas
+                      </span>
+                      <AlertTriangle className="h-4 w-4 text-rose-600" />
+                    </div>
+                    <p className="text-2xl font-bold text-rose-900 mt-1">
+                      {pastoralVisits.filter((v) => getDerivedVisitStatus(v) === 'atrasada').length}
+                    </p>
+                    <p className="text-[11px] text-rose-700 mt-0.5">
+                      Prazo expirado sem realização
+                    </p>
+                  </div>
+
+                  <div className="p-3 rounded-lg border bg-emerald-50/50 border-emerald-200">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-emerald-800 uppercase tracking-wide">
+                        Realizadas Recentemente
+                      </span>
+                      <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                    </div>
+                    <p className="text-2xl font-bold text-emerald-900 mt-1">
+                      {pastoralVisits.filter((v) => v.status === 'realizada').length}
+                    </p>
+                    <p className="text-[11px] text-emerald-700 mt-0.5">
+                      Com observações registradas
+                    </p>
+                  </div>
+                </div>
+
+                {/* Lista de Visitas Próximas ou Atrasadas */}
+                <div className="space-y-2">
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase">
+                    Próximas Visitas e Pendências de Pastoreio
+                  </h4>
+                  {pastoralVisits.filter((v) => v.status !== 'cancelada').length === 0 ? (
+                    <div className="p-6 text-center text-xs text-muted-foreground border rounded-lg">
+                      Nenhuma visita agendada no momento.{' '}
+                      <Link to="/visits" className="text-primary underline">
+                        Clique aqui para agendar uma visita.
+                      </Link>
+                    </div>
+                  ) : (
+                    <div className="divide-y rounded-lg border bg-card">
+                      {pastoralVisits
+                        .filter((v) => v.status !== 'cancelada')
+                        .slice(0, 5)
+                        .map((v) => {
+                          const st = getDerivedVisitStatus(v)
+                          const pubName =
+                            v.target_family_name ||
+                            v.expand?.target_publisher?.name ||
+                            'Família/Irmão'
+                          const elderName = v.expand?.primary_elder?.name || 'Corpo de Anciãos'
+                          const dateStr = v.scheduled_date
+                            ? new Date(v.scheduled_date).toLocaleDateString('pt-BR')
+                            : '—'
+
+                          return (
+                            <div
+                              key={v.id}
+                              className="p-3 flex items-center justify-between text-xs hover:bg-muted/30 transition-colors"
+                            >
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-semibold text-sm text-foreground">
+                                    {pubName}
+                                  </span>
+                                  {st === 'atrasada' && (
+                                    <Badge variant="destructive" className="text-[10px]">
+                                      Atrasada
+                                    </Badge>
+                                  )}
+                                  {st === 'agendada' && (
+                                    <Badge
+                                      variant="outline"
+                                      className="text-amber-600 border-amber-300 text-[10px]"
+                                    >
+                                      Agendada
+                                    </Badge>
+                                  )}
+                                  {st === 'realizada' && (
+                                    <Badge variant="default" className="bg-emerald-600 text-[10px]">
+                                      Realizada
+                                    </Badge>
+                                  )}
+                                </div>
+                                <p className="text-muted-foreground">
+                                  <strong>Data:</strong> {dateStr} • <strong>Responsável:</strong>{' '}
+                                  {elderName} • <strong>Pauta:</strong> {v.topic}
+                                </p>
+                              </div>
+
+                              <div className="flex items-center gap-2">
+                                <Button variant="ghost" size="sm" asChild className="h-7 text-xs">
+                                  <Link to="/visits">Ver detalhes</Link>
+                                </Button>
+                              </div>
+                            </div>
+                          )
+                        })}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
 
             {/* Checklist Semanal do Ancião */}
             <Card className="border shadow-sm">
@@ -718,27 +892,39 @@ export default function EldersPanel() {
                           </p>
                         </div>
 
-                        <div className="flex items-center justify-between pt-2 border-t mt-1">
-                          <Button variant="ghost" size="sm" asChild className="h-7 text-xs px-2">
-                            <Link to={`/publishers/${pub.id}`}>Ficha S-21</Link>
+                        <div className="flex items-center justify-between pt-2 border-t mt-1 gap-1 flex-wrap">
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            className="h-7 text-xs px-2 gap-1 text-primary hover:bg-primary/10"
+                            onClick={() => {
+                              const pauta = `Apoio pastoral e encorajamento espiritual (${missedCount} meses sem relatar)`
+                              navigate(
+                                `/visits?new_for_pub=${pub.id}&topic=${encodeURIComponent(pauta)}`,
+                              )
+                            }}
+                          >
+                            <HeartHandshake className="h-3.5 w-3.5 text-rose-500" /> Agendar visita
                           </Button>
-                          {pub.phone ? (
-                            <a
-                              href={buildWhatsAppLink(
-                                pub.phone,
-                                `Olá, irmão(ã) ${pub.name.split(' ')[0]}! Tudo bem com você? Nós do corpo de anciãos estamos com saudades e queremos saber se podemos ajudar em algo. Um grande abraço!`,
-                              )}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-emerald-600 hover:text-emerald-700 text-xs flex items-center gap-1 font-medium bg-emerald-50 px-2 py-1 rounded"
-                            >
-                              <MessageCircle className="h-3 w-3" /> WhatsApp
-                            </a>
-                          ) : (
-                            <span className="text-[11px] text-muted-foreground italic">
-                              Sem telefone
-                            </span>
-                          )}
+
+                          <div className="flex items-center gap-1">
+                            <Button variant="ghost" size="sm" asChild className="h-7 text-xs px-2">
+                              <Link to={`/publishers/${pub.id}`}>Ficha</Link>
+                            </Button>
+                            {pub.phone ? (
+                              <a
+                                href={buildWhatsAppLink(
+                                  pub.phone,
+                                  `Olá, irmão(ã) ${pub.name.split(' ')[0]}! Tudo bem com você? Nós do corpo de anciãos estamos com saudades e queremos saber se podemos ajudar em algo. Um grande abraço!`,
+                                )}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-emerald-600 hover:text-emerald-700 text-xs flex items-center gap-1 font-medium bg-emerald-50 px-2 py-1 rounded"
+                              >
+                                <MessageCircle className="h-3 w-3" /> WhatsApp
+                              </a>
+                            ) : null}
+                          </div>
                         </div>
                       </div>
                     ))}

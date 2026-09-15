@@ -41,7 +41,11 @@ const getNavigation = (role?: string) => {
   // Se for Ancião ou Secretário, adiciona Painel dos Anciãos, Atas e Notificações no topo
   if (role === 'Secretário' || role === 'Ancião') {
     items.push({ name: 'Painel dos Anciãos', href: '/elders-panel', icon: Shield })
+    items.push({ name: 'Visitas de Pastoreio', href: '/visits', icon: CalendarCheck })
     items.push({ name: 'Atas e Ações', href: '/minutes', icon: CheckSquare })
+  } else if (role === 'Responsável') {
+    // Responsável também tem acesso a Visitas de Pastoreio conforme os requisitos
+    items.push({ name: 'Visitas de Pastoreio', href: '/visits', icon: CalendarCheck })
   }
 
   // Entrada de Dados (apenas quem pode lançar: Secretário e Responsável)
