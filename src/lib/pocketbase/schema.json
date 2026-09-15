@@ -1,12 +1,12 @@
 {
-  "generatedAt": "2026-08-28T14:12:38.883Z",
+  "generatedAt": "2026-09-15T16:18:04.251Z",
   "collections": [
     {
       "name": "users",
       "type": "auth",
       "apiRules": {
-        "list": "id = @request.auth.id || @request.auth.role = 'Secretário'",
-        "view": "id = @request.auth.id || @request.auth.role = 'Secretário'",
+        "list": "id = @request.auth.id || @request.auth.role = 'Secretário' || @request.auth.role = 'Ancião'",
+        "view": "id = @request.auth.id || @request.auth.role = 'Secretário' || @request.auth.role = 'Ancião'",
         "create": "id = @request.auth.id || @request.auth.role = 'Secretário' || @request.auth.id = ''",
         "update": "id = @request.auth.id || @request.auth.role = 'Secretário'",
         "delete": "id = @request.auth.id || @request.auth.role = 'Secretário'"
@@ -43,7 +43,7 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["Secretário", "Responsável"]
+          "selectValues": ["Secretário", "Responsável", "Ancião"]
         },
         {
           "name": "group_name",
@@ -251,8 +251,8 @@
       "name": "groups",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != '' && (number = @request.auth.group_number || @request.auth.role = 'Secretário')",
-        "view": "@request.auth.id != '' && (number = @request.auth.group_number || @request.auth.role = 'Secretário')",
+        "list": "@request.auth.id != '' && (number = @request.auth.group_number || @request.auth.role = 'Secretário' || @request.auth.role = 'Ancião')",
+        "view": "@request.auth.id != '' && (number = @request.auth.group_number || @request.auth.role = 'Secretário' || @request.auth.role = 'Ancião')",
         "create": "@request.auth.role = 'Secretário'",
         "update": "@request.auth.role = 'Secretário'",
         "delete": "@request.auth.role = 'Secretário'"
@@ -304,8 +304,8 @@
       "name": "publishers",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != '' && (group_id.number = @request.auth.group_number || @request.auth.role = 'Secretário')",
-        "view": "@request.auth.id != '' && (group_id.number = @request.auth.group_number || @request.auth.role = 'Secretário')",
+        "list": "@request.auth.id != '' && (group_id.number = @request.auth.group_number || @request.auth.role = 'Secretário' || @request.auth.role = 'Ancião')",
+        "view": "@request.auth.id != '' && (group_id.number = @request.auth.group_number || @request.auth.role = 'Secretário' || @request.auth.role = 'Ancião')",
         "create": "@request.auth.id != '' && (group_id.number = @request.auth.group_number || @request.auth.role = 'Secretário')",
         "update": "@request.auth.id != '' && (group_id.number = @request.auth.group_number || @request.auth.role = 'Secretário')",
         "delete": "@request.auth.id != '' && (group_id.number = @request.auth.group_number || @request.auth.role = 'Secretário')"
@@ -433,8 +433,8 @@
       "name": "group_reports",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != '' && (group_id.number = @request.auth.group_number || @request.auth.role = 'Secretário')",
-        "view": "@request.auth.id != '' && (group_id.number = @request.auth.group_number || @request.auth.role = 'Secretário')",
+        "list": "@request.auth.id != '' && (group_id.number = @request.auth.group_number || @request.auth.role = 'Secretário' || @request.auth.role = 'Ancião')",
+        "view": "@request.auth.id != '' && (group_id.number = @request.auth.group_number || @request.auth.role = 'Secretário' || @request.auth.role = 'Ancião')",
         "create": "@request.auth.id != '' && (group_id.number = @request.auth.group_number || @request.auth.role = 'Secretário')",
         "update": "@request.auth.id != '' && (group_id.number = @request.auth.group_number || @request.auth.role = 'Secretário')",
         "delete": "@request.auth.id != '' && (group_id.number = @request.auth.group_number || @request.auth.role = 'Secretário')"
@@ -653,8 +653,8 @@
       "name": "publisher_reports",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != '' && (publisher_id.group_id.number = @request.auth.group_number || @request.auth.role = 'Secretário')",
-        "view": "@request.auth.id != '' && (publisher_id.group_id.number = @request.auth.group_number || @request.auth.role = 'Secretário')",
+        "list": "@request.auth.id != '' && (publisher_id.group_id.number = @request.auth.group_number || @request.auth.role = 'Secretário' || @request.auth.role = 'Ancião')",
+        "view": "@request.auth.id != '' && (publisher_id.group_id.number = @request.auth.group_number || @request.auth.role = 'Secretário' || @request.auth.role = 'Ancião')",
         "create": "@request.auth.id != '' && (publisher_id.group_id.number = @request.auth.group_number || @request.auth.role = 'Secretário')",
         "update": "@request.auth.id != '' && (publisher_id.group_id.number = @request.auth.group_number || @request.auth.role = 'Secretário')",
         "delete": "@request.auth.id != '' && (publisher_id.group_id.number = @request.auth.group_number || @request.auth.role = 'Secretário')"
@@ -733,8 +733,8 @@
       "name": "deliberative_reports",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.role = 'Secretário'",
-        "view": "@request.auth.role = 'Secretário'",
+        "list": "@request.auth.role = 'Secretário' || @request.auth.role = 'Ancião'",
+        "view": "@request.auth.role = 'Secretário' || @request.auth.role = 'Ancião'",
         "create": "@request.auth.role = 'Secretário'",
         "update": "@request.auth.role = 'Secretário'",
         "delete": "@request.auth.role = 'Secretário'"
@@ -770,6 +770,284 @@
           "required": true,
           "system": false,
           "collectionRef": "users"
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "alerts",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.role = 'Secretário' || @request.auth.role = 'Ancião'",
+        "update": "@request.auth.role = 'Secretário' || @request.auth.role = 'Ancião'",
+        "delete": "@request.auth.role = 'Secretário'"
+      },
+      "fields": [
+        {
+          "name": "title",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "type",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "relatorio_pendente",
+            "publicador_5_meses",
+            "publicador_6_meses_critico",
+            "prazo_s1",
+            "acao_ata_vencendo",
+            "acao_ata_atrasada",
+            "pastoreio",
+            "geral"
+          ]
+        },
+        {
+          "name": "severity",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["baixa", "media", "alta", "critica"]
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["pendente", "resolvido"]
+        },
+        {
+          "name": "group_number",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "group_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "groups"
+        },
+        {
+          "name": "responsible_user",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "target_publisher",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "publishers"
+        },
+        {
+          "name": "due_date",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "reference_month",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "wa_link",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "metadata",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "meeting_minutes",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.role = 'Secretário' || @request.auth.role = 'Ancião'",
+        "view": "@request.auth.role = 'Secretário' || @request.auth.role = 'Ancião'",
+        "create": "@request.auth.role = 'Secretário'",
+        "update": "@request.auth.role = 'Secretário'",
+        "delete": "@request.auth.role = 'Secretário'"
+      },
+      "fields": [
+        {
+          "name": "title",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "meeting_date",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "raw_content",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "attachment",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created_by",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "minutes_actions",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.role = 'Secretário' || @request.auth.role = 'Ancião'",
+        "view": "@request.auth.role = 'Secretário' || @request.auth.role = 'Ancião'",
+        "create": "@request.auth.role = 'Secretário' || @request.auth.role = 'Ancião'",
+        "update": "@request.auth.role = 'Secretário' || @request.auth.role = 'Ancião'",
+        "delete": "@request.auth.role = 'Secretário'"
+      },
+      "fields": [
+        {
+          "name": "minute_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "meeting_minutes"
+        },
+        {
+          "name": "title",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "assigned_to",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "assigned_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "group_number",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "due_date",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["pendente", "em_andamento", "concluido", "cancelado"]
+        },
+        {
+          "name": "priority",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["baixa", "media", "alta", "urgente"]
+        },
+        {
+          "name": "notes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "completed_at",
+          "type": "date",
+          "required": false,
+          "system": false
         },
         {
           "name": "created",

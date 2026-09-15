@@ -28,25 +28,53 @@ import {
   ClipboardList,
   HelpCircle,
   Settings as SettingsIcon,
+  Shield,
+  Bell,
+  CheckSquare,
 } from 'lucide-react'
+import { NotificationBadge } from '@/components/notifications/NotificationBadge'
 
 const getNavigation = (role?: string) => {
-  const base = [
-    { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-    { name: 'Entrada de Dados', href: '/group-data', icon: Users },
-    { name: 'Assistência às Reuniões', href: '/attendance', icon: CalendarCheck },
-    { name: 'Compilação de Relatório', href: '/reports', icon: FileText },
-    { name: 'Métricas de Saúde', href: '/metrics', icon: Activity },
-    { name: 'Tutorial de Uso', href: '/tutorial', icon: HelpCircle },
-    { name: 'Configurações', href: '/settings', icon: SettingsIcon },
-  ]
-  if (role === 'Secretário') {
-    base.push({ name: 'Gestão de Publicadores', href: '/publishers', icon: Users })
-    base.push({ name: 'Histórico de Relatórios', href: '/reports-history', icon: BookOpen })
-    base.push({ name: 'Relatório Deliberativo', href: '/deliberative-report', icon: ClipboardList })
-    base.push({ name: 'Usuários', href: '/users', icon: UserCog })
+  // Base compartilhada
+  const items = [{ name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard }]
+
+  // Se for Ancião ou Secretário, adiciona Painel dos Anciãos, Atas e Notificações no topo
+  if (role === 'Secretário' || role === 'Ancião') {
+    items.push({ name: 'Painel dos Anciãos', href: '/elders-panel', icon: Shield })
+    items.push({ name: 'Atas e Ações', href: '/minutes', icon: CheckSquare })
   }
-  return base
+
+  // Entrada de Dados (apenas quem pode lançar: Secretário e Responsável)
+  if (role === 'Secretário' || role === 'Responsável') {
+    items.push({ name: 'Entrada de Dados', href: '/group-data', icon: Users })
+  }
+
+  // Assistência e relatórios de consulta
+  items.push({ name: 'Assistência às Reuniões', href: '/attendance', icon: CalendarCheck })
+  items.push({ name: 'Compilação de Relatório', href: '/reports', icon: FileText })
+  items.push({ name: 'Métricas de Saúde', href: '/metrics', icon: Activity })
+
+  // Acesso total do Ancião e do Secretário às telas analíticas
+  if (role === 'Secretário' || role === 'Ancião') {
+    items.push({ name: 'Gestão de Publicadores', href: '/publishers', icon: Users })
+    items.push({ name: 'Histórico de Relatórios', href: '/reports-history', icon: BookOpen })
+    items.push({
+      name: 'Relatório Deliberativo',
+      href: '/deliberative-report',
+      icon: ClipboardList,
+    })
+  }
+
+  // Módulo de Usuários (restrito a Secretário)
+  if (role === 'Secretário') {
+    items.push({ name: 'Usuários', href: '/users', icon: UserCog })
+  }
+
+  // Links padrão de apoio
+  items.push({ name: 'Tutorial de Uso', href: '/tutorial', icon: HelpCircle })
+  items.push({ name: 'Configurações', href: '/settings', icon: SettingsIcon })
+
+  return items
 }
 
 export default function Layout() {
@@ -103,7 +131,8 @@ export default function Layout() {
             <SidebarTrigger className="-ml-2 lg:hidden" />
             <h1 className="text-sm font-medium lg:hidden">Dashboard</h1>
           </div>
-          <div className="flex items-center gap-4 ml-auto">
+          <div className="flex items-center gap-3 ml-auto">
+            <NotificationBadge />
             <div className="flex flex-col items-end">
               <span className="text-sm font-medium leading-none">
                 Bem-vindo, {user?.name || user?.email}

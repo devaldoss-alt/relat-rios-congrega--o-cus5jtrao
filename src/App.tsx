@@ -19,6 +19,8 @@ import PublisherProfile from './pages/PublisherProfile'
 import ReportsHistory from './pages/ReportsHistory'
 import UsersAdmin from './pages/UsersAdmin'
 import DeliberativeReport from './pages/DeliberativeReport'
+import EldersPanel from './pages/EldersPanel'
+import MinutesPage from './pages/MinutesPage'
 import Tutorial from './pages/Tutorial'
 import Settings from './pages/Settings'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -65,6 +67,8 @@ const App = () => (
           >
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<Index />} />
+            <Route path="/elders-panel" element={<EldersPanel />} />
+            <Route path="/minutes" element={<MinutesPage />} />
             <Route path="/group-data" element={<GroupData />} />
             <Route path="/attendance" element={<Attendance />} />
             <Route

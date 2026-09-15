@@ -77,6 +77,8 @@ const CustomPioneerAnnualTooltip = ({ active, payload }: any) => {
 export default function Index() {
   const { user } = useAuth()
   const isSecretary = user?.role === 'Secretário'
+  const isElder = user?.role === 'Ancião'
+  const canSeeAllGroups = isSecretary || isElder
 
   const [startMonth, setStartMonth] = useState(9)
   const [startYear, setStartYear] = useState(2025)
@@ -97,7 +99,7 @@ export default function Index() {
       try {
         const gs = await getGroups()
         setGroups(gs)
-        if (!isSecretary && user?.group_number) {
+        if (!canSeeAllGroups && user?.group_number) {
           const myGroup = gs.find((g) => g.number === user.group_number)
           if (myGroup) {
             setSelectedGroupId(myGroup.id)
@@ -108,7 +110,7 @@ export default function Index() {
       }
     }
     fetchGroups()
-  }, [user, isSecretary])
+  }, [user, canSeeAllGroups])
 
   const monthsInRange = useMemo(() => {
     const res = []
@@ -395,7 +397,7 @@ export default function Index() {
           <Select
             value={selectedGroupId}
             onValueChange={setSelectedGroupId}
-            disabled={!isSecretary}
+            disabled={!canSeeAllGroups}
           >
             <SelectTrigger className="w-[180px] bg-background">
               <SelectValue placeholder="Selecione..." />

@@ -59,13 +59,15 @@ const YEARS = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i)
 export default function Reports() {
   const { user } = useAuth()
   const isSecretario = user?.role === 'Secretário'
+  const isAnciao = user?.role === 'Ancião'
+  const canFilterAll = isSecretario || isAnciao
   const { toast } = useToast()
 
   const [viewMode, setViewMode] = useState<'secretario' | 'betel'>('secretario')
   const [month, setMonth] = useState(new Date().getMonth() + 1)
   const [year, setYear] = useState(new Date().getFullYear())
   const [selectedGroup, setSelectedGroup] = useState<string>(
-    isSecretario ? 'all' : user?.group_number?.toString() || 'all',
+    canFilterAll ? 'all' : user?.group_number?.toString() || 'all',
   )
 
   const [loading, setLoading] = useState(false)
@@ -297,7 +299,7 @@ Assistência Média:
               <TabsTrigger value="betel">Ficha S-1</TabsTrigger>
             </TabsList>
           </Tabs>
-          {isSecretario && viewMode === 'secretario' && (
+          {canFilterAll && viewMode === 'secretario' && (
             <Select value={selectedGroup} onValueChange={setSelectedGroup} disabled={loading}>
               <SelectTrigger className="w-[140px] bg-background">
                 <SelectValue placeholder="Grupo" />

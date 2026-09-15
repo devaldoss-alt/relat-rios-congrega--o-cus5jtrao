@@ -79,6 +79,7 @@ export default function GroupData() {
 
   const isSecretario = user?.role === 'Secretário'
   const isResponsavel = user?.role === 'Responsável'
+  const isAnciao = user?.role === 'Ancião'
 
   const [groups, setGroups] = useState<any[]>([])
   const [selectedGroupNumber, setSelectedGroupNumber] = useState<string>(
@@ -214,7 +215,7 @@ export default function GroupData() {
     }
   })
 
-  if (!isSecretario && !isResponsavel) {
+  if (!isSecretario && !isResponsavel && !isAnciao) {
     return <Navigate to="/dashboard" replace />
   }
 
@@ -237,6 +238,16 @@ export default function GroupData() {
   }
 
   async function onSubmit(values: ReportFormValues) {
+    if (isAnciao) {
+      toast({
+        title: 'Acesso Somente Consulta',
+        description:
+          'Usuários com perfil Ancião têm acesso para acompanhar, sem permissão de escrita.',
+        variant: 'destructive',
+      })
+      return
+    }
+
     if (!selectedGroupId) {
       toast({
         title: 'Erro de Grupo',
@@ -756,12 +767,18 @@ export default function GroupData() {
                   </Table>
                 </div>
 
-                <div className="p-6 flex justify-end bg-muted/10 border-t mt-2">
+                <div className="p-6 flex justify-between items-center bg-muted/10 border-t mt-2">
+                  {isAnciao && (
+                    <p className="text-xs text-muted-foreground italic">
+                      Modo somente leitura para o perfil Ancião. Lançamentos são feitos pelos
+                      dirigentes de grupo ou pelo secretário.
+                    </p>
+                  )}
                   <Button
                     type="submit"
                     size="lg"
-                    disabled={isSaving || fields.length === 0 || !selectedGroupId}
-                    className="bg-blue-600 hover:bg-blue-700 text-white min-w-[180px]"
+                    disabled={isSaving || fields.length === 0 || !selectedGroupId || isAnciao}
+                    className="bg-blue-600 hover:bg-blue-700 text-white min-w-[180px] ml-auto"
                   >
                     {isSaving ? (
                       <>
@@ -771,7 +788,7 @@ export default function GroupData() {
                     ) : (
                       <>
                         <Save className="mr-2 h-4 w-4" />
-                        Salvar Atividades
+                        {isAnciao ? 'Modo Consulta (Somente Leitura)' : 'Salvar Atividades'}
                       </>
                     )}
                   </Button>

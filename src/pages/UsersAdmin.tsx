@@ -41,7 +41,7 @@ import { Pencil, Trash2, Plus, Loader2, UserCog } from 'lucide-react'
 import { RecordModel } from 'pocketbase'
 
 const GROUP_NAMES = ['Grupo 1', 'Grupo 2', 'Grupo 3', 'Grupo 4'] as const
-const ROLES = ['Secretário', 'Responsável'] as const
+const ROLES = ['Secretário', 'Responsável', 'Ancião'] as const
 
 const userSchema = z.object({
   name: z.string().min(2, 'Nome é obrigatório'),
@@ -362,7 +362,10 @@ export default function UsersAdmin() {
                         </FormControl>
                         <SelectContent>
                           <SelectItem value="Secretário">Secretário</SelectItem>
-                          <SelectItem value="Responsável">Responsável</SelectItem>
+                          <SelectItem value="Responsável">Responsável (Dirigente)</SelectItem>
+                          <SelectItem value="Ancião">
+                            Ancião (Consulta Total / Acompanhamento)
+                          </SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
