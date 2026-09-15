@@ -39,6 +39,7 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Pencil, Trash2, Plus, Loader2, UserCog } from 'lucide-react'
 import { RecordModel } from 'pocketbase'
+import { GuideDialog } from '@/components/GuideDialog'
 
 const GROUP_NAMES = ['Grupo 1', 'Grupo 2', 'Grupo 3', 'Grupo 4'] as const
 const ROLES = ['Secretário', 'Responsável', 'Ancião'] as const
@@ -217,9 +218,12 @@ export default function UsersAdmin() {
             Administre os acessos e permissões do sistema.
           </p>
         </div>
-        <Button onClick={() => handleOpenDialog()} className="gap-2">
-          <Plus className="h-4 w-4" /> Novo Usuário
-        </Button>
+        <div className="flex items-center gap-2">
+          <GuideDialog />
+          <Button onClick={() => handleOpenDialog()} className="gap-2">
+            <Plus className="h-4 w-4" /> Novo Usuário
+          </Button>
+        </div>
       </div>
 
       <Card className="shadow-md">

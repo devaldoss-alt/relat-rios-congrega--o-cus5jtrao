@@ -21,6 +21,7 @@ import {
 } from 'recharts'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { Clock, Users, BookOpen, Download, FileText, AlertTriangle } from 'lucide-react'
+import { GuideDialog } from '@/components/GuideDialog'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/hooks/use-auth'
 import pb from '@/lib/pocketbase/client'
@@ -371,6 +372,7 @@ export default function Index() {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
+          <GuideDialog />
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={exportPDF}>
               <FileText className="w-4 h-4 mr-2" /> PDF

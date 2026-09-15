@@ -58,6 +58,7 @@ import {
 import { buildWhatsAppLink, sendElderNotificationEmail } from '@/services/alerts'
 import { getPublishers, Publisher } from '@/services/publishers'
 import { getGroups, Group } from '@/services/groups'
+import { GuideDialog } from '@/components/GuideDialog'
 
 export default function PastoralVisitsPage() {
   const { user } = useAuth()
@@ -414,12 +415,12 @@ export default function PastoralVisitsPage() {
             </div>
           </div>
         </div>
-
         <div className="flex items-center gap-2 flex-wrap">
-          <Button onClick={openNewVisitModal} className="gap-2 shadow-sm">
+          <GuideDialog />
+          <Button onClick={openNewVisitModal} className="gap-2">
             <Plus className="h-4 w-4" /> Agendar Visita
           </Button>
-        </div>
+        </div>{' '}
       </div>
 
       {/* Cards de Métricas */}

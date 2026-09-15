@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import { Shield, KeyRound, Loader2 } from 'lucide-react'
+import { GuideDialog } from '@/components/GuideDialog'
 import pb from '@/lib/pocketbase/client'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 
@@ -59,11 +60,14 @@ export default function Settings() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6 animate-in fade-in zoom-in-95 duration-500">
-      <div>
-        <h2 className="text-3xl font-bold tracking-tight">Configurações</h2>
-        <p className="text-muted-foreground mt-1">
-          Gerencie suas preferências e segurança da conta.
-        </p>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight">Configurações</h2>
+          <p className="text-muted-foreground mt-1">
+            Gerencie suas preferências e segurança da conta.
+          </p>
+        </div>
+        <GuideDialog />
       </div>
 
       <Card>

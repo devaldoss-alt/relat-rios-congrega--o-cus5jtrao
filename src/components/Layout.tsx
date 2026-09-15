@@ -33,6 +33,7 @@ import {
   CheckSquare,
 } from 'lucide-react'
 import { NotificationBadge } from '@/components/notifications/NotificationBadge'
+import { GuideDialog } from '@/components/GuideDialog'
 
 const getNavigation = (role?: string) => {
   // Base compartilhada
@@ -136,6 +137,7 @@ export default function Layout() {
             <h1 className="text-sm font-medium lg:hidden">Dashboard</h1>
           </div>
           <div className="flex items-center gap-3 ml-auto">
+            <GuideDialog />
             <NotificationBadge />
             <div className="flex flex-col items-end">
               <span className="text-sm font-medium leading-none">

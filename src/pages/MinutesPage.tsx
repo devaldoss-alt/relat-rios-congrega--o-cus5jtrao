@@ -50,6 +50,7 @@ import {
 } from '@/services/minutes_actions'
 import { buildWhatsAppLink } from '@/services/alerts'
 import pb from '@/lib/pocketbase/client'
+import { GuideDialog } from '@/components/GuideDialog'
 
 export default function MinutesPage() {
   const { user } = useAuth()
@@ -250,6 +251,7 @@ export default function MinutesPage() {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
+          <GuideDialog />
           {isSecretary && (
             <Dialog open={isMinuteModalOpen} onOpenChange={setIsMinuteModalOpen}>
               <DialogTrigger asChild>

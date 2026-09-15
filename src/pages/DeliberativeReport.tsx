@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Printer, Save, FileText } from 'lucide-react'
+import { GuideDialog } from '@/components/GuideDialog'
 import { useDeliberativeReport } from '@/hooks/use-deliberative-report'
 import { ExecutiveSummaryCard } from '@/components/deliberative-report/ExecutiveSummaryCard'
 import { VitalityCharts } from '@/components/deliberative-report/VitalityCharts'
@@ -89,9 +90,12 @@ export default function DeliberativeReportPage() {
     <div className="max-w-5xl mx-auto space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 print:hidden">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <FileText className="h-6 w-6" /> Relatório Deliberativo
-          </h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              <FileText className="h-6 w-6" /> Relatório Deliberativo
+            </h1>
+            <GuideDialog />
+          </div>
           <p className="text-muted-foreground text-sm">
             Gere um diagnóstico da saúde espiritual da congregação.
           </p>

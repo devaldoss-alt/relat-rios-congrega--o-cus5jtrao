@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { Calendar, Loader2, Printer } from 'lucide-react'
+import { GuideDialog } from '@/components/GuideDialog'
 import { SecretarySummaryDialog } from '@/components/reports-history/SecretarySummaryDialog'
 
 const MONTHS: Record<string, string> = {
@@ -117,13 +118,16 @@ export default function ReportsHistoryPage() {
 
   return (
     <div className="space-y-6 animate-fade-in-up pb-10">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Histórico de Relatórios</h1>
-        <p className="text-muted-foreground mt-1">
-          {isSecretary
-            ? 'Arquivo de compilações mensais da congregação'
-            : `Arquivo de relatórios do Grupo ${user?.group_number}`}
-        </p>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Histórico de Relatórios</h1>
+          <p className="text-muted-foreground mt-1">
+            {isSecretary
+              ? 'Arquivo de compilações mensais da congregação'
+              : `Arquivo de relatórios do Grupo ${user?.group_number}`}
+          </p>
+        </div>
+        <GuideDialog />
       </div>
 
       {loading ? (

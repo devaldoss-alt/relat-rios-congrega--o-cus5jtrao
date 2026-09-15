@@ -41,6 +41,7 @@ import { getMinutesActions, MinuteAction } from '@/services/minutes_actions'
 import { getPastoralVisits, PastoralVisit, getDerivedVisitStatus } from '@/services/pastoral_visits'
 import { Link, useNavigate } from 'react-router-dom'
 import { useToast } from '@/hooks/use-toast'
+import { GuideDialog } from '@/components/GuideDialog'
 
 export default function EldersPanel() {
   const { user } = useAuth()
@@ -407,7 +408,10 @@ export default function EldersPanel() {
               <Shield className="h-6 w-6" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold tracking-tight">Painel dos Anciãos</h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-3xl font-bold tracking-tight">Painel dos Anciãos</h1>
+                <GuideDialog />
+              </div>
               <p className="text-muted-foreground text-sm">
                 Acompanhamento pastoral e administrativo da congregação
               </p>

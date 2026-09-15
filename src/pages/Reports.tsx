@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
+import { GuideDialog } from '@/components/GuideDialog'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { cn } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
@@ -288,7 +289,8 @@ Assistência Média:
           <h2 className="text-3xl font-bold tracking-tight">Relatório Consolidado</h2>
           <p className="text-muted-foreground mt-1">Visualização no formato oficial S-1.</p>
         </div>
-        <div className="flex gap-2 flex-wrap sm:flex-nowrap">
+        <div className="flex gap-2 flex-wrap sm:flex-nowrap items-center">
+          <GuideDialog />
           <Tabs
             value={viewMode}
             onValueChange={(v) => setViewMode(v as 'secretario' | 'betel')}

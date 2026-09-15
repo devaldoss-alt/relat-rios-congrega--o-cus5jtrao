@@ -50,6 +50,7 @@ import {
   Search,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { GuideDialog } from '@/components/GuideDialog'
 import { useAuth } from '@/hooks/use-auth'
 import pb from '@/lib/pocketbase/client'
 
@@ -530,7 +531,10 @@ export default function HealthMetrics() {
 
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
         <div className="print:hidden">
-          <h2 className="text-3xl font-bold tracking-tight">Métricas de Saúde</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-3xl font-bold tracking-tight">Métricas de Saúde</h2>
+            <GuideDialog />
+          </div>
           <p className="text-muted-foreground mt-1">
             Análise de tendências da congregação por período personalizado.
           </p>

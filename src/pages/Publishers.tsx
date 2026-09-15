@@ -40,6 +40,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
 import { Plus, Search, Loader2, Pencil, Trash2, Eye, Users, BookOpen } from 'lucide-react'
+import { GuideDialog } from '@/components/GuideDialog'
 import { MassEntryDialog } from '@/components/publishers/MassEntryDialog'
 import { PrintPublishersDialog } from '@/components/publishers/PrintPublishersDialog'
 import { Link } from 'react-router-dom'
@@ -297,6 +298,7 @@ export default function PublishersPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <GuideDialog />
           {/* Trigger para o PrintPublishersDialog (comunica via botão no PrintPublishersDialog ou trigger próprio) */}
           {isSecretario && <MassEntryDialog groups={groups} onSaved={loadData} />}
           {isSecretario && (

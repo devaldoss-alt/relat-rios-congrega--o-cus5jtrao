@@ -22,6 +22,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { useToast } from '@/hooks/use-toast'
 import { Link } from 'react-router-dom'
 import pb from '@/lib/pocketbase/client'
+import { GuideDialog } from '@/components/GuideDialog'
 
 export function NotificationBadge() {
   const { user } = useAuth()
@@ -134,6 +135,13 @@ export function NotificationBadge() {
             <RefreshCw className={`h-3 w-3 ${refreshing ? 'animate-spin' : ''}`} />
             Verificar Agora
           </Button>
+          <GuideDialog
+            route="central-avisos"
+            variant="ghost"
+            size="sm"
+            className="h-7 text-xs px-2"
+            label="Guia"
+          />
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
 

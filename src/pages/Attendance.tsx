@@ -15,6 +15,7 @@ import { getMeetingAttendance, syncMeetingAttendance } from '@/services/meeting_
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { getMonthlySummaries } from '@/services/monthly_summaries'
 import { Loader2, RefreshCw, Calendar } from 'lucide-react'
+import { GuideDialog } from '@/components/GuideDialog'
 import { AttendanceChart } from '@/components/attendance/AttendanceChart'
 import { AttendanceTable } from '@/components/attendance/AttendanceTable'
 import { AttendanceGoalCard } from '@/components/attendance/AttendanceGoalCard'
@@ -101,6 +102,7 @@ export default function Attendance() {
           <p className="text-muted-foreground">Controle de presença e assistência das reuniões.</p>
         </div>
         <div className="flex items-center gap-3">
+          <GuideDialog />
           <div className="flex items-center bg-background border rounded-md px-3 py-1 shadow-sm">
             <Calendar className="w-4 h-4 mr-2 text-muted-foreground" />
             <Select value={globalYear} onValueChange={setGlobalYear}>

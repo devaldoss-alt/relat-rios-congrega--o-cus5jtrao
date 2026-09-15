@@ -38,6 +38,7 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Save, AlertCircle, Loader2, Target } from 'lucide-react'
+import { GuideDialog } from '@/components/GuideDialog'
 import { Progress } from '@/components/ui/progress'
 
 type ReportFormValues = {
@@ -380,16 +381,19 @@ export default function GroupData() {
             Registre a atividade mensal de cada publicador do seu grupo individualmente.
           </p>
         </div>
-        <Button
-          variant="outline"
-          asChild
-          className="shrink-0 bg-primary/5 hover:bg-primary/10 border-primary/20 text-primary"
-        >
-          <Link to="/tutorial" className="flex items-center gap-2">
-            <AlertCircle className="h-4 w-4" />
-            Como preencher?
-          </Link>
-        </Button>
+        <div className="flex items-center gap-2">
+          <GuideDialog label="Como usar esta tela" />
+          <Button
+            variant="outline"
+            asChild
+            className="shrink-0 bg-primary/5 hover:bg-primary/10 border-primary/20 text-primary"
+          >
+            <Link to="/tutorial" className="flex items-center gap-2">
+              <AlertCircle className="h-4 w-4" />
+              Tutorial Completo
+            </Link>
+          </Button>
+        </div>
       </div>
 
       {missingPrevious && !isLoading && (
