@@ -70,6 +70,15 @@ const getNavigation = (role?: string) => {
     })
   }
 
+  // Análise de Congregação (S-10) - visível para Secretário, Responsável e Ancião
+  if (role === 'Secretário' || role === 'Responsável' || role === 'Ancião') {
+    items.push({
+      name: 'Análise de Congregação (S-10)',
+      href: '/s10',
+      icon: ClipboardList,
+    })
+  }
+
   // Módulo de Usuários (restrito a Secretário)
   if (role === 'Secretário') {
     items.push({ name: 'Usuários', href: '/users', icon: UserCog })

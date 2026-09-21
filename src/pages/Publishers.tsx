@@ -185,6 +185,10 @@ export default function PublishersPage() {
         is_ministerial_servant: pub.is_ministerial_servant,
         is_special_pioneer: pub.is_special_pioneer,
         is_field_missionary: pub.is_field_missionary,
+        is_deaf: pub.is_deaf,
+        is_blind: pub.is_blind,
+        is_prisoner: pub.is_prisoner,
+        readmission_date: pub.readmission_date ? pub.readmission_date.split('T')[0] : '',
       })
     } else {
       setEditingId(null)
@@ -206,6 +210,10 @@ export default function PublishersPage() {
         is_ministerial_servant: false,
         is_special_pioneer: false,
         is_field_missionary: false,
+        is_deaf: false,
+        is_blind: false,
+        is_prisoner: false,
+        readmission_date: '',
       })
     }
     setOpen(true)
@@ -225,6 +233,9 @@ export default function PublishersPage() {
         : formData.baptism_date
           ? `${formData.baptism_date} 12:00:00.000Z`
           : '',
+      readmission_date: formData.readmission_date
+        ? `${formData.readmission_date} 12:00:00.000Z`
+        : '',
     }
 
     setSaving(true)
@@ -508,6 +519,51 @@ export default function PublishersPage() {
                             <span className="text-sm">Missionário em campo</span>
                           </label>
                         </div>
+                      </div>
+
+                      <div className="space-y-3 md:col-span-2 mt-2">
+                        <Label className="text-base font-semibold">
+                          Situações Especiais / Análise (S-10)
+                        </Label>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 border p-4 rounded-lg bg-muted/30">
+                          <label className="flex items-center space-x-2 cursor-pointer">
+                            <Checkbox
+                              checked={formData.is_deaf}
+                              onCheckedChange={(c) => setFormData({ ...formData, is_deaf: !!c })}
+                            />
+                            <span className="text-sm">Surdo (Língua de sinais)</span>
+                          </label>
+                          <label className="flex items-center space-x-2 cursor-pointer">
+                            <Checkbox
+                              checked={formData.is_blind}
+                              onCheckedChange={(c) => setFormData({ ...formData, is_blind: !!c })}
+                            />
+                            <span className="text-sm">Cego</span>
+                          </label>
+                          <label className="flex items-center space-x-2 cursor-pointer">
+                            <Checkbox
+                              checked={formData.is_prisoner}
+                              onCheckedChange={(c) =>
+                                setFormData({ ...formData, is_prisoner: !!c })
+                              }
+                            />
+                            <span className="text-sm">Preso</span>
+                          </label>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2 md:col-span-2">
+                        <Label>Data de Readmissão (se aplicável)</Label>
+                        <Input
+                          type="date"
+                          value={formData.readmission_date || ''}
+                          onChange={(e) =>
+                            setFormData({ ...formData, readmission_date: e.target.value })
+                          }
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Informe se o publicador foi readmitido para acompanhamento estatístico.
+                        </p>
                       </div>
 
                       <div className="space-y-2 md:col-span-2">

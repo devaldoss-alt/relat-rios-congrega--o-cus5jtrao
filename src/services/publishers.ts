@@ -18,6 +18,10 @@ export interface Publisher {
   is_ministerial_servant?: boolean
   is_special_pioneer?: boolean
   is_field_missionary?: boolean
+  is_deaf?: boolean
+  is_blind?: boolean
+  is_prisoner?: boolean
+  readmission_date?: string
   created?: string
   expand?: {
     group_id?: {

@@ -1040,6 +1040,72 @@ export const MODULE_GUIDES: Record<string, ModuleGuide> = {
     ],
   },
 
+  '/s10': {
+    id: 's10',
+    route: '/s10',
+    title: 'Análise de Congregação (S-10)',
+    subtitle: 'Relatório oficial do Ano de Serviço (setembro a agosto)',
+    iconName: 'ClipboardList',
+    purpose:
+      'Consolida as informações do ano de serviço da congregação: médias anuais de assistência às reuniões (S-88), total de publicadores ativos (fotografia de agosto), contagem de situações especiais e cobertura dos cartões de território.',
+    targetRoles: ['Secretário', 'Responsável', 'Ancião'],
+    sections: [
+      {
+        name: 'Página 1: Assistência e Publicadores',
+        description:
+          'Médias de assistência de fim de semana e meio de semana calculadas automaticamente a partir do S-88, total de ativos em agosto e campos para novos não batizados, readmitidos, surdos, cegos e presos.',
+      },
+      {
+        name: 'Página 2: Cobertura de Cartões de Território',
+        description:
+          'Lançamento manual da quantidade de cartões/territórios trabalhados no ano de serviço e porcentagem total coberta.',
+      },
+      {
+        name: 'Impressão e PDF no Padrão S-1',
+        description:
+          'Gera o documento impresso em formato oficial de 2 páginas com cabeçalho da congregação, tabelas estruturadas e campo para assinaturas.',
+      },
+    ],
+    steps: [
+      {
+        title: 'Selecione o Ano de Serviço',
+        description:
+          'Escolha o ano de serviço desejado no topo da tela (ex.: Ano de Serviço de 2026 compreende set/2025 a ago/2026).',
+      },
+      {
+        title: 'Confira os dados calculados na Página 1',
+        description:
+          'Verifique as médias de assistência do S-88 e o total de ativos da fotografia de agosto.',
+      },
+      {
+        title: 'Preencha os campos numéricos e avance',
+        description:
+          'Informe os totais de novos não batizados, readmitidos, surdos, cegos e presos, e clique em "Próximo".',
+      },
+      {
+        title: 'Lance os números de território na Página 2',
+        description:
+          'Informe a quantidade de cartões trabalhados e a porcentagem coberta, e clique em "Concluir e Salvar S-10".',
+      },
+    ],
+    commonActions: [
+      {
+        action: 'Imprimir o formulário oficial S-10',
+        howTo:
+          'Clique no botão "Imprimir / PDF" no topo da tela para abrir a pré-visualização de impressão com quebras de página automáticas.',
+      },
+      {
+        action: 'Recarregar dados calculados',
+        howTo:
+          'Na Página 1, clique em "Recarregar Médias" para reprocessar a assistência e os ativos em tempo real.',
+      },
+    ],
+    tips: [
+      'A fotografia de agosto é tirada com base na regra consolidada de atividade dos últimos 6 meses.',
+      'O perfil Ancião tem acesso para visualização e impressão dos dados arquivados da congregação.',
+    ],
+  },
+
   'central-avisos': {
     id: 'central-avisos',
     route: 'central-avisos',

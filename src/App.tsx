@@ -22,6 +22,7 @@ import DeliberativeReport from './pages/DeliberativeReport'
 import EldersPanel from './pages/EldersPanel'
 import MinutesPage from './pages/MinutesPage'
 import PastoralVisitsPage from './pages/PastoralVisits'
+import S10Page from './pages/S10Page'
 import Tutorial from './pages/Tutorial'
 import Settings from './pages/Settings'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -87,6 +88,7 @@ const App = () => (
             <Route path="/publishers/:id" element={<PublisherProfile />} />
             <Route path="/reports-history" element={<ReportsHistory />} />
             <Route path="/deliberative-report" element={<DeliberativeReport />} />
+            <Route path="/s10" element={<S10Page />} />
             <Route path="/users" element={<UsersAdmin />} />
             <Route path="/tutorial" element={<Tutorial />} />
             <Route path="/settings" element={<Settings />} />
