@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-21T17:44:28.813Z",
+  "generatedAt": "2026-09-21T18:13:53.261Z",
   "collections": [
     {
       "name": "users",
@@ -1287,6 +1287,18 @@
         },
         {
           "name": "new_inactive_publishers",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "total_territory_cards",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "unworked_territory_cards",
           "type": "number",
           "required": false,
           "system": false

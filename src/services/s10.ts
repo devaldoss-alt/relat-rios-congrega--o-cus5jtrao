@@ -12,6 +12,10 @@ export interface S10Report {
   deaf_publishers?: number
   blind_publishers?: number
   prisoner_publishers?: number
+  // Campos oficiais do formulário S-10 (Página 2):
+  total_territory_cards?: number
+  unworked_territory_cards?: number
+  // Campos legados preservados para compatibilidade com registros anteriores:
   territory_cards_worked?: number
   territory_percent_covered?: number
   notes?: string

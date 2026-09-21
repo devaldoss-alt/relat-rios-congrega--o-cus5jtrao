@@ -73,6 +73,10 @@ export default function S10Page() {
     deaf_publishers: 0,
     blind_publishers: 0,
     prisoner_publishers: 0,
+    // Campos oficiais S-10 (Página 2)
+    total_territory_cards: 0,
+    unworked_territory_cards: 0,
+    // Legado preservado
     territory_cards_worked: 0,
     territory_percent_covered: 0,
     new_unbaptized_publishers: 0,
@@ -115,6 +119,8 @@ export default function S10Page() {
           deaf_publishers: existingRep.deaf_publishers ?? 0,
           blind_publishers: existingRep.blind_publishers ?? 0,
           prisoner_publishers: existingRep.prisoner_publishers ?? 0,
+          total_territory_cards: existingRep.total_territory_cards ?? 0,
+          unworked_territory_cards: existingRep.unworked_territory_cards ?? 0,
           territory_cards_worked: existingRep.territory_cards_worked ?? 0,
           territory_percent_covered: existingRep.territory_percent_covered ?? 0,
           new_unbaptized_publishers:
@@ -133,6 +139,8 @@ export default function S10Page() {
           deaf_publishers: 0,
           blind_publishers: 0,
           prisoner_publishers: 0,
+          total_territory_cards: 0,
+          unworked_territory_cards: 0,
           territory_cards_worked: 0,
           territory_percent_covered: 0,
           new_unbaptized_publishers: calcData.autoNewUnbaptizedCount,
@@ -179,8 +187,27 @@ export default function S10Page() {
         deaf_publishers: formData.deaf_publishers,
         blind_publishers: formData.blind_publishers,
         prisoner_publishers: formData.prisoner_publishers,
-        territory_cards_worked: formData.territory_cards_worked,
-        territory_percent_covered: formData.territory_percent_covered,
+        total_territory_cards: formData.total_territory_cards,
+        unworked_territory_cards: formData.unworked_territory_cards,
+        // Também mantém atualizado os campos calculados/legados para não quebrar compatibilidade
+        territory_cards_worked: Math.max(
+          0,
+          formData.total_territory_cards - formData.unworked_territory_cards,
+        ),
+        territory_percent_covered:
+          formData.total_territory_cards > 0
+            ? Math.min(
+                100,
+                Math.max(
+                  0,
+                  Math.round(
+                    ((formData.total_territory_cards - formData.unworked_territory_cards) /
+                      formData.total_territory_cards) *
+                      100,
+                  ),
+                ),
+              )
+            : 0,
         new_unbaptized_publishers: formData.new_unbaptized_publishers,
         notes: formData.notes,
         updated_by: user?.id,
@@ -947,126 +974,206 @@ export default function S10Page() {
               </div>
             )}
 
-            {/* CONTEÚDO DA PÁGINA 2: Cobertura de Cartões de Território */}
+            {/* CONTEÚDO DA PÁGINA 2: Cobertura de Cartões de Território (ESPELHO OFICIAL hub.jw.org) */}
             {currentPage === 2 && (
               <div className="space-y-6 animate-fade-in">
-                <div className="text-sm text-muted-foreground">
-                  Insira as informações finais sobre os territórios trabalhados no ano de serviço de{' '}
-                  <strong className="text-foreground">{serviceYear}</strong>.
+                {/* Título Oficial da Seção 2 */}
+                <div className="flex items-center gap-3">
+                  <span className="w-7 h-7 rounded-full bg-sky-600 text-white flex items-center justify-center text-sm font-bold shadow-sm">
+                    2
+                  </span>
+                  <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
+                    Cobertura de cartões de território
+                  </h2>
                 </div>
 
-                <Card>
-                  <CardHeader className="pb-3 border-b bg-muted/20">
-                    <CardTitle className="text-base font-semibold flex items-center gap-2">
-                      <MapPin className="w-4 h-4 text-primary" />
-                      Cobertura de cartões de território
-                    </CardTitle>
-                    <CardDescription>
-                      Lançamento da quantidade de cartões/territórios trabalhados e porcentagem
-                      total coberta no ano de serviço ({serviceYearPeriod}).
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="pt-6 space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-2">
-                        <Label className="text-sm font-semibold">
-                          Quantidade de cartões/territórios trabalhados
-                        </Label>
-                        <p className="text-xs text-muted-foreground">
-                          Total de cartões de território da congregação que foram trabalhados
-                          durante o ano de serviço.
-                        </p>
-                        <Input
-                          type="number"
-                          min="0"
-                          value={formData.territory_cards_worked}
-                          onChange={(e) =>
-                            handleNumberChange('territory_cards_worked', e.target.value)
-                          }
-                          disabled={!canEdit}
-                          className="w-40 text-lg font-semibold"
-                          placeholder="Ex: 48"
-                        />
-                      </div>
+                {/* Container Oficial do Formulário S-10 (idêntico ao JW Hub) */}
+                <div className="space-y-3">
+                  {/* Bloco 1: Número total de cartões de território */}
+                  <div className="rounded-md border border-border bg-card p-4 sm:p-5 shadow-sm space-y-2">
+                    <Label
+                      htmlFor="total_territory_cards"
+                      className="text-sm font-medium text-foreground block cursor-pointer"
+                    >
+                      Número total de cartões de território
+                    </Label>
+                    <div>
+                      <Input
+                        id="total_territory_cards"
+                        type="number"
+                        min="0"
+                        value={
+                          formData.total_territory_cards === 0 ? '' : formData.total_territory_cards
+                        }
+                        onChange={(e) =>
+                          handleNumberChange('total_territory_cards', e.target.value)
+                        }
+                        disabled={!canEdit}
+                        className="w-24 sm:w-28 text-base bg-muted/40 font-semibold"
+                        placeholder="0"
+                      />
+                    </div>
+                  </div>
 
-                      <div className="space-y-2">
-                        <Label className="text-sm font-semibold">
-                          Porcentagem do território coberta (%)
+                  {/* Bloco 2: Cartões de território não trabalhados (com nota oficial ao lado) */}
+                  <div className="rounded-md border border-border bg-card p-4 sm:p-5 shadow-sm">
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
+                      <div className="md:col-span-4 space-y-2">
+                        <Label
+                          htmlFor="unworked_territory_cards"
+                          className="text-sm font-medium text-foreground block cursor-pointer"
+                        >
+                          Cartões de território não trabalhados
                         </Label>
-                        <p className="text-xs text-muted-foreground">
-                          Estimativa ou cálculo percentual de todo o território designado trabalhado
-                          ao longo do ano de serviço.
-                        </p>
-                        <div className="flex items-center gap-2">
+                        <div>
                           <Input
+                            id="unworked_territory_cards"
                             type="number"
                             min="0"
-                            max="100"
-                            value={formData.territory_percent_covered}
+                            value={formData.unworked_territory_cards}
                             onChange={(e) =>
-                              handleNumberChange('territory_percent_covered', e.target.value)
+                              handleNumberChange('unworked_territory_cards', e.target.value)
                             }
                             disabled={!canEdit}
-                            className="w-32 text-lg font-semibold"
-                            placeholder="Ex: 85"
+                            className="w-24 sm:w-28 text-base bg-muted/40 font-semibold"
                           />
-                          <span className="text-lg font-bold text-muted-foreground">%</span>
                         </div>
+                      </div>
+
+                      <div className="md:col-span-8 md:pl-4 md:border-l border-border/60 text-xs sm:text-sm leading-relaxed text-foreground/90 space-y-1">
+                        <p>
+                          <strong className="text-foreground font-semibold">Não inclua:</strong>{' '}
+                          Cartões de território trabalhados em campanhas especiais. Eles são
+                          considerados como territórios trabalhados.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Barra de Ação Oficial: [Anterior] [Enviar / Salvar] */}
+                <div className="flex items-center gap-3 pt-2">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => setCurrentPage(1)}
+                    className="px-5 font-medium"
+                  >
+                    Anterior
+                  </Button>
+
+                  {canEdit && (
+                    <Button
+                      type="button"
+                      onClick={handleSave}
+                      disabled={saving}
+                      className="bg-blue-600 hover:bg-blue-700 text-white px-6 font-medium shadow-sm"
+                    >
+                      {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                      Enviar
+                    </Button>
+                  )}
+
+                  <Button type="button" variant="outline" onClick={handlePrint} className="ml-auto">
+                    <Printer className="w-4 h-4 mr-2" />
+                    Visualizar Impressão / PDF
+                  </Button>
+                </div>
+
+                {/* PAINEL DE APOIO PARA CONFERÊNCIA DO SECRETÁRIO (Fora do formulário oficial / Não impresso) */}
+                <Card className="mt-6 border-dashed border-border bg-muted/20">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-semibold flex items-center gap-2 text-foreground">
+                      <Info className="w-4 h-4 text-blue-500" />
+                      Informações de apoio à conferência (Uso Interno)
+                    </CardTitle>
+                    <CardDescription className="text-xs">
+                      Indicadores complementares calculados a partir dos dois campos oficiais acima.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4 pt-1">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div className="p-3 rounded-md border bg-card">
+                        <span className="text-xs text-muted-foreground block">
+                          Cartões trabalhados
+                        </span>
+                        <span className="text-lg font-bold text-foreground">
+                          {Math.max(
+                            0,
+                            formData.total_territory_cards - formData.unworked_territory_cards,
+                          )}
+                        </span>
+                        <span className="text-[11px] text-muted-foreground block mt-0.5">
+                          (Total − Não trabalhados)
+                        </span>
+                      </div>
+
+                      <div className="p-3 rounded-md border bg-card">
+                        <span className="text-xs text-muted-foreground block">
+                          Cobertura percentual
+                        </span>
+                        <span className="text-lg font-bold text-primary">
+                          {formData.total_territory_cards > 0
+                            ? `${Math.min(
+                                100,
+                                Math.max(
+                                  0,
+                                  Math.round(
+                                    ((formData.total_territory_cards -
+                                      formData.unworked_territory_cards) /
+                                      formData.total_territory_cards) *
+                                      100,
+                                  ),
+                                ),
+                              )}%`
+                            : '0%'}
+                        </span>
+                        <span className="text-[11px] text-muted-foreground block mt-0.5">
+                          Calculado automaticamente
+                        </span>
+                      </div>
+
+                      <div className="p-3 rounded-md border bg-card">
+                        <span className="text-xs text-muted-foreground block">
+                          Cartões não trabalhados
+                        </span>
+                        <span className="text-lg font-bold text-foreground">
+                          {formData.unworked_territory_cards}
+                        </span>
+                        <span className="text-[11px] text-muted-foreground block mt-0.5">
+                          Saldo de territórios pendentes
+                        </span>
                       </div>
                     </div>
 
-                    <div className="rounded-md border p-4 bg-muted/20 text-xs space-y-2">
-                      <div className="flex items-center gap-2 font-medium text-foreground">
-                        <Info className="w-4 h-4 text-primary" />
-                        Estrutura s10_territories preparada:
+                    <div className="rounded-md border p-3 bg-card text-xs space-y-1">
+                      <div className="font-medium text-foreground flex items-center gap-1.5">
+                        <MapPin className="w-3.5 h-3.5 text-primary" />
+                        Estrutura s10_territories mantida para uso futuro:
                       </div>
                       <p className="text-muted-foreground leading-relaxed">
-                        A coleção de controle individual de territórios já está criada no banco de
-                        dados para permitir futuras rotinas detalhadas por mapa. No momento, o
-                        formulário S-10 consolida o valor final da congregação.
+                        A coleção de controle individual território a território segue intacta no
+                        banco de dados para permitir futuras rotinas cartográficas detalhadas.
                       </p>
                     </div>
 
-                    <div className="space-y-2 pt-2">
-                      <Label className="text-sm font-semibold">Observações (opcional)</Label>
+                    <div className="space-y-1.5 pt-1">
+                      <Label className="text-xs font-semibold">
+                        Observações internas do secretário (opcional)
+                      </Label>
                       <textarea
                         value={formData.notes}
                         onChange={(e) =>
                           setFormData((prev) => ({ ...prev, notes: e.target.value }))
                         }
                         disabled={!canEdit}
-                        rows={3}
+                        rows={2}
                         placeholder="Anotações internas sobre campanhas especiais, territórios rurais ou notas da congregação..."
-                        className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                        className="w-full rounded-md border border-input bg-background px-3 py-2 text-xs shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
                       />
                     </div>
                   </CardContent>
                 </Card>
-
-                {/* Botões de Ação na base da Página 2 */}
-                <div className="flex justify-between items-center pt-2">
-                  <Button variant="outline" onClick={() => setCurrentPage(1)}>
-                    <ChevronLeft className="w-4 h-4 mr-1" /> Voltar à Página 1
-                  </Button>
-
-                  <div className="flex gap-2">
-                    <Button variant="outline" onClick={handlePrint}>
-                      <Printer className="w-4 h-4 mr-2" />
-                      Visualizar Impressão / PDF
-                    </Button>
-
-                    {canEdit && (
-                      <Button onClick={handleSave} disabled={saving}>
-                        {saving ? (
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        ) : (
-                          <Save className="w-4 h-4 mr-2" />
-                        )}
-                        Concluir e Salvar S-10
-                      </Button>
-                    )}
-                  </div>
-                </div>
               </div>
             )}
           </div>
@@ -1322,46 +1429,77 @@ export default function S10Page() {
                   </div>
                 </div>
 
-                {/* Seção 3: Cobertura de cartões de território */}
+                {/* Seção 2: Cobertura de cartões de território (OFICIAL hub.jw.org) */}
                 <div className="mb-6">
                   <h3 className="text-sm font-bold uppercase tracking-wide border-b border-gray-300 pb-1 mb-3">
-                    3. Cobertura de cartões de território
+                    2. Cobertura de cartões de território
                   </h3>
                   <table className="w-full border-collapse border border-gray-400 text-sm">
                     <thead>
                       <tr className="bg-gray-100">
                         <th className="border border-gray-400 p-2 text-left font-semibold">
-                          Indicador de Território
+                          Item / Campo Oficial
                         </th>
                         <th className="border border-gray-400 p-2 text-center w-36 font-semibold">
-                          Resultado
+                          Total
                         </th>
                         <th className="border border-gray-400 p-2 text-left text-xs font-normal text-gray-600">
-                          Descrição
+                          Instruções Oficiais / Notas de Ajuda
                         </th>
                       </tr>
                     </thead>
                     <tbody>
                       <tr>
-                        <td className="border border-gray-400 p-2 font-medium">
-                          Cartões de território trabalhados
+                        <td className="border border-gray-400 p-2 font-semibold">
+                          Número total de cartões de território
                         </td>
                         <td className="border border-gray-400 p-2 text-center font-bold text-base">
-                          {formData.territory_cards_worked}
+                          {formData.total_territory_cards}
                         </td>
                         <td className="border border-gray-400 p-2 text-xs">
-                          Quantidade total de cartões/territórios designados trabalhados no ano.
+                          Número total de cartões de território pertencentes à congregação.
                         </td>
                       </tr>
                       <tr>
-                        <td className="border border-gray-400 p-2 font-medium">
-                          Porcentagem coberta
+                        <td className="border border-gray-400 p-2 font-semibold">
+                          Cartões de território não trabalhados
                         </td>
                         <td className="border border-gray-400 p-2 text-center font-bold text-base">
-                          {formData.territory_percent_covered}%
+                          {formData.unworked_territory_cards}
                         </td>
                         <td className="border border-gray-400 p-2 text-xs">
-                          Percentual estimado do território total da congregação trabalhado.
+                          <strong>Não inclua:</strong> Cartões de território trabalhados em
+                          campanhas especiais. Eles são considerados como territórios trabalhados.
+                        </td>
+                      </tr>
+                      <tr className="bg-gray-50">
+                        <td className="border border-gray-400 p-2 text-xs italic text-gray-700">
+                          Cartões trabalhados / Cobertura (Apoio congregacional)
+                        </td>
+                        <td className="border border-gray-400 p-2 text-center text-xs font-bold text-gray-700">
+                          {Math.max(
+                            0,
+                            formData.total_territory_cards - formData.unworked_territory_cards,
+                          )}{' '}
+                          (
+                          {formData.total_territory_cards > 0
+                            ? `${Math.min(
+                                100,
+                                Math.max(
+                                  0,
+                                  Math.round(
+                                    ((formData.total_territory_cards -
+                                      formData.unworked_territory_cards) /
+                                      formData.total_territory_cards) *
+                                      100,
+                                  ),
+                                ),
+                              )}%`
+                            : '0%'}
+                          )
+                        </td>
+                        <td className="border border-gray-400 p-2 text-xs text-gray-500 italic">
+                          Cálculo de apoio interno: (Total − Não trabalhados) / Total.
                         </td>
                       </tr>
                     </tbody>

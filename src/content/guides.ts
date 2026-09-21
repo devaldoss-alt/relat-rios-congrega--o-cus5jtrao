@@ -1059,7 +1059,7 @@ export const MODULE_GUIDES: Record<string, ModuleGuide> = {
       {
         name: 'Página 2: Cobertura de Cartões de Território',
         description:
-          'Lançamento manual da quantidade de cartões/territórios trabalhados no ano de serviço e porcentagem total coberta.',
+          'Espelho oficial do hub.jw.org: "Número total de cartões de território" e "Cartões de território não trabalhados" (com nota de ajuda sobre campanhas especiais), além de indicadores internos de apoio.',
       },
       {
         name: 'Impressão e PDF no Padrão S-1',
@@ -1086,7 +1086,7 @@ export const MODULE_GUIDES: Record<string, ModuleGuide> = {
       {
         title: 'Lance os números de território na Página 2',
         description:
-          'Informe a quantidade de cartões trabalhados e a porcentagem coberta, e clique em "Concluir e Salvar S-10".',
+          'Informe o "Número total de cartões de território" e os "Cartões de território não trabalhados" (atenção à nota: territórios trabalhados em campanhas especiais são considerados trabalhados), e clique em "Enviar" ou "Salvar".',
       },
     ],
     commonActions: [
