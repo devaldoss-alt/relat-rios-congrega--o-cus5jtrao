@@ -71,8 +71,20 @@ const SidebarProvider = React.forwardRef<
     const [openMobile, setOpenMobile] = React.useState(false)
 
     // This is the internal state of the sidebar.
-    // We use openProp and setOpenProp for control from outside the component.
-    const [_open, _setOpen] = React.useState(defaultOpen)
+    // We initialize from localStorage if available, falling back to defaultOpen.
+    const [_open, _setOpen] = React.useState<boolean>(() => {
+      if (typeof window !== 'undefined') {
+        try {
+          const stored = localStorage.getItem(SIDEBAR_COOKIE_NAME)
+          if (stored !== null) {
+            return stored === 'true'
+          }
+        } catch {
+          // ignore localStorage access errors
+        }
+      }
+      return defaultOpen
+    })
     const open = openProp ?? _open
     const setOpen = React.useCallback(
       (value: boolean | ((value: boolean) => boolean)) => {
@@ -83,7 +95,14 @@ const SidebarProvider = React.forwardRef<
           _setOpen(openState)
         }
 
-        // This sets the cookie to keep the sidebar state.
+        // Save preference in localStorage and cookie
+        try {
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(SIDEBAR_COOKIE_NAME, String(openState))
+          }
+        } catch {
+          // ignore
+        }
         document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`
       },
       [setOpenProp, open],
@@ -262,7 +281,7 @@ const SidebarTrigger = React.forwardRef<
   React.ElementRef<typeof Button>,
   React.ComponentProps<typeof Button>
 >(({ className, onClick, ...props }, ref) => {
-  const { toggleSidebar } = useSidebar()
+  const { toggleSidebar, state } = useSidebar()
 
   return (
     <Button
@@ -271,15 +290,17 @@ const SidebarTrigger = React.forwardRef<
       variant="ghost"
       size="icon"
       className={cn('h-7 w-7', className)}
+      title={state === 'expanded' ? 'Recolher menu lateral' : 'Expandir menu lateral'}
+      aria-label={state === 'expanded' ? 'Recolher menu lateral' : 'Expandir menu lateral'}
       onClick={(event) => {
         onClick?.(event)
         toggleSidebar()
       }}
       {...props}
     >
-      <span>
-        <PanelLeft />
-        <span className="sr-only">Toggle Sidebar</span>
+      <PanelLeft className="h-4 w-4" />
+      <span className="sr-only">
+        {state === 'expanded' ? 'Recolher menu lateral' : 'Expandir menu lateral'}
       </span>
     </Button>
   )
