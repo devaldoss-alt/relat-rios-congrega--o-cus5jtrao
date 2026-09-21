@@ -1054,7 +1054,7 @@ export const MODULE_GUIDES: Record<string, ModuleGuide> = {
       {
         name: 'Página 1: Assistência e Publicadores',
         description:
-          'Médias de assistência calculadas automaticamente a partir do S-88, total de ativos em agosto e contagem automática de novos não batizados e readmitidos (com suporte a override manual e card informativo de apoio para reativados).',
+          'Estrutura idêntica ao hub.jw.org: Médias de assistência, Totais da congregação (Publicadores ativos, Novos inativos, Publicadores reativados, Surdos, Cegos, Presos) e painel adicional de apoio para controle interno (Novos não batizados e Readmitidos).',
       },
       {
         name: 'Página 2: Cobertura de Cartões de Território',
@@ -1076,12 +1076,12 @@ export const MODULE_GUIDES: Record<string, ModuleGuide> = {
       {
         title: 'Confira os dados calculados na Página 1',
         description:
-          'Verifique as médias de assistência do S-88, a fotografia de agosto e os números automáticos de "Novos não batizados" e "Readmitidos" (reintegração formal aprovada pelos anciãos), além do card de apoio de "Reativados".',
+          'Verifique as médias de assistência do S-88, os publicadores ativos, novos inativos e publicadores reativados (todos calculados automaticamente com possibilidade de override manual).',
       },
       {
         title: 'Confira ou ajuste os campos e avance',
         description:
-          'O sistema calcula automaticamente readmitidos e novos não batizados. Ajuste se necessário, informe os dados de surdos, cegos e presos, e clique em "Próximo".',
+          'Ajuste se necessário os números de novos inativos e reativados, informe os dados de surdos, cegos e presos, e clique em "Próximo". As informações adicionais de apoio ficam fora da impressão oficial.',
       },
       {
         title: 'Lance os números de território na Página 2',
@@ -1103,7 +1103,7 @@ export const MODULE_GUIDES: Record<string, ModuleGuide> = {
     ],
     tips: [
       'A fotografia de agosto é tirada com base na regra consolidada de atividade dos últimos 6 meses.',
-      'Diferença conceitual essencial: "Readmitidos" são ex-removidos reintegrados formalmente pelos anciãos; "Reativados" são inativos (6+ meses sem relatar) que retomaram os relatos.',
+      'Diferença conceitual essencial: "Readmitidos" são ex-removidos reintegrados formalmente pelos anciãos; "Reativados" são inativos (6+ meses sem relatar) que retomaram os relatos. Uma mesma pessoa pode constar como inativo e reativado no mesmo ano.',
       'O perfil Ancião tem acesso para visualização e impressão dos dados arquivados da congregação.',
     ],
   },

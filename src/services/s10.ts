@@ -7,6 +7,7 @@ export interface S10Report {
   avg_attendance_midweek?: number
   total_active_publishers?: number
   new_unbaptized_publishers?: number
+  new_inactive_publishers?: number
   reactivated_publishers?: number
   deaf_publishers?: number
   blind_publishers?: number
@@ -72,11 +73,14 @@ export interface S10CalculatedData {
   augustSummaryFound: boolean
   totalWeekendMeetings: number
   totalMidweekMeetings: number
-  // Novos cálculos automáticos conforme o conceito confirmado:
-  autoReadmittedCount: number
-  readmittedPublishersList: { id: string; name: string; date: string }[]
-  autoNewUnbaptizedCount: number
-  newUnbaptizedPublishersList: { id: string; name: string; firstMonth: string; firstYear: number }[]
+  // Cálculos automáticos do formulário oficial S-10:
+  autoNewInactiveCount: number
+  newInactivePublishersList: {
+    id: string
+    name: string
+    inactiveSinceMonth: string
+    inactiveSinceYear: number
+  }[]
   autoReactivatedCount: number
   reactivatedPublishersList: {
     id: string
@@ -84,6 +88,11 @@ export interface S10CalculatedData {
     resumedMonth: string
     resumedYear: number
   }[]
+  // Apoio congregacional:
+  autoNewUnbaptizedCount: number
+  newUnbaptizedPublishersList: { id: string; name: string; firstMonth: string; firstYear: number }[]
+  autoReadmittedCount: number
+  readmittedPublishersList: { id: string; name: string; date: string }[]
 }
 
 /**
@@ -220,16 +229,14 @@ export const calculateS10Data = async (serviceYear: number): Promise<S10Calculat
     }
   }
 
-  // 4. Novos publicadores não batizados e Reativados a partir do histórico de publisher_reports
-  // Mapeamos os relatórios válidos (participou = true OU hours > 0) por publicador
+  // 4. Mapeamento de todos os relatórios por publicador
+  // Guardamos se participou ou não mês a mês para permitir calcular inatividade (6 meses sem relatar) e reativações
   const reportsByPublisher = new Map<
     string,
-    Array<{ month: number; year: number; monthIdx: number }>
+    Map<number, { participated: boolean; month: number; year: number }>
   >()
-  for (const rep of allReports) {
-    const didParticipate = rep.participated || Number(rep.hours) > 0
-    if (!didParticipate) continue
 
+  for (const rep of allReports) {
     const m = parseInt(rep.month, 10)
     const y = Number(rep.year)
     if (!m || !y) continue
@@ -238,22 +245,19 @@ export const calculateS10Data = async (serviceYear: number): Promise<S10Calculat
     if (!pubId) continue
 
     if (!reportsByPublisher.has(pubId)) {
-      reportsByPublisher.set(pubId, [])
+      reportsByPublisher.set(pubId, new Map())
     }
-    reportsByPublisher.get(pubId)!.push({
+    const didParticipate = Boolean(rep.participated || Number(rep.hours) > 0)
+    const mIdx = toMonthIndex(y, m)
+    reportsByPublisher.get(pubId)!.set(mIdx, {
+      participated: didParticipate,
       month: m,
       year: y,
-      monthIdx: toMonthIndex(y, m),
     })
   }
 
-  // Ordena a linha do tempo de cada publicador
-  for (const [, list] of reportsByPublisher.entries()) {
-    list.sort((a, b) => a.monthIdx - b.monthIdx)
-  }
-
-  const syStartIdx = toMonthIndex(startYear, 9) // Setembro do startYear
-  const syEndIdx = toMonthIndex(endYear, 8) // Agosto do endYear
+  const syStartIdx = toMonthIndex(startYear, 9) // Setembro do startYear (ex: set/2025)
+  const syEndIdx = toMonthIndex(endYear, 8) // Agosto do endYear (ex: ago/2026)
 
   const newUnbaptizedPublishersList: {
     id: string
@@ -261,6 +265,7 @@ export const calculateS10Data = async (serviceYear: number): Promise<S10Calculat
     firstMonth: string
     firstYear: number
   }[] = []
+
   const reactivatedPublishersList: {
     id: string
     name: string
@@ -268,60 +273,189 @@ export const calculateS10Data = async (serviceYear: number): Promise<S10Calculat
     resumedYear: number
   }[] = []
 
-  for (const pub of allPublishers) {
-    const list = reportsByPublisher.get(pub.id)
-    if (!list || list.length === 0) continue
+  const newInactivePublishersList: {
+    id: string
+    name: string
+    inactiveSinceMonth: string
+    inactiveSinceYear: number
+  }[] = []
 
-    // 4.1 Novos não batizados:
-    // Primeiro relato no sistema cai dentro do ano de serviço selecionado
-    // E sem batismo até o primeiro relato (ou seja: baptism_date vazio OU data de batismo posterior ao primeiro relato)
-    const firstReport = list[0]
-    if (firstReport.monthIdx >= syStartIdx && firstReport.monthIdx <= syEndIdx) {
-      let isUnbaptizedAtFirstReport = false
-      if (!pub.baptism_date) {
-        isUnbaptizedAtFirstReport = true
-      } else {
-        const baptismDateOnly = pub.baptism_date.slice(0, 10)
-        // Primeiro mês do relato formatado 'YYYY-MM-01'
-        const firstReportMonthStr = `${firstReport.year}-${String(firstReport.month).padStart(2, '0')}-01`
-        if (baptismDateOnly > firstReportMonthStr) {
-          isUnbaptizedAtFirstReport = true
+  for (const pub of allPublishers) {
+    // Se o publicador é 'Removido' (desassociado), não entra no cálculo de novos inativos ou reativados
+    const isRemoved = pub.status === 'Removido'
+    const pubMonthMap = reportsByPublisher.get(pub.id)
+
+    // Lista de meses em que o publicador teve relato ativo
+    const activeMonthIndices: number[] = []
+    if (pubMonthMap) {
+      for (const [mIdx, info] of pubMonthMap.entries()) {
+        if (info.participated) {
+          activeMonthIndices.push(mIdx)
         }
       }
+      activeMonthIndices.sort((a, b) => a - b)
+    }
 
-      if (isUnbaptizedAtFirstReport) {
-        newUnbaptizedPublishersList.push({
-          id: pub.id,
-          name: pub.name,
-          firstMonth: String(firstReport.month).padStart(2, '0'),
-          firstYear: firstReport.year,
-        })
+    // 4.1 Novos publicadores não batizados:
+    // Primeiro relato no sistema cai dentro do ano de serviço selecionado
+    // E sem batismo até o primeiro relato (ou seja: baptism_date vazio OU data de batismo posterior ao primeiro relato)
+    if (activeMonthIndices.length > 0) {
+      const firstActiveIdx = activeMonthIndices[0]
+      if (firstActiveIdx >= syStartIdx && firstActiveIdx <= syEndIdx) {
+        const firstInfo = pubMonthMap!.get(firstActiveIdx)!
+        let isUnbaptizedAtFirstReport = false
+        if (!pub.baptism_date) {
+          isUnbaptizedAtFirstReport = true
+        } else {
+          const baptismDateOnly = pub.baptism_date.slice(0, 10)
+          const firstReportMonthStr = `${firstInfo.year}-${String(firstInfo.month).padStart(2, '0')}-01`
+          if (baptismDateOnly > firstReportMonthStr) {
+            isUnbaptizedAtFirstReport = true
+          }
+        }
+
+        if (isUnbaptizedAtFirstReport) {
+          newUnbaptizedPublishersList.push({
+            id: pub.id,
+            name: pub.name,
+            firstMonth: String(firstInfo.month).padStart(2, '0'),
+            firstYear: firstInfo.year,
+          })
+        }
       }
     }
 
-    // 4.2 Reativados no ano de serviço:
-    // Inativos (6+ meses consecutivos sem relatar) que retomaram dentro do ano de serviço.
-    // NUNCA desassociados/removidos: status nunca 'Removido', e sem readmission_date.
-    if (pub.status === 'Removido' || pub.readmission_date) {
+    // Se é removido, não calculamos inativos nem reativados
+    if (isRemoved) {
       continue
     }
 
-    // Procurar um gap de 7+ meses entre relatos consecutivos (ou seja, 6 ou mais meses sem relatar:
-    // ex: relatou em jan (idx 0), próximo relato em ago (idx 7) => 7 - 0 = 7 => 6 meses sem relato: fev, mar, abr, mai, jun, jul)
-    // Se o relato da retomada cair dentro do ano de serviço selecionado [syStartIdx, syEndIdx], conta como reativado.
-    for (let i = 1; i < list.length; i++) {
-      const prev = list[i - 1]
-      const curr = list[i]
-      const gapMonths = curr.monthIdx - prev.monthIdx // se gap >= 7, foram pelo menos 6 meses sem relatar
-      if (gapMonths >= 7 && curr.monthIdx >= syStartIdx && curr.monthIdx <= syEndIdx) {
-        reactivatedPublishersList.push({
-          id: pub.id,
-          name: pub.name,
-          resumedMonth: String(curr.month).padStart(2, '0'),
-          resumedYear: curr.year,
-        })
-        break // Conta 1 vez por publicador no ano de serviço
+    // 4.2 Publicadores Reativados no ano de serviço:
+    // Pessoas que estavam inativas (6+ meses consecutivos sem relatar) e voltaram a relatar
+    // pelo menos um mês no último ano de serviço (dentro do intervalo syStartIdx .. syEndIdx).
+    // Conforme instrução oficial: "Uma mesma pessoa pode ser incluída tanto em Publicadores inativos como em Publicadores reativados".
+    if (activeMonthIndices.length > 0) {
+      for (let i = 0; i < activeMonthIndices.length; i++) {
+        const currIdx = activeMonthIndices[i]
+        // O relato de retomada deve ter ocorrido dentro do ano de serviço
+        if (currIdx < syStartIdx || currIdx > syEndIdx) continue
+
+        // Para ser considerado reativado, precisava estar inativo imediatamente antes desse relato ativo:
+        // Ou seja, antes de currIdx, passaram-se 6 ou mais meses sem relatar.
+        if (i === 0) {
+          // Se for o primeiro relato registrado no sistema, verificamos se ele já era publicador batizado há mais de 6 meses
+          // Se não há histórico anterior ou foi criado agora como novo não batizado, não conta como reativado
+          if (pub.baptism_date) {
+            const bDate = pub.baptism_date.slice(0, 10)
+            const bYear = parseInt(bDate.slice(0, 4), 10)
+            const bMonth = parseInt(bDate.slice(5, 7), 10)
+            if (bYear && bMonth) {
+              const bIdx = toMonthIndex(bYear, bMonth)
+              if (currIdx - bIdx >= 7) {
+                const info = pubMonthMap!.get(currIdx)!
+                reactivatedPublishersList.push({
+                  id: pub.id,
+                  name: pub.name,
+                  resumedMonth: String(info.month).padStart(2, '0'),
+                  resumedYear: info.year,
+                })
+                break
+              }
+            }
+          }
+        } else {
+          const prevIdx = activeMonthIndices[i - 1]
+          const gap = currIdx - prevIdx
+          // gap >= 7 significa pelo menos 6 meses consecutivos sem relatar
+          if (gap >= 7) {
+            const info = pubMonthMap!.get(currIdx)!
+            reactivatedPublishersList.push({
+              id: pub.id,
+              name: pub.name,
+              resumedMonth: String(info.month).padStart(2, '0'),
+              resumedYear: info.year,
+            })
+            break // Conta 1 vez por publicador no ano de serviço
+          }
+        }
       }
+    }
+
+    // 4.3 Novos publicadores inativos:
+    // "Conte apenas publicadores que ficaram inativos no último ano de serviço.
+    // Publicadores que não relataram serviço de campo por seis meses consecutivos.
+    // Esse período pode ser qualquer período de seis meses durante o último ano de serviço.
+    // Não inclua: Os que ficaram inativos nos anos de serviço anteriores e continuam inativos."
+    //
+    // Regra precisa:
+    // Um publicador completa 6 meses consecutivos sem relatar no mês M (ex: mIdx).
+    // O marco do 6º mês consecutivo sem relatar (mIdx) cai no ano de serviço: [syStartIdx, syEndIdx].
+    // E antes de começar essa sequência de 6 meses, a pessoa relatou (ou seja, estava ativa imediatamente antes),
+    // NÃO vindo já inativa de anos de serviço anteriores.
+    // Também pode ter ficado inativo no ano e retornado mais tarde (ou não).
+    //
+    // Verificamos cada mês M dentro do ano de serviço [syStartIdx, syEndIdx]:
+    // M é o 6º mês de uma sequência consecutiva de 6 meses sem relato (M-5 até M).
+    // E no mês imediatamente anterior (M-6), o publicador TEVE relato ativo.
+    // Se essa condição for atendida em qualquer mês M dentro do ano de serviço, o publicador
+    // ficou inativo DURANTE o ano de serviço pela 1ª vez naquele ano!
+    let becameInactiveInSy = false
+    let inactiveMarcoIdx = -1
+
+    if (pubMonthMap) {
+      for (let mIdx = syStartIdx; mIdx <= syEndIdx; mIdx++) {
+        // Verifica se os 6 meses consecutivos terminando em mIdx (mIdx-5 até mIdx) foram SEM relato
+        let all6NoReport = true
+        for (let k = 0; k < 6; k++) {
+          const checkIdx = mIdx - k
+          const rec = pubMonthMap.get(checkIdx)
+          if (rec && rec.participated) {
+            all6NoReport = false
+            break
+          }
+        }
+
+        if (all6NoReport) {
+          // Para ser NOVO inativo no ano (e não alguém que já era inativo de anos anteriores),
+          // no mês imediatamente anterior (mIdx - 6) ele DEVE ter relatado atividade
+          const prevMonthRec = pubMonthMap.get(mIdx - 6)
+          const hadReportBefore = prevMonthRec?.participated
+
+          if (hadReportBefore) {
+            becameInactiveInSy = true
+            inactiveMarcoIdx = mIdx
+            break
+          }
+        }
+      }
+    }
+
+    // Se o publicador está marcado com status "Inativo (Apoio)" no cadastro e não foi pego pelo critério acima
+    // (por exemplo, congregações com lançamentos parciais no banco onde o publicador se tornou inativo no ano),
+    // verificamos se o último relato dele caiu entre março/(startYear) e fevereiro/(endYear), o que faria
+    // os 6 meses sem relatar completarem exatamente dentro do ano de serviço.
+    if (!becameInactiveInSy && pub.status === 'Inativo (Apoio)') {
+      if (activeMonthIndices.length > 0) {
+        const lastActive = activeMonthIndices[activeMonthIndices.length - 1]
+        // Se o último relato ocorreu de modo que o 6º mês consecutivo sem relato (lastActive + 6)
+        // cai dentro do ano de serviço [syStartIdx, syEndIdx]:
+        const sixMonthsAfter = lastActive + 6
+        if (sixMonthsAfter >= syStartIdx && sixMonthsAfter <= syEndIdx) {
+          becameInactiveInSy = true
+          inactiveMarcoIdx = sixMonthsAfter
+        }
+      }
+    }
+
+    if (becameInactiveInSy && inactiveMarcoIdx !== -1) {
+      const inactiveYear = Math.floor(inactiveMarcoIdx / 12)
+      const inactiveMonth = (inactiveMarcoIdx % 12) + 1
+      newInactivePublishersList.push({
+        id: pub.id,
+        name: pub.name,
+        inactiveSinceMonth: String(inactiveMonth).padStart(2, '0'),
+        inactiveSinceYear: inactiveYear,
+      })
     }
   }
 
@@ -332,11 +466,13 @@ export const calculateS10Data = async (serviceYear: number): Promise<S10Calculat
     augustSummaryFound,
     totalWeekendMeetings: weCount,
     totalMidweekMeetings: mwCount,
-    autoReadmittedCount,
-    readmittedPublishersList,
-    autoNewUnbaptizedCount: newUnbaptizedPublishersList.length,
-    newUnbaptizedPublishersList,
+    autoNewInactiveCount: newInactivePublishersList.length,
+    newInactivePublishersList,
     autoReactivatedCount: reactivatedPublishersList.length,
     reactivatedPublishersList,
+    autoNewUnbaptizedCount: newUnbaptizedPublishersList.length,
+    newUnbaptizedPublishersList,
+    autoReadmittedCount,
+    readmittedPublishersList,
   }
 }

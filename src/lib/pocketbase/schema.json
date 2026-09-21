@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-21T17:12:10.182Z",
+  "generatedAt": "2026-09-21T17:44:28.813Z",
   "collections": [
     {
       "name": "users",
@@ -1284,6 +1284,12 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "new_inactive_publishers",
+          "type": "number",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": ["CREATE UNIQUE INDEX idx_s10_reports_year ON s10_reports (service_year)"]
