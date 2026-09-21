@@ -124,7 +124,7 @@ export const GETTING_STARTED: GettingStartedGuide = {
   goldenRules: [
     'Nunca deixe o lançamento para depois do dia 5 — quanto mais cedo os dirigentes fecham o grupo, mais tempo o Secretário tem para revisar e transmitir o S-1 com precisão.',
     'Publicadores batizados que relataram ao menos 15 minutos ou marcaram participação devem constar como "Participou". Para publicadores com limitações de idade ou saúde, a participação de 15 minutos já é válida.',
-    'Irmãos transferidos ou removidos não devem ser excluídos definitivamente se tiverem histórico no ano de serviço: altere o status para "Mudou-se" para preservar as estatísticas.',
+    'Irmãos transferidos devem ter o status alterado para "Mudou-se" para preservar as estatísticas. Publicadores "Removidos" (desassociados não arrependidos de pecados graves) não fazem mais parte da congregação, saem do registro ativo de publicadores e NÃO entram em contagens nem fotografias.',
     'As informações sobre visitas de pastoreio e atas são sigilosas e devem ser tratadas com zelo e amor cristão pelos irmãos designados.',
   ],
 }
@@ -208,7 +208,7 @@ export const MODULE_GUIDES: Record<string, ModuleGuide> = {
     ],
     tips: [
       'O ano de serviço das Testemunhas de Jeová inicia em 1º de setembro e vai até 31 de agosto do ano seguinte.',
-      'Publicadores com status "Mudou-se" ou "Removido" não entram nas contagens para manter os números exatos.',
+      'Publicadores com status "Mudou-se" ou "Removido" não entram nas contagens para manter os números exatos. "Removidos" são pessoas que não se arrependeram de pecados graves e deixam de fazer parte da congregação.',
     ],
   },
 
@@ -436,7 +436,8 @@ export const MODULE_GUIDES: Record<string, ModuleGuide> = {
     ],
     tips: [
       'Mantenha sempre os números de telefone atualizados — eles são usados para mensagens de WhatsApp e contato direto nos alertas.',
-      'Publicadores com mais de 6 meses sem relatar são classificados pelo sistema automaticamente como "Inativos", mas continuam na lista para acompanhamento pastoral.',
+      'Publicadores com mais de 6 meses sem relatar são classificados pelo sistema como "Inativos" (nunca saem do registro congregacional). Quando voltam a relatar, são "Reativados" — o que não se confunde com readmissão.',
+      'O campo "Data de Readmissão" é de uso EXCLUSIVO para reintegração formal de pessoas removidas (desassociadas) após arrependimento e aprovação formal do corpo de anciãos. Nunca utilize esse campo para publicadores inativos que voltaram a relatar.',
     ],
   },
 
@@ -1053,7 +1054,7 @@ export const MODULE_GUIDES: Record<string, ModuleGuide> = {
       {
         name: 'Página 1: Assistência e Publicadores',
         description:
-          'Médias de assistência de fim de semana e meio de semana calculadas automaticamente a partir do S-88, total de ativos em agosto e campos para novos não batizados, readmitidos, surdos, cegos e presos.',
+          'Médias de assistência calculadas automaticamente a partir do S-88, total de ativos em agosto e contagem automática de novos não batizados e readmitidos (com suporte a override manual e card informativo de apoio para reativados).',
       },
       {
         name: 'Página 2: Cobertura de Cartões de Território',
@@ -1075,12 +1076,12 @@ export const MODULE_GUIDES: Record<string, ModuleGuide> = {
       {
         title: 'Confira os dados calculados na Página 1',
         description:
-          'Verifique as médias de assistência do S-88 e o total de ativos da fotografia de agosto.',
+          'Verifique as médias de assistência do S-88, a fotografia de agosto e os números automáticos de "Novos não batizados" e "Readmitidos" (reintegração formal aprovada pelos anciãos), além do card de apoio de "Reativados".',
       },
       {
-        title: 'Preencha os campos numéricos e avance',
+        title: 'Confira ou ajuste os campos e avance',
         description:
-          'Informe os totais de novos não batizados, readmitidos, surdos, cegos e presos, e clique em "Próximo".',
+          'O sistema calcula automaticamente readmitidos e novos não batizados. Ajuste se necessário, informe os dados de surdos, cegos e presos, e clique em "Próximo".',
       },
       {
         title: 'Lance os números de território na Página 2',
@@ -1102,6 +1103,7 @@ export const MODULE_GUIDES: Record<string, ModuleGuide> = {
     ],
     tips: [
       'A fotografia de agosto é tirada com base na regra consolidada de atividade dos últimos 6 meses.',
+      'Diferença conceitual essencial: "Readmitidos" são ex-removidos reintegrados formalmente pelos anciãos; "Reativados" são inativos (6+ meses sem relatar) que retomaram os relatos.',
       'O perfil Ancião tem acesso para visualização e impressão dos dados arquivados da congregação.',
     ],
   },

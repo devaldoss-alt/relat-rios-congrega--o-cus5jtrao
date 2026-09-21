@@ -95,6 +95,7 @@ export default function S10Page() {
       setCalculated(calcData)
 
       if (existingRep) {
+        // Se já existe registro salvo, utiliza o valor salvo se preenchido; se for 0 ou indefinido, adota o valor calculado automaticamente
         setFormData({
           avg_attendance_weekend:
             existingRep.avg_attendance_weekend ?? calcData.avgAttendanceWeekend,
@@ -102,8 +103,16 @@ export default function S10Page() {
             existingRep.avg_attendance_midweek ?? calcData.avgAttendanceMidweek,
           total_active_publishers:
             existingRep.total_active_publishers ?? calcData.totalActivePublishersAugust,
-          new_unbaptized_publishers: existingRep.new_unbaptized_publishers ?? 0,
-          reactivated_publishers: existingRep.reactivated_publishers ?? 0,
+          new_unbaptized_publishers:
+            existingRep.new_unbaptized_publishers !== undefined &&
+            existingRep.new_unbaptized_publishers > 0
+              ? existingRep.new_unbaptized_publishers
+              : calcData.autoNewUnbaptizedCount,
+          reactivated_publishers:
+            existingRep.reactivated_publishers !== undefined &&
+            existingRep.reactivated_publishers > 0
+              ? existingRep.reactivated_publishers
+              : calcData.autoReadmittedCount,
           deaf_publishers: existingRep.deaf_publishers ?? 0,
           blind_publishers: existingRep.blind_publishers ?? 0,
           prisoner_publishers: existingRep.prisoner_publishers ?? 0,
@@ -116,8 +125,8 @@ export default function S10Page() {
           avg_attendance_weekend: calcData.avgAttendanceWeekend,
           avg_attendance_midweek: calcData.avgAttendanceMidweek,
           total_active_publishers: calcData.totalActivePublishersAugust,
-          new_unbaptized_publishers: 0,
-          reactivated_publishers: 0,
+          new_unbaptized_publishers: calcData.autoNewUnbaptizedCount,
+          reactivated_publishers: calcData.autoReadmittedCount,
           deaf_publishers: 0,
           blind_publishers: 0,
           prisoner_publishers: 0,
@@ -484,62 +493,199 @@ export default function S10Page() {
                     {/* Linha: Novos publicadores não batizados */}
                     <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start pt-6">
                       <div className="md:col-span-4 space-y-2">
-                        <Label className="text-sm font-semibold">
-                          Novos publicadores não batizados
-                        </Label>
+                        <div className="flex items-center gap-2">
+                          <Label className="text-sm font-semibold">
+                            Novos publicadores não batizados
+                          </Label>
+                          <Badge
+                            variant="secondary"
+                            className="text-[10px] py-0 px-1.5 font-normal"
+                          >
+                            Calculado automaticamente
+                          </Badge>
+                        </div>
                         <p className="text-xs text-muted-foreground">
-                          Conte as pessoas aprovadas como novos publicadores não batizados no último
-                          ano de serviço.
+                          Pessoas aprovadas como novos publicadores não batizados cujo primeiro
+                          relato foi registrado durante o ano de serviço.
                         </p>
-                        <Input
-                          type="number"
-                          min="0"
-                          value={formData.new_unbaptized_publishers}
-                          onChange={(e) =>
-                            handleNumberChange('new_unbaptized_publishers', e.target.value)
-                          }
-                          disabled={!canEdit}
-                          className="w-32 text-lg font-semibold"
-                        />
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="number"
+                            min="0"
+                            value={formData.new_unbaptized_publishers}
+                            onChange={(e) =>
+                              handleNumberChange('new_unbaptized_publishers', e.target.value)
+                            }
+                            disabled={!canEdit}
+                            className="w-32 text-lg font-semibold"
+                          />
+                          {canEdit && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="text-xs h-8 px-2"
+                              title="Restaurar valor calculado automaticamente"
+                              onClick={() => {
+                                setFormData((prev) => ({
+                                  ...prev,
+                                  new_unbaptized_publishers:
+                                    calculated?.autoNewUnbaptizedCount ?? 0,
+                                }))
+                              }}
+                            >
+                              Auto: {calculated?.autoNewUnbaptizedCount ?? 0}
+                            </Button>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" />
+                          {calculated?.autoNewUnbaptizedCount ?? 0} identificado(s) no histórico de
+                          relatos
+                        </p>
                       </div>
 
-                      <div className="md:col-span-8 rounded-md border p-3 bg-muted/20 text-xs text-muted-foreground">
-                        <p className="font-semibold text-foreground mb-1">Critério:</p>
+                      <div className="md:col-span-8 rounded-md border p-3 bg-muted/20 text-xs text-muted-foreground space-y-1.5">
+                        <p className="font-semibold text-foreground">Critério oficial:</p>
                         <p className="leading-relaxed">
                           Pessoas que foram aprovadas pelos anciãos para iniciar como publicadores
-                          não batizados entre setembro/{serviceYear - 1} e agosto/{serviceYear}.
+                          não batizados e entregaram seu primeiro relato entre setembro/
+                          {serviceYear - 1} e agosto/{serviceYear}.
                         </p>
+                        {calculated && calculated.newUnbaptizedPublishersList.length > 0 && (
+                          <div className="pt-1 border-t border-border/50 text-[11px] text-foreground/80">
+                            <strong>Publicadores detectados:</strong>{' '}
+                            {calculated.newUnbaptizedPublishersList
+                              .map((p) => `${p.name} (1º relato: ${p.firstMonth}/${p.firstYear})`)
+                              .join('; ')}
+                          </div>
+                        )}
                       </div>
                     </div>
 
                     {/* Linha: Publicadores readmitidos */}
                     <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start pt-6">
                       <div className="md:col-span-4 space-y-2">
-                        <Label className="text-sm font-semibold">Publicadores readmitidos</Label>
+                        <div className="flex items-center gap-2">
+                          <Label className="text-sm font-semibold">Publicadores readmitidos</Label>
+                          <Badge
+                            variant="secondary"
+                            className="text-[10px] py-0 px-1.5 font-normal"
+                          >
+                            Calculado automaticamente
+                          </Badge>
+                        </div>
                         <p className="text-xs text-muted-foreground">
-                          Conte as pessoas que foram readmitidas na congregação durante o último ano
-                          de serviço.
+                          Exclusivo para pessoas que eram removidas (desassociadas) e foram
+                          reintegradas formalmente após aprovação dos anciãos no ano de serviço.
                         </p>
-                        <Input
-                          type="number"
-                          min="0"
-                          value={formData.reactivated_publishers}
-                          onChange={(e) =>
-                            handleNumberChange('reactivated_publishers', e.target.value)
-                          }
-                          disabled={!canEdit}
-                          className="w-32 text-lg font-semibold"
-                        />
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="number"
+                            min="0"
+                            value={formData.reactivated_publishers}
+                            onChange={(e) =>
+                              handleNumberChange('reactivated_publishers', e.target.value)
+                            }
+                            disabled={!canEdit}
+                            className="w-32 text-lg font-semibold"
+                          />
+                          {canEdit && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="text-xs h-8 px-2"
+                              title="Restaurar valor calculado automaticamente"
+                              onClick={() => {
+                                setFormData((prev) => ({
+                                  ...prev,
+                                  reactivated_publishers: calculated?.autoReadmittedCount ?? 0,
+                                }))
+                              }}
+                            >
+                              Auto: {calculated?.autoReadmittedCount ?? 0}
+                            </Button>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" />
+                          {calculated?.autoReadmittedCount ?? 0} com data de readmissão no período
+                        </p>
                       </div>
 
-                      <div className="md:col-span-8 rounded-md border p-3 bg-muted/20 text-xs text-muted-foreground">
-                        <p className="font-semibold text-foreground mb-1">Critério:</p>
-                        <p className="leading-relaxed">
-                          Irmãos readmitidos por anúncio na congregação durante o ano de serviço.
-                          Podem também estar cadastrados com data de readmissão na Ficha de
-                          Publicador.
+                      <div className="md:col-span-8 rounded-md border p-3 bg-muted/20 text-xs text-muted-foreground space-y-1.5">
+                        <p className="font-semibold text-foreground">
+                          Critério oficial e terminologia:
                         </p>
+                        <p className="leading-relaxed">
+                          Somente pessoas que haviam sido <strong>removidas da congregação</strong>,
+                          se arrependeram enquanto estavam fora e retornaram após{' '}
+                          <strong>aprovação formal do corpo de anciãos</strong>. O sistema conta
+                          automaticamente quem possui o campo <em>Data de readmissão</em> no
+                          cadastro entre setembro/{serviceYear - 1} e agosto/{serviceYear}.
+                        </p>
+                        <p className="leading-relaxed text-[11px] text-amber-700 dark:text-amber-400">
+                          <strong>Atenção:</strong> Publicadores inativos que voltaram a relatar são{' '}
+                          <em>reativados</em> (não são readmitidos e nunca saíram do registro).
+                        </p>
+                        {calculated && calculated.readmittedPublishersList.length > 0 && (
+                          <div className="pt-1 border-t border-border/50 text-[11px] text-foreground/80">
+                            <strong>Readmitidos no período:</strong>{' '}
+                            {calculated.readmittedPublishersList
+                              .map((p) => `${p.name} (${p.date})`)
+                              .join('; ')}
+                          </div>
+                        )}
                       </div>
+                    </div>
+
+                    {/* Card Informativo de Apoio: Publicadores Reativados (Não altera campos do formulário oficial S-10) */}
+                    <div className="rounded-lg border border-blue-200 dark:border-blue-900 bg-blue-50/50 dark:bg-blue-950/20 p-4 space-y-3">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <Info className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
+                            <h4 className="text-sm font-semibold text-foreground">
+                              Informação de Apoio Congregacional: Publicadores Reativados
+                            </h4>
+                            <Badge variant="outline" className="text-[10px] bg-background">
+                              Apoio ao Secretário
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground leading-relaxed">
+                            Publicadores que ficaram{' '}
+                            <strong>6+ meses consecutivos sem relatar</strong> e retomaram os
+                            relatos durante o Ano de Serviço de {serviceYear} (nunca saíram do
+                            registro congregacional). O formulário oficial impresso do S-10 não
+                            possui campo isolado para eles; eles são incluídos diretamente no total
+                            de <em>Todos os publicadores ativos</em>.
+                          </p>
+                        </div>
+                        <div className="text-right shrink-0 bg-background rounded-md border px-3 py-1.5 shadow-xs">
+                          <span className="text-xs text-muted-foreground block">
+                            Reativados no ano
+                          </span>
+                          <span className="text-xl font-bold text-blue-600 dark:text-blue-400">
+                            {calculated?.autoReactivatedCount ?? 0}
+                          </span>
+                        </div>
+                      </div>
+
+                      {calculated && calculated.reactivatedPublishersList.length > 0 && (
+                        <div className="rounded border bg-background/80 p-2 text-xs space-y-1">
+                          <p className="font-medium text-foreground text-[11px]">
+                            Publicadores que retomaram a atividade no período:
+                          </p>
+                          <div className="flex flex-wrap gap-2 text-muted-foreground text-[11px]">
+                            {calculated.reactivatedPublishersList.map((p) => (
+                              <span key={p.id} className="bg-muted px-2 py-0.5 rounded">
+                                • {p.name} (retomou em {p.resumedMonth}/{p.resumedYear})
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     {/* Linha: Publicadores surdos */}
@@ -927,7 +1073,8 @@ export default function S10Page() {
                           {formData.reactivated_publishers}
                         </td>
                         <td className="border border-gray-400 p-2 text-xs">
-                          Readmitidos por anúncio na congregação durante o último ano de serviço.
+                          Pessoas que eram removidas e foram readmitidas após aprovação formal dos
+                          anciãos no ano de serviço.
                         </td>
                       </tr>
                       <tr>
