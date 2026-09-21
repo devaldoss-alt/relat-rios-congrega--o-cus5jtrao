@@ -22,6 +22,8 @@ export interface Publisher {
   is_blind?: boolean
   is_prisoner?: boolean
   readmission_date?: string
+  first_report_date?: string
+  reactivation_date?: string
   created?: string
   expand?: {
     group_id?: {

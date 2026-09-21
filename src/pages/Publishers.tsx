@@ -105,6 +105,13 @@ export default function PublishersPage() {
   const [filterGroup, setFilterGroup] = useState('all')
   const [filterType, setFilterType] = useState('all')
   const [filterView, setFilterView] = useState('ativos')
+  const [filterMissingStartDate, setFilterMissingStartDate] = useState(false)
+
+  // Estados para fluxo rápido de preenchimento sequencial / lote de data de início
+  const [quickBatchOpen, setQuickBatchOpen] = useState(false)
+  const [quickBatchIndex, setQuickBatchIndex] = useState(0)
+  const [quickBatchDate, setQuickBatchDate] = useState('')
+  const [quickBatchSaving, setQuickBatchSaving] = useState(false)
 
   const [open, setOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -122,6 +129,8 @@ export default function PublishersPage() {
     hope: 'Outras ovelhas',
     birth_date: '',
     baptism_date: '',
+    first_report_date: '',
+    reactivation_date: '',
     is_elder: false,
     is_ministerial_servant: false,
     is_special_pioneer: false,
@@ -192,6 +201,8 @@ export default function PublishersPage() {
         is_blind: pub.is_blind,
         is_prisoner: pub.is_prisoner,
         readmission_date: readmissionVal,
+        first_report_date: pub.first_report_date ? pub.first_report_date.split('T')[0] : '',
+        reactivation_date: pub.reactivation_date ? pub.reactivation_date.split('T')[0] : '',
       })
     } else {
       setEditingId(null)
@@ -210,6 +221,8 @@ export default function PublishersPage() {
         hope: 'Outras ovelhas',
         birth_date: '',
         baptism_date: '',
+        first_report_date: '',
+        reactivation_date: '',
         is_elder: false,
         is_ministerial_servant: false,
         is_special_pioneer: false,
@@ -254,6 +267,12 @@ export default function PublishersPage() {
           : '',
       readmission_date: formData.readmission_date
         ? `${formData.readmission_date} 12:00:00.000Z`
+        : '',
+      first_report_date: formData.first_report_date
+        ? `${formData.first_report_date} 12:00:00.000Z`
+        : '',
+      reactivation_date: formData.reactivation_date
+        ? `${formData.reactivation_date} 12:00:00.000Z`
         : '',
     }
 
@@ -304,7 +323,62 @@ export default function PublishersPage() {
       if (filterView === 'arquivados') return isArchived
       return true
     })
+    .filter((p) => {
+      if (!filterMissingStartDate) return true
+      return !p.first_report_date
+    })
     .sort((a, b) => a.name.localeCompare(b.name))
+
+  // Lista dos publicadores que estão sem data de início para o fluxo rápido
+  const missingStartDateList = [...publishers]
+    .filter((p) => p.status !== 'Mudou-se' && p.status !== 'Removido')
+    .filter((p) => !p.first_report_date)
+    .sort((a, b) => a.name.localeCompare(b.name))
+
+  const handleStartQuickBatch = () => {
+    setQuickBatchIndex(0)
+    setQuickBatchDate('')
+    setQuickBatchOpen(true)
+  }
+
+  const handleSaveQuickBatchCurrent = async (skip: boolean = false) => {
+    const currentPub = missingStartDateList[quickBatchIndex]
+    if (!currentPub) return
+
+    if (!skip && quickBatchDate) {
+      setQuickBatchSaving(true)
+      try {
+        await updatePublisher(currentPub.id, {
+          first_report_date: `${quickBatchDate} 12:00:00.000Z`,
+        })
+        toast({
+          title: 'Data registrada',
+          description: `Data de início salva para ${currentPub.name}.`,
+        })
+        await loadData()
+      } catch (err) {
+        toast({
+          title: 'Erro ao salvar',
+          description: 'Não foi possível salvar a data deste publicador.',
+          variant: 'destructive',
+        })
+        setQuickBatchSaving(false)
+        return
+      }
+      setQuickBatchSaving(false)
+    }
+
+    if (quickBatchIndex + 1 < missingStartDateList.length) {
+      setQuickBatchIndex((prev) => prev + 1)
+      setQuickBatchDate('')
+    } else {
+      setQuickBatchOpen(false)
+      toast({
+        title: 'Fluxo concluído',
+        description: 'Todos os publicadores selecionados foram revisados!',
+      })
+    }
+  }
 
   const activeFiltered = filtered.filter(
     (p) => p.status === 'Ativo' || p.status === 'Inativo (Apoio)' || (p.active && !p.status),
@@ -571,6 +645,48 @@ export default function PublishersPage() {
                         </div>
                       </div>
 
+                      {/* Campo 1: Início como publicador */}
+                      <div className="space-y-2 md:col-span-2 rounded-md border p-3 bg-muted/20">
+                        <div>
+                          <Label className="font-semibold text-sm">
+                            Início como publicador (data do 1º relato)
+                          </Label>
+                          <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                            Data em que a pessoa entregou seu primeiro relatório como publicador não
+                            batizado. Usado no cálculo de novos não batizados no S-10.
+                          </p>
+                        </div>
+                        <Input
+                          type="date"
+                          value={formData.first_report_date || ''}
+                          onChange={(e) =>
+                            setFormData((prev) => ({ ...prev, first_report_date: e.target.value }))
+                          }
+                        />
+                      </div>
+
+                      {/* Campo 2: Data de retorno aos relatos (reativação) */}
+                      <div className="space-y-2 md:col-span-2 rounded-md border p-3 bg-muted/20">
+                        <div>
+                          <Label className="font-semibold text-sm">
+                            Data de retorno aos relatos (reativação)
+                          </Label>
+                          <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                            Data em que um publicador inativo retomou os relatos.{' '}
+                            <strong>Atenção:</strong> NÃO deve ser usado para readmitidos
+                            (reintegração formal usa o campo exclusivo abaixo).
+                          </p>
+                        </div>
+                        <Input
+                          type="date"
+                          value={formData.reactivation_date || ''}
+                          onChange={(e) =>
+                            setFormData((prev) => ({ ...prev, reactivation_date: e.target.value }))
+                          }
+                        />
+                      </div>
+
+                      {/* Campo 3: Data de Readmissão (Formal) */}
                       <div className="space-y-3 md:col-span-2 rounded-md border p-3 bg-muted/20">
                         <div>
                           <Label className="font-semibold text-sm">
@@ -732,6 +848,29 @@ export default function PublishersPage() {
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Filtro: Sem data de início como publicador */}
+            <div className="flex items-center gap-3 pt-2 sm:pt-0 sm:ml-auto">
+              <label className="flex items-center space-x-2 text-xs sm:text-sm font-medium cursor-pointer border rounded-md px-3 py-2 bg-muted/30 hover:bg-muted/50 transition-colors">
+                <Checkbox
+                  checked={filterMissingStartDate}
+                  onCheckedChange={(c) => setFilterMissingStartDate(Boolean(c))}
+                />
+                <span>Sem data de 1º relato ({missingStartDateList.length})</span>
+              </label>
+
+              {isSecretario && missingStartDateList.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleStartQuickBatch}
+                  className="text-xs h-9"
+                  title="Abrir fluxo rápido para preencher publicadores sem data de início em sequência"
+                >
+                  Preenchimento Rápido
+                </Button>
+              )}
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -745,7 +884,7 @@ export default function PublishersPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Nome</TableHead>
-                    <TableHead>Telefone</TableHead>
+                    <TableHead>Início (1º relato)</TableHead>
                     <TableHead>Grupo</TableHead>
                     <TableHead>Tipo</TableHead>
                     <TableHead>Atividade</TableHead>
@@ -762,8 +901,26 @@ export default function PublishersPage() {
                   ) : (
                     filtered.map((pub) => (
                       <TableRow key={pub.id}>
-                        <TableCell className="font-medium">{pub.name}</TableCell>
-                        <TableCell>{pub.phone || '-'}</TableCell>
+                        <TableCell className="font-medium">
+                          <div>{pub.name}</div>
+                          {pub.phone && (
+                            <div className="text-xs text-muted-foreground">{pub.phone}</div>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {pub.first_report_date ? (
+                            <Badge variant="outline" className="text-xs font-normal">
+                              {pub.first_report_date.slice(0, 10).split('-').reverse().join('/')}
+                            </Badge>
+                          ) : (
+                            <Badge
+                              variant="secondary"
+                              className="text-[11px] text-muted-foreground font-normal border-dashed"
+                            >
+                              Não preenchido
+                            </Badge>
+                          )}
+                        </TableCell>
                         <TableCell>Grupo {pub.expand?.group_id?.number || '-'}</TableCell>
                         <TableCell className="capitalize">{pub.type.replace('_', ' ')}</TableCell>
                         <TableCell>
@@ -851,6 +1008,97 @@ export default function PublishersPage() {
           )}
         </CardContent>
       </Card>
+      {/* Modal de Preenchimento Sequencial / Rápido de Data de Início */}
+      {isSecretario && (
+        <Dialog open={quickBatchOpen} onOpenChange={setQuickBatchOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Preenchimento Rápido: Data de Início</DialogTitle>
+            </DialogHeader>
+            {missingStartDateList[quickBatchIndex] ? (
+              <div className="space-y-4 py-2">
+                <div className="flex items-center justify-between text-xs text-muted-foreground border-b pb-2">
+                  <span>
+                    Publicador {quickBatchIndex + 1} de {missingStartDateList.length}
+                  </span>
+                  <span>{missingStartDateList.length - quickBatchIndex} restante(s)</span>
+                </div>
+
+                <div className="p-3 bg-muted/30 rounded-md border space-y-1">
+                  <div className="font-semibold text-base text-foreground">
+                    {missingStartDateList[quickBatchIndex].name}
+                  </div>
+                  <div className="text-xs text-muted-foreground flex items-center gap-3">
+                    <span>
+                      Grupo {missingStartDateList[quickBatchIndex].expand?.group_id?.number || '-'}
+                    </span>
+                    <span>•</span>
+                    <span className="capitalize">
+                      {missingStartDateList[quickBatchIndex].type.replace('_', ' ')}
+                    </span>
+                    <span>•</span>
+                    <span>
+                      {missingStartDateList[quickBatchIndex].baptism_date
+                        ? 'Batizado'
+                        : 'Não batizado'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">
+                    Data do 1º relato (início como publicador)
+                  </Label>
+                  <Input
+                    type="date"
+                    value={quickBatchDate}
+                    onChange={(e) => setQuickBatchDate(e.target.value)}
+                    autoFocus
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Preencha a data em que entregou o primeiro relatório. Se não souber agora, você
+                    pode pular para o próximo.
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-between pt-3 border-t">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => handleSaveQuickBatchCurrent(true)}
+                    disabled={quickBatchSaving}
+                  >
+                    Pular este
+                  </Button>
+
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setQuickBatchOpen(false)}
+                      disabled={quickBatchSaving}
+                    >
+                      Cancelar
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={() => handleSaveQuickBatchCurrent(false)}
+                      disabled={quickBatchSaving || !quickBatchDate}
+                    >
+                      {quickBatchSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Salvar e Próximo
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="py-6 text-center text-sm text-muted-foreground">
+                Nenhum publicador pendente de data de início.
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   )
 }

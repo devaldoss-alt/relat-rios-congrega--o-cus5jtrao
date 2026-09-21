@@ -667,20 +667,64 @@ export default function S10Page() {
                           como em <em>Publicadores reativados</em>.
                         </p>
                         {calculated && calculated.reactivatedPublishersList.length > 0 && (
-                          <div className="pt-2 border-t border-border/50 text-[11px] text-foreground/80 space-y-1">
-                            <span className="font-semibold block text-foreground">
-                              Publicadores identificados:
-                            </span>
-                            <div className="flex flex-wrap gap-1.5">
-                              {calculated.reactivatedPublishersList.map((p) => (
-                                <span
-                                  key={p.id}
-                                  className="bg-background border rounded px-1.5 py-0.5"
-                                >
-                                  {p.name} (retomou em {p.resumedMonth}/{p.resumedYear})
-                                </span>
-                              ))}
-                            </div>
+                          <div className="pt-2 border-t border-border/50 text-[11px] text-foreground/80 space-y-2">
+                            {/* Confirmados */}
+                            {(() => {
+                              const confirmados = calculated.reactivatedPublishersList.filter(
+                                (p) => p.status === 'confirmado',
+                              )
+                              const aConfirmar = calculated.reactivatedPublishersList.filter(
+                                (p) => p.status === 'a_confirmar',
+                              )
+                              return (
+                                <>
+                                  {confirmados.length > 0 && (
+                                    <div className="space-y-1">
+                                      <div className="flex items-center gap-1.5 font-semibold text-emerald-700 dark:text-emerald-400">
+                                        <CheckCircle2 className="w-3.5 h-3.5" />
+                                        Confirmados na ficha ({confirmados.length}):
+                                      </div>
+                                      <div className="flex flex-wrap gap-1.5">
+                                        {confirmados.map((p) => (
+                                          <span
+                                            key={p.id}
+                                            className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded px-1.5 py-0.5 text-foreground"
+                                          >
+                                            {p.name} (data:{' '}
+                                            {p.dateSource || `${p.resumedMonth}/${p.resumedYear}`})
+                                          </span>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {aConfirmar.length > 0 && (
+                                    <div className="space-y-1 pt-1">
+                                      <div className="flex items-center gap-1.5 font-semibold text-amber-700 dark:text-amber-400">
+                                        <Info className="w-3.5 h-3.5" />A confirmar pelo secretário
+                                        ({aConfirmar.length}):
+                                      </div>
+                                      <div className="flex flex-wrap gap-1.5">
+                                        {aConfirmar.map((p) => (
+                                          <span
+                                            key={p.id}
+                                            className="bg-background border border-amber-300 dark:border-amber-800 rounded px-1.5 py-0.5"
+                                          >
+                                            {p.name} (retomou no histórico em {p.resumedMonth}/
+                                            {p.resumedYear})
+                                          </span>
+                                        ))}
+                                      </div>
+                                      <p className="text-[10px] text-muted-foreground italic">
+                                        Deduzidos do histórico (6+ meses consecutivos sem relatar).
+                                        Preencha o campo "Data de retorno aos relatos" na ficha para
+                                        confirmar.
+                                      </p>
+                                    </div>
+                                  )}
+                                </>
+                              )
+                            })()}
                           </div>
                         )}
                       </div>
@@ -861,20 +905,63 @@ export default function S10Page() {
                           {serviceYear - 1} e agosto/{serviceYear}.
                         </p>
                         {calculated && calculated.newUnbaptizedPublishersList.length > 0 && (
-                          <div className="pt-1 border-t border-border/50 text-[11px] text-foreground/80 space-y-1">
-                            <span className="font-semibold block text-foreground">
-                              Publicadores identificados:
-                            </span>
-                            <div className="flex flex-wrap gap-1.5">
-                              {calculated.newUnbaptizedPublishersList.map((p) => (
-                                <span
-                                  key={p.id}
-                                  className="bg-background border rounded px-1.5 py-0.5"
-                                >
-                                  {p.name} (1º relato: {p.firstMonth}/{p.firstYear})
-                                </span>
-                              ))}
-                            </div>
+                          <div className="pt-2 border-t border-border/50 text-[11px] text-foreground/80 space-y-2">
+                            {(() => {
+                              const confirmados = calculated.newUnbaptizedPublishersList.filter(
+                                (p) => p.status === 'confirmado',
+                              )
+                              const aConfirmar = calculated.newUnbaptizedPublishersList.filter(
+                                (p) => p.status === 'a_confirmar',
+                              )
+                              return (
+                                <>
+                                  {confirmados.length > 0 && (
+                                    <div className="space-y-1">
+                                      <div className="flex items-center gap-1.5 font-semibold text-emerald-700 dark:text-emerald-400">
+                                        <CheckCircle2 className="w-3.5 h-3.5" />
+                                        Confirmados na ficha ({confirmados.length}):
+                                      </div>
+                                      <div className="flex flex-wrap gap-1.5">
+                                        {confirmados.map((p) => (
+                                          <span
+                                            key={p.id}
+                                            className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded px-1.5 py-0.5 text-foreground"
+                                          >
+                                            {p.name} (data:{' '}
+                                            {p.dateSource || `${p.firstMonth}/${p.firstYear}`})
+                                          </span>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {aConfirmar.length > 0 && (
+                                    <div className="space-y-1 pt-1">
+                                      <div className="flex items-center gap-1.5 font-semibold text-amber-700 dark:text-amber-400">
+                                        <Info className="w-3.5 h-3.5" />A confirmar pelo secretário
+                                        ({aConfirmar.length}):
+                                      </div>
+                                      <div className="flex flex-wrap gap-1.5">
+                                        {aConfirmar.map((p) => (
+                                          <span
+                                            key={p.id}
+                                            className="bg-background border border-amber-300 dark:border-amber-800 rounded px-1.5 py-0.5"
+                                          >
+                                            {p.name} (1º relato no sistema: {p.firstMonth}/
+                                            {p.firstYear})
+                                          </span>
+                                        ))}
+                                      </div>
+                                      <p className="text-[10px] text-muted-foreground italic">
+                                        Identificados com 1º relato após o mês de corte da
+                                        importação. Preencha o campo "Início como publicador" na
+                                        ficha para confirmar.
+                                      </p>
+                                    </div>
+                                  )}
+                                </>
+                              )
+                            })()}
                           </div>
                         )}
                       </div>

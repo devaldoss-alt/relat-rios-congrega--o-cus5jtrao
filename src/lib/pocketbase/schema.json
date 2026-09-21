@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-21T18:13:53.261Z",
+  "generatedAt": "2026-09-21T18:54:37.390Z",
   "collections": [
     {
       "name": "users",
@@ -446,6 +446,18 @@
         },
         {
           "name": "readmission_date",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "first_report_date",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "reactivation_date",
           "type": "date",
           "required": false,
           "system": false

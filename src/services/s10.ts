@@ -91,10 +91,19 @@ export interface S10CalculatedData {
     name: string
     resumedMonth: string
     resumedYear: number
+    status: 'confirmado' | 'a_confirmar'
+    dateSource?: string
   }[]
   // Apoio congregacional:
   autoNewUnbaptizedCount: number
-  newUnbaptizedPublishersList: { id: string; name: string; firstMonth: string; firstYear: number }[]
+  newUnbaptizedPublishersList: {
+    id: string
+    name: string
+    firstMonth: string
+    firstYear: number
+    status: 'confirmado' | 'a_confirmar'
+    dateSource?: string
+  }[]
   autoReadmittedCount: number
   readmittedPublishersList: { id: string; name: string; date: string }[]
 }
@@ -263,11 +272,26 @@ export const calculateS10Data = async (serviceYear: number): Promise<S10Calculat
   const syStartIdx = toMonthIndex(startYear, 9) // Setembro do startYear (ex: set/2025)
   const syEndIdx = toMonthIndex(endYear, 8) // Agosto do endYear (ex: ago/2026)
 
+  // Determina o mês inicial global do histórico lançado na base (ex: 09/2025 -> syStartIdx de 2026)
+  let earliestSystemReportMonthIdx = Number.MAX_SAFE_INTEGER
+  for (const rep of allReports) {
+    const m = parseInt(rep.month, 10)
+    const y = Number(rep.year)
+    if (m && y) {
+      const idx = toMonthIndex(y, m)
+      if (idx < earliestSystemReportMonthIdx) {
+        earliestSystemReportMonthIdx = idx
+      }
+    }
+  }
+
   const newUnbaptizedPublishersList: {
     id: string
     name: string
     firstMonth: string
     firstYear: number
+    status: 'confirmado' | 'a_confirmar'
+    dateSource?: string
   }[] = []
 
   const reactivatedPublishersList: {
@@ -275,6 +299,8 @@ export const calculateS10Data = async (serviceYear: number): Promise<S10Calculat
     name: string
     resumedMonth: string
     resumedYear: number
+    status: 'confirmado' | 'a_confirmar'
+    dateSource?: string
   }[] = []
 
   const newInactivePublishersList: {
@@ -285,8 +311,14 @@ export const calculateS10Data = async (serviceYear: number): Promise<S10Calculat
   }[] = []
 
   for (const pub of allPublishers) {
-    // Se o publicador é 'Removido' (desassociado), não entra no cálculo de novos inativos ou reativados
+    // Termos oficiais:
+    // - "Removidos" = desassociados não arrependidos de pecados graves; NÃO contam em nada.
+    // - "Readmitidos" = removidos reintegrados formalmente pelos anciãos; usam readmission_date.
+    // - "Reativados" = inativos (6+ meses sem relatar) que retomaram relatos.
     const isRemoved = pub.status === 'Removido'
+    const isReadmittedInPeriod =
+      Boolean(pub.readmission_date) && isDateInServiceYear(pub.readmission_date, startYear, endYear)
+
     const pubMonthMap = reportsByPublisher.get(pub.id)
 
     // Lista de meses em que o publicador teve relato ativo
@@ -301,11 +333,45 @@ export const calculateS10Data = async (serviceYear: number): Promise<S10Calculat
     }
 
     // 4.1 Novos publicadores não batizados:
-    // Primeiro relato no sistema cai dentro do ano de serviço selecionado
-    // E sem batismo até o primeiro relato (ou seja: baptism_date vazio OU data de batismo posterior ao primeiro relato)
-    if (activeMonthIndices.length > 0) {
+    // REGRAS:
+    // 1) CONFIRMADO: Tem pub.first_report_date preenchido e dentro do Ano de Serviço selecionado.
+    //    Sem batismo até aquela data (baptism_date vazio OU data de batismo posterior à first_report_date).
+    // 2) A CONFIRMAR (fallback): Primeiro relato comprovadamente APÓS o início do histórico lançado
+    //    no sistema (ou seja, firstActiveIdx > earliestSystemReportMonthIdx), dentro do Ano de Serviço selecionado,
+    //    E sem batismo até aquela data.
+    // Quem já publicava antes (primeiro relato no início do histórico = 09/2025 ou histórico anterior)
+    // e está SEM data na ficha NÃO conta como novo publicador não batizado. Isso elimina os falsos 15.
+    if (pub.first_report_date && isDateInServiceYear(pub.first_report_date, startYear, endYear)) {
+      const fDateOnly = pub.first_report_date.slice(0, 10)
+      let isUnbaptized = false
+      if (!pub.baptism_date) {
+        isUnbaptized = true
+      } else {
+        const bDateOnly = pub.baptism_date.slice(0, 10)
+        if (bDateOnly > fDateOnly) {
+          isUnbaptized = true
+        }
+      }
+      if (isUnbaptized) {
+        const fYear = parseInt(fDateOnly.slice(0, 4), 10)
+        const fMonth = parseInt(fDateOnly.slice(5, 7), 10)
+        newUnbaptizedPublishersList.push({
+          id: pub.id,
+          name: pub.name,
+          firstMonth: String(fMonth).padStart(2, '0'),
+          firstYear: fYear,
+          status: 'confirmado',
+          dateSource: fDateOnly,
+        })
+      }
+    } else if (!pub.first_report_date && activeMonthIndices.length > 0) {
+      // Fallback: somente se o primeiro relato for COMPROVADAMENTE após o mês inicial do sistema
       const firstActiveIdx = activeMonthIndices[0]
-      if (firstActiveIdx >= syStartIdx && firstActiveIdx <= syEndIdx) {
+      if (
+        firstActiveIdx > earliestSystemReportMonthIdx &&
+        firstActiveIdx >= syStartIdx &&
+        firstActiveIdx <= syEndIdx
+      ) {
         const firstInfo = pubMonthMap!.get(firstActiveIdx)!
         let isUnbaptizedAtFirstReport = false
         if (!pub.baptism_date) {
@@ -324,63 +390,57 @@ export const calculateS10Data = async (serviceYear: number): Promise<S10Calculat
             name: pub.name,
             firstMonth: String(firstInfo.month).padStart(2, '0'),
             firstYear: firstInfo.year,
+            status: 'a_confirmar',
           })
         }
       }
     }
 
-    // Se é removido, não calculamos inativos nem reativados
-    if (isRemoved) {
+    // Removidos e Readmitidos NÃO entram em reativados
+    if (isRemoved || isReadmittedInPeriod) {
       continue
     }
 
     // 4.2 Publicadores Reativados no ano de serviço:
-    // Pessoas que estavam inativas (6+ meses consecutivos sem relatar) e voltaram a relatar
-    // pelo menos um mês no último ano de serviço (dentro do intervalo syStartIdx .. syEndIdx).
-    // Conforme instrução oficial: "Uma mesma pessoa pode ser incluída tanto em Publicadores inativos como em Publicadores reativados".
-    if (activeMonthIndices.length > 0) {
-      for (let i = 0; i < activeMonthIndices.length; i++) {
+    // REGRAS:
+    // 1) CONFIRMADO: Tem pub.reactivation_date preenchido na ficha dentro do Ano de Serviço selecionado.
+    // 2) A CONFIRMAR (fallback): Padrão REAL de 6+ meses sem relatar seguido de retorno comprovado
+    //    no histórico dentro do período syStartIdx..syEndIdx.
+    //    IMPORTANTE: O primeiro relato no mês de corte da importação (09/2025) NÃO é reativação
+    //    (gap só conta entre dois relatos reais já presentes no histórico do sistema: gap >= 7 meses).
+    if (pub.reactivation_date && isDateInServiceYear(pub.reactivation_date, startYear, endYear)) {
+      const rDateOnly = pub.reactivation_date.slice(0, 10)
+      const rYear = parseInt(rDateOnly.slice(0, 4), 10)
+      const rMonth = parseInt(rDateOnly.slice(5, 7), 10)
+      reactivatedPublishersList.push({
+        id: pub.id,
+        name: pub.name,
+        resumedMonth: String(rMonth).padStart(2, '0'),
+        resumedYear: rYear,
+        status: 'confirmado',
+        dateSource: rDateOnly,
+      })
+    } else if (!pub.reactivation_date && activeMonthIndices.length > 0) {
+      // Fallback: verificar se há intervalo real comprovado de 6+ meses no histórico do sistema
+      // entre dois relatos ativos onde o segundo caiu dentro do ano de serviço.
+      // O primeiro relato do publicador no sistema (i = 0) NUNCA é assumido como reativação sem data na ficha.
+      for (let i = 1; i < activeMonthIndices.length; i++) {
         const currIdx = activeMonthIndices[i]
-        // O relato de retomada deve ter ocorrido dentro do ano de serviço
         if (currIdx < syStartIdx || currIdx > syEndIdx) continue
 
-        // Para ser considerado reativado, precisava estar inativo imediatamente antes desse relato ativo:
-        // Ou seja, antes de currIdx, passaram-se 6 ou mais meses sem relatar.
-        if (i === 0) {
-          // Se for o primeiro relato registrado no sistema, verificamos se ele já era publicador batizado há mais de 6 meses
-          // Se não há histórico anterior ou foi criado agora como novo não batizado, não conta como reativado
-          if (pub.baptism_date) {
-            const bDate = pub.baptism_date.slice(0, 10)
-            const bYear = parseInt(bDate.slice(0, 4), 10)
-            const bMonth = parseInt(bDate.slice(5, 7), 10)
-            if (bYear && bMonth) {
-              const bIdx = toMonthIndex(bYear, bMonth)
-              if (currIdx - bIdx >= 7) {
-                const info = pubMonthMap!.get(currIdx)!
-                reactivatedPublishersList.push({
-                  id: pub.id,
-                  name: pub.name,
-                  resumedMonth: String(info.month).padStart(2, '0'),
-                  resumedYear: info.year,
-                })
-                break
-              }
-            }
-          }
-        } else {
-          const prevIdx = activeMonthIndices[i - 1]
-          const gap = currIdx - prevIdx
-          // gap >= 7 significa pelo menos 6 meses consecutivos sem relatar
-          if (gap >= 7) {
-            const info = pubMonthMap!.get(currIdx)!
-            reactivatedPublishersList.push({
-              id: pub.id,
-              name: pub.name,
-              resumedMonth: String(info.month).padStart(2, '0'),
-              resumedYear: info.year,
-            })
-            break // Conta 1 vez por publicador no ano de serviço
-          }
+        const prevIdx = activeMonthIndices[i - 1]
+        const gap = currIdx - prevIdx
+        // gap >= 7 significa pelo menos 6 meses consecutivos sem relatar comprovados entre relatos
+        if (gap >= 7) {
+          const info = pubMonthMap!.get(currIdx)!
+          reactivatedPublishersList.push({
+            id: pub.id,
+            name: pub.name,
+            resumedMonth: String(info.month).padStart(2, '0'),
+            resumedYear: info.year,
+            status: 'a_confirmar',
+          })
+          break
         }
       }
     }

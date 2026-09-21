@@ -175,6 +175,18 @@ export default function PublisherProfile() {
                       Não Batizado
                     </Badge>
                   )}
+                  {publisher.first_report_date && (
+                    <Badge variant="outline" className="text-xs">
+                      1º Relato:{' '}
+                      {publisher.first_report_date.slice(0, 10).split('-').reverse().join('/')}
+                    </Badge>
+                  )}
+                  {publisher.reactivation_date && (
+                    <Badge variant="outline" className="text-xs">
+                      Reativação:{' '}
+                      {publisher.reactivation_date.slice(0, 10).split('-').reverse().join('/')}
+                    </Badge>
+                  )}
                 </div>
               </CardHeader>
             </Card>

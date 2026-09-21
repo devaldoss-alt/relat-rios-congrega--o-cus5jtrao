@@ -55,6 +55,12 @@ export function PublisherEditDialog({ publisher, open, onOpenChange, onSaved }: 
         is_blind: publisher.is_blind,
         is_prisoner: publisher.is_prisoner,
         readmission_date: readmissionVal,
+        first_report_date: publisher.first_report_date
+          ? publisher.first_report_date.split('T')[0]
+          : '',
+        reactivation_date: publisher.reactivation_date
+          ? publisher.reactivation_date.split('T')[0]
+          : '',
         status: publisher.status || (publisher.active ? 'Ativo' : 'Inativo (Apoio)'),
         notes: publisher.notes || '',
       })
@@ -101,6 +107,12 @@ export function PublisherEditDialog({ publisher, open, onOpenChange, onSaved }: 
             : '',
         readmission_date: formData.readmission_date
           ? `${formData.readmission_date} 12:00:00.000Z`
+          : '',
+        first_report_date: formData.first_report_date
+          ? `${formData.first_report_date} 12:00:00.000Z`
+          : '',
+        reactivation_date: formData.reactivation_date
+          ? `${formData.reactivation_date} 12:00:00.000Z`
           : '',
       }
       const updated = await updatePublisher(publisher.id, dataToSave)
@@ -267,6 +279,44 @@ export function PublisherEditDialog({ publisher, open, onOpenChange, onSaved }: 
                 <span className="text-sm">Preso</span>
               </label>
             </div>
+            {/* Campo 1: Início como publicador (data do 1º relato) */}
+            <div className="space-y-2 rounded-md border p-3 bg-muted/20">
+              <div>
+                <Label className="font-semibold text-sm">
+                  Início como publicador (data do 1º relato)
+                </Label>
+                <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                  Data em que a pessoa entregou seu primeiro relatório como publicador não batizado.
+                  Utilizado para o cálculo de Novos Publicadores Não Batizados no S-10.
+                </p>
+              </div>
+              <Input
+                type="date"
+                value={formData.first_report_date || ''}
+                onChange={(e) => handleChange('first_report_date', e.target.value)}
+              />
+            </div>
+
+            {/* Campo 2: Data de retorno aos relatos (reativação) */}
+            <div className="space-y-2 rounded-md border p-3 bg-muted/20">
+              <div>
+                <Label className="font-semibold text-sm">
+                  Data de retorno aos relatos (reativação)
+                </Label>
+                <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                  Data em que um publicador inativo retomou a entrega de relatórios de serviço de
+                  campo. <strong>Atenção:</strong> NÃO deve ser usado para readmitidos
+                  (desassociados que foram reintegrados formalmente usam o campo exclusivo abaixo).
+                </p>
+              </div>
+              <Input
+                type="date"
+                value={formData.reactivation_date || ''}
+                onChange={(e) => handleChange('reactivation_date', e.target.value)}
+              />
+            </div>
+
+            {/* Campo 3: Data de Readmissão (Formal) */}
             <div className="space-y-3 pt-2 rounded-md border p-3 bg-muted/20">
               <div>
                 <Label className="font-semibold text-sm">
